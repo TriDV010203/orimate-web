@@ -1,0 +1,203 @@
+// Component UI trang Đăng ký — được import vào app/(auth)/register/page.tsx
+// Cần "use client" vì có useState (password visibility, strength meter)
+
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { useState } from "react";
+
+export default function RegisterPage() {
+  const [showPass, setShowPass] = useState(false);
+  const [password, setPassword] = useState("");
+
+  // Tính độ mạnh mật khẩu
+  const getStrength = (pw: string): { level: number; label: string; color: string } => {
+    if (pw.length === 0) return { level: 0, label: "", color: "transparent" };
+    if (pw.length < 6) return { level: 25, label: "Quá ngắn", color: "#DC2626" };
+    if (pw.length < 8) return { level: 50, label: "Yếu", color: "#D97706" };
+    if (/[A-Z]/.test(pw) && /[0-9]/.test(pw) && pw.length >= 10) return { level: 100, label: "Rất mạnh", color: "#16A34A" };
+    if (/[A-Z]/.test(pw) || /[0-9]/.test(pw)) return { level: 75, label: "Trung bình", color: "#D4713B" };
+    return { level: 50, label: "Yếu", color: "#D97706" };
+  };
+
+  const strength = getStrength(password);
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex" }}>
+      {/* ===== LEFT PANEL — decorative ===== */}
+      <div
+        className="auth-left-panel"
+        style={{ flex: "0 0 48%", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "2.5rem" }}
+      >
+        <Image src="/origami-auth-bg.png" alt="Origami art background" fill sizes="48vw" style={{ objectFit: "cover" }} priority />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(150deg, rgba(212,113,59,0.85) 0%, rgba(45,106,79,0.75) 60%, rgba(27,67,50,0.88) 100%)" }} />
+
+        {/* Logo */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "0.625rem", textDecoration: "none" }}>
+            <div style={{ width: "2.5rem", height: "2.5rem", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.25)" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2">
+                <path d="M2 20l10-16 10 16H2z" /><path d="M12 4L6 14h12L12 4z" />
+              </svg>
+            </div>
+            <span style={{ fontFamily: "var(--font-playfair), Georgia, serif", fontWeight: 700, fontSize: "1.5rem", color: "white" }}>
+              Ori<span style={{ color: "#F4A261" }}>Gami</span>
+            </span>
+          </Link>
+        </div>
+
+        {/* Feature list */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.875rem", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1.25rem", fontWeight: 600 }}>
+            Tham gia OriGami để...
+          </p>
+          {[
+            { icon: "📚", text: "Truy cập 10.000+ bài hướng dẫn Origami" },
+            { icon: "👨‍🎨", text: "Đăng bài và trở thành Nhà sáng tạo nội dung" },
+            { icon: "❤️", text: "Like, comment, follow người bạn yêu thích" },
+            { icon: "👨‍👩‍👧‍👦", text: "Tạo dự án Origami cùng gia đình" },
+            { icon: "🏆", text: "Lưu thành tựu và nhật ký cá nhân" },
+          ].map((item) => (
+            <div key={item.text} style={{ display: "flex", alignItems: "center", gap: "0.875rem", marginBottom: "1rem" }}>
+              <div style={{ width: "2.25rem", height: "2.25rem", background: "rgba(255,255,255,0.12)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
+                {item.icon}
+              </div>
+              <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.9375rem" }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom note */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8125rem", lineHeight: 1.6 }}>
+            🔒 Miễn phí mãi mãi. Không cần thẻ tín dụng.<br />
+            Bảo mật thông tin theo tiêu chuẩn quốc tế.
+          </p>
+        </div>
+      </div>
+
+      {/* ===== RIGHT PANEL — form ===== */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", background: "var(--color-bg)", overflowY: "auto" }}>
+        <div style={{ width: "100%", maxWidth: "440px" }}>
+          <div style={{ marginBottom: "1.75rem" }}>
+            <h1 className="text-heading" style={{ fontSize: "1.625rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>
+              Tạo tài khoản mới ✨
+            </h1>
+            <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem" }}>
+              Miễn phí mãi mãi. Không cần thẻ tín dụng.
+            </p>
+          </div>
+
+          {/* Social register */}
+          <button id="btn-register-google" className="btn btn-outline" style={{ width: "100%", justifyContent: "center", borderColor: "var(--color-border-dark)", color: "var(--color-text-primary)", marginBottom: "1.25rem" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+            </svg>
+            Đăng ký với Google
+          </button>
+
+          <div className="divider" style={{ marginBottom: "1.25rem" }}>hoặc điền thông tin</div>
+
+          <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {/* Name row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+              <div className="input-group">
+                <label htmlFor="reg-firstname" className="input-label">Họ</label>
+                <input id="reg-firstname" type="text" className="input-field" placeholder="Nguyễn" />
+              </div>
+              <div className="input-group">
+                <label htmlFor="reg-lastname" className="input-label">Tên</label>
+                <input id="reg-lastname" type="text" className="input-field" placeholder="An" />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="reg-email" className="input-label">Email</label>
+              <div className="input-with-icon">
+                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <input id="reg-email" type="email" className="input-field" placeholder="your@email.com" autoComplete="email" />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="reg-username" className="input-label">Tên người dùng</label>
+              <div className="input-with-icon">
+                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                </svg>
+                <input id="reg-username" type="text" className="input-field" placeholder="origami_master" autoComplete="username" />
+              </div>
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="reg-password" className="input-label">Mật khẩu</label>
+              <div className="input-with-icon" style={{ position: "relative" }}>
+                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input
+                  id="reg-password"
+                  type={showPass ? "text" : "password"}
+                  className="input-field"
+                  placeholder="Tối thiểu 8 ký tự"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ paddingRight: "3rem" }}
+                  autoComplete="new-password"
+                />
+                <button type="button" id="toggle-password-reg" onClick={() => setShowPass(!showPass)}
+                  style={{ position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}>
+                  {showPass
+                    ? <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+                    : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                  }
+                </button>
+              </div>
+              {/* Strength meter */}
+              {password.length > 0 && (
+                <>
+                  <div className="progress-bar" style={{ marginTop: "0.375rem" }}>
+                    <div className="progress-bar-fill" style={{ width: `${strength.level}%`, background: strength.color, transition: "all 0.3s" }} />
+                  </div>
+                  <span style={{ fontSize: "0.75rem", color: strength.color, fontWeight: 500 }}>{strength.label}</span>
+                </>
+              )}
+            </div>
+
+            {/* Terms */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+              <input type="checkbox" id="reg-terms" className="checkbox-custom" style={{ marginTop: "2px" }} />
+              <label htmlFor="reg-terms" style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", cursor: "pointer", lineHeight: 1.55 }}>
+                Tôi đồng ý với{" "}
+                <Link href="/terms" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Điều khoản sử dụng</Link>
+                {" "}và{" "}
+                <Link href="/privacy" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Chính sách bảo mật</Link>
+              </label>
+            </div>
+
+            <button id="btn-register-submit" type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.875rem" }}>
+              Tạo tài khoản miễn phí
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+            Đã có tài khoản?{" "}
+            <Link href="/login" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
+              Đăng nhập
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 768px) { .auth-left-panel { display: none !important; } }
+      `}</style>
+    </div>
+  );
+}
