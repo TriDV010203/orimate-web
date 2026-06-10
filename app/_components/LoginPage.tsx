@@ -1,14 +1,56 @@
 // Component UI trang Đăng nhập — được import vào app/(auth)/login/page.tsx
-// Cần "use client" vì có useState (toggle password, tab switcher)
+// Cần "use client" vì có useState (toggle password, loading, error)
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { authApi, type ApiError } from "../../lib/api";
+import { saveSession } from "../../lib/auth";
 
 export default function LoginPage() {
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!email.trim()) {
+      setError("Vui lòng nhập email.");
+      return;
+    }
+    if (!password) {
+      setError("Vui lòng nhập mật khẩu.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await authApi.login(email.trim(), password);
+      saveSession(data, remember);
+      router.push("/");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 401 || apiErr.status === 400) {
+        setError("Email hoặc mật khẩu không đúng. Vui lòng thử lại.");
+      } else if (apiErr.status === 403) {
+        setError("Tài khoản của bạn đã bị tạm khóa.");
+      } else {
+        setError(apiErr.message ?? "Đã xảy ra lỗi. Vui lòng thử lại.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
@@ -88,15 +130,46 @@ export default function LoginPage() {
 
           <div className="divider" style={{ marginBottom: "1.5rem" }}>hoặc</div>
 
+          {/* Error banner */}
+          {error && (
+            <div style={{
+              background: "rgba(192, 57, 43, 0.08)",
+              border: "1.5px solid rgba(192, 57, 43, 0.3)",
+              borderRadius: "10px",
+              padding: "0.75rem 1rem",
+              marginBottom: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.625rem",
+              color: "var(--color-error)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {error}
+            </div>
+          )}
+
           {/* Email/password form */}
-          <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div className="input-group">
               <label htmlFor="login-email" className="input-label">Email</label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                 </svg>
-                <input id="login-email" type="email" className="input-field" placeholder="your@email.com" autoComplete="email" />
+                <input
+                  id="login-email"
+                  type="email"
+                  className="input-field"
+                  placeholder="your@email.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                />
               </div>
             </div>
 
@@ -106,7 +179,17 @@ export default function LoginPage() {
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
-                <input id="login-password" type={showPass ? "text" : "password"} className="input-field" placeholder="••••••••" autoComplete="current-password" style={{ paddingRight: "3rem" }} />
+                <input
+                  id="login-password"
+                  type={showPass ? "text" : "password"}
+                  className="input-field"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  style={{ paddingRight: "3rem" }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                />
                 <button type="button" id="toggle-password-login" onClick={() => setShowPass(!showPass)}
                   style={{ position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}>
                   {showPass
@@ -123,14 +206,34 @@ export default function LoginPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <input type="checkbox" id="remember-me" className="checkbox-custom" />
+              <input
+                type="checkbox"
+                id="remember-me"
+                className="checkbox-custom"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
               <label htmlFor="remember-me" style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                 Ghi nhớ đăng nhập
               </label>
             </div>
 
-            <button id="btn-login-submit" type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.875rem" }}>
-              Đăng nhập
+            <button
+              id="btn-login-submit"
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: "100%", justifyContent: "center", padding: "0.875rem", opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+            >
+              {loading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                    style={{ animation: "spin 0.8s linear infinite" }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Đang đăng nhập...
+                </>
+              ) : "Đăng nhập"}
             </button>
           </form>
 
@@ -145,6 +248,7 @@ export default function LoginPage() {
 
       <style>{`
         @media (max-width: 768px) { .auth-left-panel { display: none !important; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

@@ -1,15 +1,25 @@
 // Component UI trang Đăng ký — được import vào app/(auth)/register/page.tsx
-// Cần "use client" vì có useState (password visibility, strength meter)
+// Cần "use client" vì có useState (password visibility, strength meter, loading, error)
+// BE chỉ nhận { email, password } — các field Họ/Tên/Username chỉ là UI decorative
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { authApi, type ApiError } from "../../lib/api";
+import { saveSession } from "../../lib/auth";
 
 export default function RegisterPage() {
-  const [showPass, setShowPass] = useState(false);
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Tính độ mạnh mật khẩu
   const getStrength = (pw: string): { level: number; label: string; color: string } => {
@@ -22,6 +32,45 @@ export default function RegisterPage() {
   };
 
   const strength = getStrength(password);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (!email.trim()) {
+      setError("Vui lòng nhập email.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự.");
+      return;
+    }
+    if (!acceptTerms) {
+      setError("Vui lòng đồng ý với Điều khoản sử dụng để tiếp tục.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await authApi.register(email.trim(), password);
+      saveSession(data, true); // sau khi đăng ký → tự động đăng nhập, remember = true
+      router.push("/");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 400 || apiErr.status === 409) {
+        // 400: validation error, 409: email đã tồn tại
+        if (apiErr.message?.toLowerCase().includes("already")) {
+          setError("Email này đã được đăng ký. Hãy thử đăng nhập hoặc dùng email khác.");
+        } else {
+          setError(apiErr.message ?? "Thông tin không hợp lệ. Vui lòng kiểm tra lại.");
+        }
+      } else {
+        setError(apiErr.message ?? "Đã xảy ra lỗi. Vui lòng thử lại.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex" }}>
@@ -102,36 +151,45 @@ export default function RegisterPage() {
 
           <div className="divider" style={{ marginBottom: "1.25rem" }}>hoặc điền thông tin</div>
 
-          <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {/* Name row */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
-              <div className="input-group">
-                <label htmlFor="reg-firstname" className="input-label">Họ</label>
-                <input id="reg-firstname" type="text" className="input-field" placeholder="Nguyễn" />
-              </div>
-              <div className="input-group">
-                <label htmlFor="reg-lastname" className="input-label">Tên</label>
-                <input id="reg-lastname" type="text" className="input-field" placeholder="An" />
-              </div>
+          {/* Error banner */}
+          {error && (
+            <div style={{
+              background: "rgba(192, 57, 43, 0.08)",
+              border: "1.5px solid rgba(192, 57, 43, 0.3)",
+              borderRadius: "10px",
+              padding: "0.75rem 1rem",
+              marginBottom: "1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.625rem",
+              color: "var(--color-error)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {error}
             </div>
+          )}
 
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div className="input-group">
               <label htmlFor="reg-email" className="input-label">Email</label>
               <div className="input-with-icon">
                 <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                 </svg>
-                <input id="reg-email" type="email" className="input-field" placeholder="your@email.com" autoComplete="email" />
-              </div>
-            </div>
-
-            <div className="input-group">
-              <label htmlFor="reg-username" className="input-label">Tên người dùng</label>
-              <div className="input-with-icon">
-                <svg className="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                </svg>
-                <input id="reg-username" type="text" className="input-field" placeholder="origami_master" autoComplete="username" />
+                <input
+                  id="reg-email"
+                  type="email"
+                  className="input-field"
+                  placeholder="your@email.com"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                />
               </div>
             </div>
 
@@ -145,11 +203,12 @@ export default function RegisterPage() {
                   id="reg-password"
                   type={showPass ? "text" : "password"}
                   className="input-field"
-                  placeholder="Tối thiểu 8 ký tự"
+                  placeholder="Tối thiểu 6 ký tự"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{ paddingRight: "3rem" }}
                   autoComplete="new-password"
+                  disabled={loading}
                 />
                 <button type="button" id="toggle-password-reg" onClick={() => setShowPass(!showPass)}
                   style={{ position: "absolute", right: "0.875rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}>
@@ -172,7 +231,14 @@ export default function RegisterPage() {
 
             {/* Terms */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
-              <input type="checkbox" id="reg-terms" className="checkbox-custom" style={{ marginTop: "2px" }} />
+              <input
+                type="checkbox"
+                id="reg-terms"
+                className="checkbox-custom"
+                style={{ marginTop: "2px" }}
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+              />
               <label htmlFor="reg-terms" style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", cursor: "pointer", lineHeight: 1.55 }}>
                 Tôi đồng ý với{" "}
                 <Link href="/terms" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Điều khoản sử dụng</Link>
@@ -181,8 +247,22 @@ export default function RegisterPage() {
               </label>
             </div>
 
-            <button id="btn-register-submit" type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.875rem" }}>
-              Tạo tài khoản miễn phí
+            <button
+              id="btn-register-submit"
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{ width: "100%", justifyContent: "center", padding: "0.875rem", opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+            >
+              {loading ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                    style={{ animation: "spin 0.8s linear infinite" }}>
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Đang tạo tài khoản...
+                </>
+              ) : "Tạo tài khoản miễn phí"}
             </button>
           </form>
 
@@ -197,6 +277,7 @@ export default function RegisterPage() {
 
       <style>{`
         @media (max-width: 768px) { .auth-left-panel { display: none !important; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
