@@ -37,6 +37,8 @@ export default function LoginPage() {
     try {
       const data = await authApi.login(email.trim(), password);
       saveSession(data, remember);
+      // Thông báo Navbar cập nhật trạng thái đăng nhập
+      window.dispatchEvent(new Event("authChange"));
       router.push("/");
     } catch (err) {
       const apiErr = err as ApiError;

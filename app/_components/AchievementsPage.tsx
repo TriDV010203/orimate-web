@@ -144,6 +144,7 @@ export default function AchievementsPage() {
   );
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
 
   const toggleLike = (id: number) => {
     setLikedIds((prev) => {
@@ -206,7 +207,7 @@ export default function AchievementsPage() {
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
               <Link href="/profile" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Quang Minh</Link>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
-              <span style={{ color: "white" }}>Thành tựu</span>
+              <span style={{ color: "white" }}>Tành tựu</span>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
@@ -284,6 +285,35 @@ export default function AchievementsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Back to profile shortcut */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+              <Link
+                href="/profile"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  color: "rgba(255,255,255,0.75)",
+                  textDecoration: "none",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  padding: "0.5rem 1rem",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(255,255,255,0.1)",
+                  backdropFilter: "blur(8px)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  transition: "background var(--transition-fast)",
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.18)")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.1)")}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                Quay lại hồ sơ
+              </Link>
             </div>
           </div>
         </div>
@@ -478,6 +508,7 @@ export default function AchievementsPage() {
                   achievement={a}
                   isLiked={likedIds.has(a.id)}
                   onLike={() => toggleLike(a.id)}
+                  onClick={() => setSelectedAchievement(a)}
                 />
               ))}
             </div>
@@ -489,6 +520,7 @@ export default function AchievementsPage() {
                   achievement={a}
                   isLiked={likedIds.has(a.id)}
                   onLike={() => toggleLike(a.id)}
+                  onClick={() => setSelectedAchievement(a)}
                 />
               ))}
             </div>
@@ -499,6 +531,16 @@ export default function AchievementsPage() {
       {/* ── Upload Modal ── */}
       {showUploadModal && (
         <UploadAchievementModal onClose={() => setShowUploadModal(false)} />
+      )}
+
+      {/* ── Detail Modal ── */}
+      {selectedAchievement && (
+        <AchievementDetailModal
+          achievement={selectedAchievement}
+          isLiked={likedIds.has(selectedAchievement.id)}
+          onLike={() => toggleLike(selectedAchievement.id)}
+          onClose={() => setSelectedAchievement(null)}
+        />
       )}
 
       <Footer />
@@ -529,15 +571,18 @@ function AchievementCard({
   achievement: a,
   isLiked,
   onLike,
+  onClick,
 }: {
   achievement: Achievement;
   isLiked: boolean;
   onLike: () => void;
+  onClick: () => void;
 }) {
   return (
     <article
       className="card"
       style={{ overflow: "hidden", cursor: "pointer" }}
+      onClick={onClick}
     >
       {/* Image/Media area */}
       <div
@@ -703,10 +748,12 @@ function AchievementListItem({
   achievement: a,
   isLiked,
   onLike,
+  onClick,
 }: {
   achievement: Achievement;
   isLiked: boolean;
   onLike: () => void;
+  onClick: () => void;
 }) {
   return (
     <div
@@ -722,6 +769,7 @@ function AchievementListItem({
         cursor: "pointer",
         transition: "all var(--transition-normal)",
       }}
+      onClick={onClick}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)";
         (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
@@ -852,6 +900,220 @@ function AchievementListItem({
                 #{tag}
               </span>
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// CSS animations injected globally
+const detailModalStyle = typeof document !== "undefined" && !document.getElementById("achievement-modal-style")
+  ? (() => {
+      const s = document.createElement("style");
+      s.id = "achievement-modal-style";
+      s.innerHTML = "@keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }";
+      document.head.appendChild(s);
+      return s;
+    })()
+  : null;
+void detailModalStyle;
+// ── Achievement Detail Modal ──────────────────────────────────────────────────────────────
+function AchievementDetailModal({
+  achievement: a,
+  isLiked,
+  onLike,
+  onClose,
+}: {
+  achievement: Achievement;
+  isLiked: boolean;
+  onLike: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(6px)",
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background: "var(--color-surface)",
+          borderRadius: "var(--radius-xl)",
+          width: "100%",
+          maxWidth: "620px",
+          boxShadow: "var(--shadow-xl)",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          animation: "modalIn 0.2s ease",
+        }}
+      >
+        {/* Header media */}
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${a.bgColor}, ${a.bgColor}cc)`,
+            height: "220px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "6rem",
+            position: "relative",
+          }}
+        >
+          {a.emoji}
+          {/* Close button */}
+          <button
+            id="close-detail-modal"
+            onClick={onClose}
+            className="btn btn-ghost btn-sm"
+            style={{
+              position: "absolute",
+              top: "0.75rem",
+              right: "0.75rem",
+              borderRadius: "50%",
+              padding: "0.5rem",
+              background: "rgba(0,0,0,0.3)",
+              backdropFilter: "blur(4px)",
+              color: "white",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Privacy + difficulty badges */}
+          <div style={{ position: "absolute", top: "0.75rem", left: "0.75rem", display: "flex", gap: "0.375rem" }}>
+            <span
+              style={{
+                background: a.isPublic ? "rgba(22,163,74,0.9)" : "rgba(100,100,100,0.85)",
+                color: "white",
+                borderRadius: "var(--radius-full)",
+                padding: "0.2rem 0.6rem",
+                fontSize: "0.6875rem",
+                fontWeight: 600,
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              {a.isPublic ? "🌍 Công khai" : "🔒 Riêng tư"}
+            </span>
+            <span className={`badge ${a.diffClass}`}>{a.difficulty}</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: "1.75rem" }}>
+          <h2 style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-text-primary)", marginBottom: "0.5rem", lineHeight: 1.3 }}>
+            {a.title}
+          </h2>
+
+          {/* Meta */}
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1.25rem", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+            <span>🗓 {a.date}</span>
+            <span>🕐 {a.timeAgo}</span>
+          </div>
+
+          <p style={{ fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7, marginBottom: "1.25rem" }}>
+            {a.description}
+          </p>
+
+          {/* Tutorial ref */}
+          <div
+            style={{
+              background: "var(--color-surface-2)",
+              borderRadius: "var(--radius-md)",
+              padding: "0.75rem 1rem",
+              marginBottom: "1.25rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.625rem",
+              fontSize: "0.875rem",
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <span style={{ fontSize: "1.25rem" }}>📚</span>
+            <div>
+              <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.125rem" }}>Bài hướng dẫn gốc</div>
+              <Link
+                href={`/tutorials/${a.tutorial.id}`}
+                style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 700 }}
+                onClick={onClose}
+              >
+                {a.tutorial.title}
+              </Link>
+              <span style={{ color: "var(--color-text-muted)", marginLeft: "0.375rem" }}>by {a.tutorial.author}</span>
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+            {a.tags.map((tag) => (
+              <span key={tag} className="badge badge-category">#{tag}</span>
+            ))}
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: "0.75rem", paddingTop: "1rem", borderTop: "1px solid var(--color-border)" }}>
+            <button
+              id={`detail-like-${a.id}`}
+              onClick={onLike}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.375rem",
+                padding: "0.625rem 1.25rem",
+                borderRadius: "var(--radius-full)",
+                border: "2px solid",
+                borderColor: isLiked ? "#E03131" : "var(--color-border)",
+                background: isLiked ? "#FFF5F5" : "transparent",
+                color: isLiked ? "#E03131" : "var(--color-text-secondary)",
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+                transition: "all var(--transition-fast)",
+              }}
+            >
+              {isLiked ? "❤️" : "🤍"} {a.likes + (isLiked && !a.isLiked ? 1 : !isLiked && a.isLiked ? -1 : 0)}
+            </button>
+            <button
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.375rem",
+                padding: "0.625rem 1.25rem",
+                borderRadius: "var(--radius-full)",
+                border: "2px solid var(--color-border)",
+                background: "transparent",
+                color: "var(--color-text-secondary)",
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                cursor: "pointer",
+              }}
+            >
+              💬 {a.comments}
+            </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginLeft: "auto", borderRadius: "var(--radius-full)" }}
+              title="Chia sẻ"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" />
+              </svg>
+              Chia sẻ
+            </button>
           </div>
         </div>
       </div>

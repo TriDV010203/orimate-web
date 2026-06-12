@@ -16,11 +16,16 @@ export interface StoredUser {
 export function saveSession(data: AuthResponse, remember: boolean): void {
   const storage = remember ? localStorage : sessionStorage;
   storage.setItem(TOKEN_KEY, data.token);
+  // Chuẩn hóa expiresAt: .NET trả DateTime.UtcNow không có 'Z', thêm vào để parse đúng UTC
+  const rawExpiry = data.expiresAt ?? "";
+  const expiresAt = rawExpiry && !rawExpiry.endsWith("Z") && !rawExpiry.includes("+")
+    ? rawExpiry + "Z"
+    : rawExpiry;
   const user: StoredUser = {
     userId: data.userId,
     email: data.email,
-    roles: data.roles,
-    expiresAt: data.expiresAt,
+    roles: Array.isArray(data.roles) ? data.roles : [],
+    expiresAt,
   };
   storage.setItem(USER_KEY, JSON.stringify(user));
 }
@@ -54,5 +59,15 @@ export function isLoggedIn(): boolean {
   if (!token) return false;
   const user = getUser();
   if (!user) return false;
-  return new Date(user.expiresAt) > new Date();
+  // Nếu không có expiresAt → coi là hợp lệ (trust token)
+  if (!user.expiresAt) return true;
+  try {
+    // Đảm bảo parse đúng UTC: nếu chuỗi thiếu 'Z' thì thêm vào
+    const raw = user.expiresAt;
+    const iso = raw.endsWith("Z") || raw.includes("+") ? raw : raw + "Z";
+    return new Date(iso) > new Date();
+  } catch {
+    // Nếu parse lỗi → vẫn cho qua nếu có token
+    return true;
+  }
 }
