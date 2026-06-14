@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { isLoggedIn, getUser } from "../../lib/auth";
+import { isLoggedIn, getUser } from "@/lib/auth";
 
 
 // ── Mock data ──────────────────────────────────────────────────────────────

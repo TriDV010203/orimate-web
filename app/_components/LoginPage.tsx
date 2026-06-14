@@ -7,8 +7,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { authApi, type ApiError } from "../../lib/api";
-import { saveSession } from "../../lib/auth";
+import { authApi, type ApiError } from "@/lib/api";
+import { saveSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();

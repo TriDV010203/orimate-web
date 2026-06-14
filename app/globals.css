@@ -373,15 +373,25 @@ body {
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease forwards;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
-.animate-slide-left {
-  animation: slideInLeft 0.5s ease forwards;
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
-.animate-float {
-  animation: float 3s ease-in-out infinite;
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
+
+
+.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
+.animate-slide-left { animation: slideInLeft 0.5s ease forwards; }
+.animate-float { animation: float 3s ease-in-out infinite; }
 
 /* Stagger delays */
 .delay-100 {

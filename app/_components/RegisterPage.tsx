@@ -8,8 +8,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { authApi, type ApiError } from "../../lib/api";
-import { saveSession } from "../../lib/auth";
+import { authApi, type ApiError } from "@/lib/api";
+import { saveSession } from "@/lib/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const data = await authApi.register(email.trim(), password);
+      const data = await authApi.register(email.trim(), password, email.trim());
       saveSession(data, true); // sau khi đăng ký → tự động đăng nhập, remember = true
       router.push("/");
     } catch (err) {

@@ -14,6 +14,21 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  images: {
+    remotePatterns: [
+      // Backend localhost (ảnh cover tutorial, avatar)
+      { protocol: "http", hostname: "localhost", port: "5104" },
+      { protocol: "https", hostname: "localhost", port: "5104" },
+      // Cloudinary, Imgur, các hosting ảnh phổ biến
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "i.imgur.com" },
+      { protocol: "https", hostname: "**.blob.core.windows.net" },
+      { protocol: "https", hostname: "**.amazonaws.com" },
+      // Cho phép mọi https domain (development convenience)
+      { protocol: "https", hostname: "**" },
+    ],
+  },
 };
 
 export default nextConfig;
+
