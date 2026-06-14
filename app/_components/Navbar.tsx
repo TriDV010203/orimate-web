@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { isLoggedIn, getUser, clearSession, type StoredUser } from "../../lib/auth";
+import { isLoggedIn, getUser, clearSession, type StoredUser } from "@/lib/auth";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function Navbar() {

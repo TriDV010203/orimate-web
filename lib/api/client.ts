@@ -1,0 +1,57 @@
+// lib/api/client.ts — HTTP client nội bộ (shared across all API modules)
+// next.config.ts đã cấu hình rewrite: /api/* → http://localhost:5104/api/*
+// → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
+// → Không cần CORS vì browser chỉ nói chuyện với Next.js (cùng origin)
+
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+export interface ApiError {
+  message: string;
+  status: number;
+}
+
+export async function request<T>(
+  path: string,
+  options?: RequestInit & { token?: string }
+): Promise<T> {
+  const { token, ...fetchOptions } = options ?? {};
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(fetchOptions.headers as Record<string, string> ?? {}),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const fullUrl = `${BASE_URL}${path}`;
+  console.log("[api] →", fetchOptions.method ?? "GET", fullUrl);
+
+  let res: Response;
+  try {
+    res = await fetch(fullUrl, {
+      ...fetchOptions,
+      headers,
+    });
+  } catch (networkErr) {
+    console.error("[api] Network error calling", fullUrl, networkErr);
+    throw { message: "Không thể kết nối tới server. Hãy kiểm tra API có đang chạy không.", status: 0 } satisfies ApiError;
+  }
+
+  console.log("[api] ←", res.status, fullUrl);
+
+  if (!res.ok) {
+    let message = "Đã xảy ra lỗi. Vui lòng thử lại.";
+    try {
+      const body = await res.json();
+      message = body?.message ?? body?.error ?? body?.title ?? message;
+    } catch {
+      // ignore parse error
+    }
+    const err: ApiError = { message, status: res.status };
+    throw err;
+  }
+
+  return res.json() as Promise<T>;
+}

@@ -1,7 +1,7 @@
 // lib/auth.ts — Quản lý trạng thái xác thực phía client
 // Lưu JWT vào localStorage; dùng sessionStorage nếu "remember me" = false
 
-import type { AuthResponse } from "./api";
+import type { AuthResponse } from "./api/auth";
 
 const TOKEN_KEY = "origami_token";
 const USER_KEY = "origami_user";
