@@ -76,7 +76,7 @@ export default function EditProfilePage() {
             >
               <Link href="/" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Trang chủ</Link>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
-              <Link href="/profile" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Hồ sơ</Link>
+              <Link href="/ho-so" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Hồ sơ</Link>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
               <span style={{ color: "white" }}>Chỉnh sửa</span>
             </div>
@@ -332,7 +332,7 @@ export default function EditProfilePage() {
                   )}
                 </button>
                 <Link
-                  href="/profile"
+                  href="/ho-so"
                   className="btn btn-ghost"
                   style={{ flex: 1, justifyContent: "center", textAlign: "center" }}
                 >
@@ -357,7 +357,7 @@ export default function EditProfilePage() {
                 <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", marginBottom: "1rem" }}>
                   Thay đổi mật khẩu tài khoản của bạn
                 </p>
-                <Link href="/forgot-password" className="btn btn-outline btn-sm">
+                <Link href="/quen-mat-khau" className="btn btn-outline btn-sm">
                   🔑 Đổi mật khẩu
                 </Link>
               </div>

@@ -129,9 +129,9 @@ export default function Navbar() {
             }}
           >
             {[
-              { href: "/tutorials", label: "Thư viện" },
-              { href: "/community", label: "Cộng đồng" },
-              { href: "/family", label: "Gia đình" },
+              { href: "/huong-dan", label: "Thư viện" },
+              { href: "/cong-dong", label: "Cộng đồng" },
+              { href: "/gia-dinh", label: "Gia đình" },
             ].map((link) => (
               <Link
                 key={link.href}
@@ -379,25 +379,25 @@ export default function Navbar() {
                       {/* Menu items */}
                       <div style={{ padding: "0.375rem" }}>
                         <DropdownItem
-                          href="/profile"
+                          href="/ho-so"
                           icon="👤"
                           label="Trang cá nhân"
                           onClick={() => setUserDropdownOpen(false)}
                         />
                         <DropdownItem
-                          href="/profile/edit"
+                          href="/ho-so/chinh-sua"
                           icon="✏️"
                           label="Chỉnh sửa hồ sơ"
                           onClick={() => setUserDropdownOpen(false)}
                         />
                         <DropdownItem
-                          href="/profile/achievements"
+                          href="/ho-so/thanh-tich"
                           icon="🏅"
                           label="Thành tựu của tôi"
                           onClick={() => setUserDropdownOpen(false)}
                         />
                         <DropdownItem
-                          href="/tutorials/my-tutorials"
+                          href="/huong-dan/cua-toi"
                           icon="📚"
                           label="Bài hướng dẫn của tôi"
                           onClick={() => setUserDropdownOpen(false)}
@@ -472,10 +472,10 @@ export default function Navbar() {
                   <span className="notif-dot" />
                 </button>
 
-                <Link href="/login" className="btn btn-ghost btn-sm">
+                <Link href="/dang-nhap" className="btn btn-ghost btn-sm">
                   Đăng nhập
                 </Link>
-                <Link href="/register" className="btn btn-primary btn-sm">
+                <Link href="/dang-ky" className="btn btn-primary btn-sm">
                   Đăng ký
                 </Link>
               </>

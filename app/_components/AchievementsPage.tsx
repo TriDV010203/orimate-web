@@ -205,7 +205,7 @@ export default function AchievementsPage() {
             >
               <Link href="/" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Trang chủ</Link>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
-              <Link href="/profile" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Quang Minh</Link>
+              <Link href="/ho-so" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none" }}>Quang Minh</Link>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>›</span>
               <span style={{ color: "white" }}>Tành tựu</span>
             </div>
@@ -290,7 +290,7 @@ export default function AchievementsPage() {
             {/* Back to profile shortcut */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
               <Link
-                href="/profile"
+                href="/ho-so"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -664,7 +664,7 @@ function AchievementCard({
         >
           <span>📚</span>
           <Link
-            href={`/tutorials/${a.tutorial.id}`}
+            href={`/huong-dan/${a.tutorial.id}`}
             style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -886,7 +886,7 @@ function AchievementListItem({
           <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
             📚{" "}
             <Link
-              href={`/tutorials/${a.tutorial.id}`}
+              href={`/huong-dan/${a.tutorial.id}`}
               style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -1044,7 +1044,7 @@ function AchievementDetailModal({
             <div>
               <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginBottom: "0.125rem" }}>Bài hướng dẫn gốc</div>
               <Link
-                href={`/tutorials/${a.tutorial.id}`}
+                href={`/huong-dan/${a.tutorial.id}`}
                 style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 700 }}
                 onClick={onClose}
               >

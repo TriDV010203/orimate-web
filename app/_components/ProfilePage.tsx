@@ -355,7 +355,7 @@ export default function ProfilePage() {
                       </button>
                       <Link
                         id="profile-achievements-btn"
-                        href="/profile/achievements"
+                        href="/ho-so/thanh-tich"
                         className="btn btn-outline btn-sm"
                         style={{ minWidth: "110px", justifyContent: "center" }}
                       >
@@ -553,7 +553,7 @@ export default function ProfilePage() {
                           <span>📋 {t.steps} bước</span>
                         </div>
                         <Link
-                          href={`/tutorials/${t.id}`}
+                          href={`/huong-dan/${t.id}`}
                           className="btn btn-primary btn-sm"
                           style={{ width: "100%", justifyContent: "center" }}
                         >
@@ -607,7 +607,7 @@ export default function ProfilePage() {
                       Chia sẻ hành trình Origami của bạn với cộng đồng
                     </div>
                   </div>
-                  <Link href="/profile/achievements" className="btn btn-accent btn-sm">
+                  <Link href="/ho-so/thanh-tich" className="btn btn-accent btn-sm">
                     Xem tất cả thành tựu
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                   </Link>
@@ -620,7 +620,7 @@ export default function ProfilePage() {
                   {ACHIEVEMENTS_PREVIEW.map((a) => (
                     <Link
                       key={a.id}
-                      href="/profile/achievements"
+                      href="/ho-so/thanh-tich"
                       style={{ textDecoration: "none", display: "block" }}
                     >
                     <div className="card" style={{ cursor: "pointer", overflow: "hidden", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}

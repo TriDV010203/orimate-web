@@ -201,7 +201,7 @@ export default function LoginPage() {
                 </button>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <Link href="/forgot-password" style={{ fontSize: "0.8125rem", color: "var(--color-primary)", textDecoration: "none", fontWeight: 500 }}>
+                <Link href="/quen-mat-khau" style={{ fontSize: "0.8125rem", color: "var(--color-primary)", textDecoration: "none", fontWeight: 500 }}>
                   Quên mật khẩu?
                 </Link>
               </div>
@@ -241,7 +241,7 @@ export default function LoginPage() {
 
           <p style={{ textAlign: "center", marginTop: "1.5rem", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
             Chưa có tài khoản?{" "}
-            <Link href="/register" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
+            <Link href="/dang-ky" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
               Đăng ký miễn phí
             </Link>
           </p>

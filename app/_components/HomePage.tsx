@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import AdBanner from "./AdBanner";
 
 const TUTORIALS = [
   { id: 1, title: "Hạc giấy truyền thống", difficulty: "Dễ", diffClass: "badge-easy", type: "Miễn phí", typeClass: "badge-free", steps: 8, views: "2.4K", likes: 312, author: "Minh Châu", emoji: "🦢", color: "#E8F5E8" },
@@ -61,11 +62,11 @@ export default function HomePage() {
                   Tham gia cộng đồng hơn <strong>50.000 người</strong> yêu thích Origami. Học từ hàng nghìn bài hướng dẫn, chia sẻ thành quả và kết nối với các nhà sáng tạo tài năng.
                 </p>
                 <div style={{ display: "flex", gap: "0.875rem", flexWrap: "wrap" }}>
-                  <Link href="/register" className="btn btn-primary btn-lg">
+                  <Link href="/dang-ky" className="btn btn-primary btn-lg">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     Bắt đầu miễn phí
                   </Link>
-                  <Link href="/tutorials" className="btn btn-outline btn-lg">
+                  <Link href="/huong-dan" className="btn btn-outline btn-lg">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                     Xem hướng dẫn
                   </Link>
@@ -104,6 +105,22 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ===== AD SLOT 1: LEADERBOARD — sau Hero ===== */}
+        {/* Vị trí: Banner ngang 728×90 nằm ngay dưới hero, trước thư viện tutorial */}
+        {/* Kích thước chuẩn IAB Leaderboard. Thay bằng script AdSense khi go-live. */}
+        <div
+          style={{
+            padding: "1.25rem 0",
+            background: "var(--color-surface-2)",
+            borderTop: "1px solid var(--color-border)",
+            borderBottom: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="container">
+            <AdBanner size="leaderboard" slotId="ad-leaderboard-hero" />
+          </div>
+        </div>
+
         {/* ===== TUTORIALS SECTION ===== */}
         <section style={{ padding: "4rem 0", background: "var(--color-bg)" }}>
           <div className="container">
@@ -113,7 +130,7 @@ export default function HomePage() {
                 <h2 className="section-title">Thư viện Origami</h2>
                 <p className="section-subtitle">Hàng nghìn bài hướng dẫn từ cơ bản đến nâng cao</p>
               </div>
-              <Link href="/tutorials" className="btn btn-outline btn-sm">
+              <Link href="/huong-dan" className="btn btn-outline btn-sm">
                 Xem tất cả
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </Link>
@@ -154,12 +171,38 @@ export default function HomePage() {
                       <span>❤️ {t.likes}</span>
                       <span>📋 {t.steps} bước</span>
                     </div>
-                    <Link href={`/tutorials/${t.id}`} className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
+                    <Link href={`/huong-dan/${t.id}`} className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
                       Xem ngay
                     </Link>
                   </div>
                 </article>
               ))}
+            </div>
+
+            {/* ===== AD SLOT 2: RECTANGLE — trong tutorial grid, sau hàng đầu ===== */}
+            {/* Vị trí: Inline wide banner 300×250 nằm ngay dưới lưới tutorial */}
+            {/* Có thể chuyển thành native ad hoặc sponsored content sau này */}
+            <div
+              style={{
+                marginTop: "1.5rem",
+                padding: "1.25rem",
+                background: "var(--color-surface-2)",
+                borderRadius: "var(--radius-xl)",
+                border: "1px solid var(--color-border)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "1rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
+                <span style={{ fontSize: "1.25rem" }}>📢</span>
+                <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Được tài trợ</span>
+              </div>
+              <div style={{ flex: 1, minWidth: "200px" }}>
+                <AdBanner size="inline-wide" slotId="ad-inline-tutorials" />
+              </div>
             </div>
           </div>
         </section>
@@ -189,12 +232,30 @@ export default function HomePage() {
                 </div>
               ))}
             </div>
-            <Link href="/register" className="btn btn-accent btn-lg">
+            <Link href="/dang-ky" className="btn btn-accent btn-lg">
               Tham gia ngay — Miễn phí
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
           </div>
         </section>
+
+        {/* ===== AD SLOT 3: BILLBOARD — giữa Community và Featured Creators ===== */}
+        {/* Vị trí chiến lược: người dùng vừa đọc xong section cộng đồng, trước khi tiếp tục cuộn */}
+        {/* Billboard 970×250 — CTR cao nhất theo nghiên cứu IAB */}
+        <div
+          style={{
+            padding: "2rem 0",
+            background: "var(--color-bg)",
+          }}
+        >
+          <div className="container">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", opacity: 0.5 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /></svg>
+              <span style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)" }}>Quảng cáo</span>
+            </div>
+            <AdBanner size="billboard" slotId="ad-billboard-mid" />
+          </div>
+        </div>
 
         {/* ===== FEATURED CREATORS ===== */}
         <section style={{ padding: "4rem 0", background: "var(--color-surface-2)" }}>
@@ -244,7 +305,7 @@ export default function HomePage() {
                   <p style={{ color: "rgba(255,255,255,0.8)", marginBottom: "1.5rem", fontSize: "1rem" }}>
                     Lưu những bài hướng dẫn yêu thích vào Wishlist cá nhân
                   </p>
-                  <Link href="/register" className="btn" style={{ background: "white", color: "var(--color-primary-dark)", fontWeight: 700 }}>
+                  <Link href="/dang-ky" className="btn" style={{ background: "white", color: "var(--color-primary-dark)", fontWeight: 700 }}>
                     Tạo tài khoản miễn phí
                   </Link>
                 </div>
@@ -252,6 +313,24 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* ===== AD SLOT 4: LEADERBOARD BOTTOM — trước Footer ===== */}
+        {/* Vị trí: cuối trang, người dùng vừa xem xong toàn bộ nội dung */}
+        {/* Phù hợp với retargeting ads hoặc newsletter signup ads */}
+        <div
+          style={{
+            padding: "2rem 0 1.5rem",
+            background: "var(--color-surface-2)",
+            borderTop: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="container" style={{ textAlign: "center" }}>
+            <div style={{ marginBottom: "0.5rem", opacity: 0.45 }}>
+              <span style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)" }}>Quảng cáo</span>
+            </div>
+            <AdBanner size="leaderboard" slotId="ad-leaderboard-bottom" />
+          </div>
+        </div>
       </main>
       <Footer />
     </>

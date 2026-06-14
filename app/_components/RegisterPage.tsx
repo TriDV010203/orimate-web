@@ -241,9 +241,9 @@ export default function RegisterPage() {
               />
               <label htmlFor="reg-terms" style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", cursor: "pointer", lineHeight: 1.55 }}>
                 Tôi đồng ý với{" "}
-                <Link href="/terms" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Điều khoản sử dụng</Link>
+                <Link href="/dieu-khoan" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Điều khoản sử dụng</Link>
                 {" "}và{" "}
-                <Link href="/privacy" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Chính sách bảo mật</Link>
+                <Link href="/chinh-sach-bao-mat" style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>Chính sách bảo mật</Link>
               </label>
             </div>
 
@@ -268,7 +268,7 @@ export default function RegisterPage() {
 
           <p style={{ textAlign: "center", marginTop: "1.25rem", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
             Đã có tài khoản?{" "}
-            <Link href="/login" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
+            <Link href="/dang-nhap" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>
               Đăng nhập
             </Link>
           </p>
