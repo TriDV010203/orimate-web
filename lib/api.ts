@@ -21,30 +21,84 @@ export interface ApiError {
   status: number;
 }
 
+// ── Tutorial types (matches BE DTOs) ─────────────────────────────────────────
+export interface AuthorDto {
+  id: string;
+  displayName: string;
+  avatarUrl?: string | null;
+}
+
+export interface TutorialStepDto {
+  id: string;
+  stepOrder: number;
+  title: string;
+  content: string;
+  mediaUrl?: string | null;
+}
+
+export interface TutorialListItemDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  coverImageUrl?: string | null;
+  type: string;         // "Free" | "VIP"
+  difficulty?: string | null;
+  categoryId: number;
+  categoryName: string;
+  author: AuthorDto;
+  stepCount: number;
+  publishedAt: string;
+}
+
+export interface TutorialDetailDto {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  coverImageUrl?: string | null;
+  type: string;
+  difficulty?: string | null;
+  categoryId: number;
+  categoryName: string;
+  author: AuthorDto;
+  steps: TutorialStepDto[];
+  publishedAt: string;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ── Achievement types (matches BE DTOs) ──────────────────────────────────────
 export interface AchievementDto {
-  achievementId: string;
+  id: string;
   userId: string;
-  tutorialId?: string | null;
-  title: string;
-  description?: string | null;
-  mediaUrl?: string | null;
-  completedAt: string;
+  tutorialId: string;
+  tutorialTitle: string;
+  tutorialSlug: string;
+  photoUrl?: string | null;
+  note?: string | null;
   isPublic: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 export interface CreateAchievementRequest {
-  tutorialId?: string | null;
-  title: string;
-  description?: string | null;
-  mediaUrl?: string | null;
-  isPublic: boolean;
+  tutorialId: string;
+  photoUrl?: string | null;
+  note?: string | null;
+  isPublic?: boolean;
 }
 
 export interface UpdateAchievementRequest {
-  title?: string;
-  description?: string | null;
-  isPublic?: boolean;
+  photoUrl?: string | null;
+  note?: string | null;
+  isPublic: boolean;
 }
 
 export interface PaginatedResult<T> {
@@ -118,6 +172,35 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ email, password, displayName }),
     });
+  },
+};
+
+// ===== TUTORIALS =====
+
+export const tutorialsApi = {
+  /** GET /api/tutorials — Danh sách tutorial đã publish (public) */
+  getList(params?: {
+    search?: string;
+    categoryId?: number;
+    difficulty?: string;
+    type?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PagedResult<TutorialListItemDto>> {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.categoryId) q.set("categoryId", String(params.categoryId));
+    if (params?.difficulty) q.set("difficulty", params.difficulty);
+    if (params?.type) q.set("type", params.type);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<PagedResult<TutorialListItemDto>>(`/api/tutorials${qs}`);
+  },
+
+  /** GET /api/tutorials/{slug} — Chi tiết tutorial theo slug (public) */
+  getBySlug(slug: string): Promise<TutorialDetailDto> {
+    return request<TutorialDetailDto>(`/api/tutorials/${slug}`);
   },
 };
 

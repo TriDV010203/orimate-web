@@ -1,22 +1,13 @@
+"use client";
 // Component chính của trang chủ — được import vào app/page.tsx
-// Đây là Server Component (không cần "use client")
 
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AdBanner from "./AdBanner";
-
-const TUTORIALS = [
-  { id: 1, title: "Hạc giấy truyền thống", difficulty: "Dễ", diffClass: "badge-easy", type: "Miễn phí", typeClass: "badge-free", steps: 8, views: "2.4K", likes: 312, author: "Minh Châu", emoji: "🦢", color: "#E8F5E8" },
-  { id: 2, title: "Hoa sen nghệ thuật", difficulty: "Trung bình", diffClass: "badge-medium", type: "Miễn phí", typeClass: "badge-free", steps: 15, views: "1.8K", likes: 241, author: "Thu Hương", emoji: "🌸", color: "#FFF0F5" },
-  { id: 3, title: "Rồng Origami 3D", difficulty: "Khó", diffClass: "badge-hard", type: "VIP", typeClass: "badge-vip", steps: 28, views: "5.2K", likes: 876, author: "Quang Minh", emoji: "🐉", color: "#F0F0FF" },
-  { id: 4, title: "Bướm mùa xuân", difficulty: "Dễ", diffClass: "badge-easy", type: "Miễn phí", typeClass: "badge-free", steps: 6, views: "987", likes: 154, author: "Lan Anh", emoji: "🦋", color: "#FFFBF0" },
-  { id: 5, title: "Cá koi may mắn", difficulty: "Trung bình", diffClass: "badge-medium", type: "Miễn phí", typeClass: "badge-free", steps: 12, views: "3.1K", likes: 428, author: "Đức Tuấn", emoji: "🐟", color: "#F0F8FF" },
-  { id: 6, title: "Ngôi sao 5 cánh", difficulty: "Dễ", diffClass: "badge-easy", type: "Miễn phí", typeClass: "badge-free", steps: 5, views: "1.2K", likes: 198, author: "Thảo Linh", emoji: "⭐", color: "#FFFDF0" },
-  { id: 7, title: "Phượng hoàng huyền thoại", difficulty: "Khó", diffClass: "badge-hard", type: "VIP", typeClass: "badge-vip", steps: 30, views: "8.7K", likes: 1203, author: "Hoàng Nam", emoji: "🦅", color: "#FFF5F0" },
-  { id: 8, title: "Gấu trúc dễ thương", difficulty: "Trung bình", diffClass: "badge-medium", type: "Miễn phí", typeClass: "badge-free", steps: 14, views: "2.9K", likes: 367, author: "Mai Chi", emoji: "🐼", color: "#F5F5F5" },
-];
+import { useEffect, useState } from "react";
+import { tutorialsApi, type TutorialListItemDto } from "@/lib/api";
 
 const CREATORS = [
   { name: "Quang Minh", tutorials: 48, followers: "12.4K", color: "#2D6A4F", initial: "QM", tag: "Origami Nâng cao" },
@@ -32,9 +23,77 @@ const STATS = [
   { num: "4.9★", label: "Đánh giá" },
 ];
 
-const CATEGORIES = ["Tất cả", "Động vật", "Hoa & Lá", "Đồ chơi", "Trang trí", "Lễ hội", "Origami trẻ em"];
+// Emoji placeholder khi không có ảnh cover
+const DIFFICULTY_EMOJIS: Record<string, string> = {
+  "Dễ": "⭐",
+  "Trung bình": "🌟",
+  "Khó": "💫",
+  "Easy": "⭐",
+  "Medium": "🌟",
+  "Hard": "💫",
+};
+const FALLBACK_EMOJIS = ["🦢", "🌸", "🐉", "🦋", "🐟", "⭐", "🦅", "🐼", "🎋", "🏮"];
+const FALLBACK_COLORS = [
+  "#E8F5E8", "#FFF0F5", "#F0F0FF", "#FFFBF0",
+  "#F0F8FF", "#FFFDF0", "#FFF5F0", "#F5F5F5",
+  "#E8F4FD", "#FDF2F8",
+];
+
+function getDiffClass(difficulty?: string | null) {
+  if (!difficulty) return "badge-easy";
+  const d = difficulty.toLowerCase();
+  if (d === "dễ" || d === "easy") return "badge-easy";
+  if (d === "trung bình" || d === "medium") return "badge-medium";
+  if (d === "khó" || d === "hard") return "badge-hard";
+  return "badge-easy";
+}
+
+function getTypeClass(type: string) {
+  return type?.toLowerCase() === "vip" ? "badge-vip" : "badge-free";
+}
+
+function getTypeLabel(type: string) {
+  return type?.toLowerCase() === "vip" ? "VIP" : "Miễn phí";
+}
+
+function getDiffLabel(difficulty?: string | null) {
+  if (!difficulty) return "Dễ";
+  const d = difficulty.toLowerCase();
+  if (d === "easy") return "Dễ";
+  if (d === "medium") return "Trung bình";
+  if (d === "hard") return "Khó";
+  return difficulty;
+}
+
+// Skeleton card khi đang load
+function SkeletonCard() {
+  return (
+    <article className="card tutorial-card" style={{ cursor: "default" }}>
+      <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", animation: "pulse 1.5s infinite" }} />
+      <div style={{ padding: "1rem" }}>
+        <div style={{ height: "1rem", background: "var(--color-surface-2)", borderRadius: "4px", marginBottom: "0.625rem", animation: "pulse 1.5s infinite" }} />
+        <div style={{ height: "0.75rem", background: "var(--color-surface-2)", borderRadius: "4px", width: "60%", marginBottom: "0.75rem", animation: "pulse 1.5s infinite" }} />
+        <div style={{ height: "2rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-sm)", animation: "pulse 1.5s infinite" }} />
+      </div>
+    </article>
+  );
+}
 
 export default function HomePage() {
+  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<string>("Tất cả");
+
+  useEffect(() => {
+    tutorialsApi.getList({ pageSize: 8 })
+      .then((res) => setTutorials(res.items))
+      .catch(() => setTutorials([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Hiển thị tối đa 8 cards (có thể mở rộng sau)
+  const displayTutorials = tutorials.slice(0, 8);
+
   return (
     <>
       <Navbar />
@@ -93,7 +152,9 @@ export default function HomePage() {
                   <div style={{ width: "2.5rem", height: "2.5rem", background: "var(--gradient-primary)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>🏆</div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)" }}>Bài hot nhất tuần</div>
-                    <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>Rồng Origami 3D · 8.7K lượt xem</div>
+                    <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+                      {tutorials[0] ? `${tutorials[0].title} · ${tutorials[0].stepCount} bước` : "Đang tải..."}
+                    </div>
                   </div>
                 </div>
                 <div style={{ position: "absolute", top: "1.25rem", right: "-1rem", background: "white", borderRadius: "var(--radius-lg)", padding: "0.75rem 1rem", boxShadow: "var(--shadow-lg)", border: "1px solid var(--color-border)" }}>
@@ -136,10 +197,15 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Filter chips */}
+            {/* Filter chips — hiển thị theo difficulty */}
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
-              {CATEGORIES.map((cat, i) => (
-                <button key={cat} className={`filter-chip${i === 0 ? " active" : ""}`} id={`filter-${cat}`}>
+              {["Tất cả", "Dễ", "Trung bình", "Khó", "Miễn phí", "VIP"].map((cat) => (
+                <button
+                  key={cat}
+                  className={`filter-chip${activeFilter === cat ? " active" : ""}`}
+                  id={`filter-${cat}`}
+                  onClick={() => setActiveFilter(cat)}
+                >
                   {cat}
                 </button>
               ))}
@@ -147,36 +213,62 @@ export default function HomePage() {
 
             {/* Cards grid */}
             <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.25rem" }}>
-              {TUTORIALS.map((t) => (
-                <article key={t.id} className="card tutorial-card" style={{ cursor: "pointer" }}>
-                  <div style={{ position: "relative", overflow: "hidden", aspectRatio: "4/3", background: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem" }}>
-                    {t.emoji}
-                    <div style={{ position: "absolute", top: "0.625rem", left: "0.625rem", display: "flex", gap: "0.375rem" }}>
-                      <span className={`badge ${t.diffClass}`}>{t.difficulty}</span>
-                    </div>
-                    <div style={{ position: "absolute", top: "0.625rem", right: "0.625rem" }}>
-                      <span className={`badge ${t.typeClass}`}>{t.type}</span>
-                    </div>
-                  </div>
-                  <div style={{ padding: "1rem" }}>
-                    <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.625rem", color: "var(--color-text-primary)", lineHeight: 1.3 }}>{t.title}</h3>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-                      <div style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0 }}>
-                        {t.author.split(" ").map((n) => n[0]).slice(-2).join("")}
+              {loading
+                ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                : (displayTutorials.length === 0
+                    ? (
+                      <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
+                        <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
+                        <p>Chưa có bài hướng dẫn nào. Hãy quay lại sau!</p>
                       </div>
-                      <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--color-text-muted)", fontSize: "0.8125rem", marginBottom: "0.875rem" }}>
-                      <span>👁 {t.views}</span>
-                      <span>❤️ {t.likes}</span>
-                      <span>📋 {t.steps} bước</span>
-                    </div>
-                    <Link href={`/huong-dan/${t.id}`} className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
-                      Xem ngay
-                    </Link>
-                  </div>
-                </article>
-              ))}
+                    )
+                    : displayTutorials.map((t, idx) => {
+                        const emoji = DIFFICULTY_EMOJIS[t.difficulty ?? ""] ?? FALLBACK_EMOJIS[idx % FALLBACK_EMOJIS.length];
+                        const bgColor = FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
+                        const initials = t.author.displayName.split(" ").map((n) => n[0]).slice(-2).join("").toUpperCase();
+                        return (
+                          <article key={t.id} className="card tutorial-card" style={{ cursor: "pointer" }}>
+                            {/* Thumbnail */}
+                            <div style={{ position: "relative", overflow: "hidden", aspectRatio: "4/3", background: bgColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem" }}>
+                              {t.coverImageUrl ? (
+                                <Image
+                                  src={t.coverImageUrl}
+                                  alt={t.title}
+                                  fill
+                                  sizes="(max-width: 768px) 100vw, 25vw"
+                                  style={{ objectFit: "cover" }}
+                                />
+                              ) : (
+                                <span>{emoji}</span>
+                              )}
+                              <div style={{ position: "absolute", top: "0.625rem", left: "0.625rem", display: "flex", gap: "0.375rem" }}>
+                                <span className={`badge ${getDiffClass(t.difficulty)}`}>{getDiffLabel(t.difficulty)}</span>
+                              </div>
+                              <div style={{ position: "absolute", top: "0.625rem", right: "0.625rem" }}>
+                                <span className={`badge ${getTypeClass(t.type)}`}>{getTypeLabel(t.type)}</span>
+                              </div>
+                            </div>
+                            <div style={{ padding: "1rem" }}>
+                              <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.625rem", color: "var(--color-text-primary)", lineHeight: 1.3 }}>{t.title}</h3>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                                <div style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0 }}>
+                                  {initials}
+                                </div>
+                                <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author.displayName}</span>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--color-text-muted)", fontSize: "0.8125rem", marginBottom: "0.875rem" }}>
+                                <span>🗂 {t.categoryName}</span>
+                                <span>📋 {t.stepCount} bước</span>
+                              </div>
+                              <Link href={`/huong-dan/${t.slug}`} className="btn btn-primary btn-sm" style={{ width: "100%", justifyContent: "center" }}>
+                                Xem ngay
+                              </Link>
+                            </div>
+                          </article>
+                        );
+                      })
+                  )
+              }
             </div>
 
             {/* ===== AD SLOT 2: RECTANGLE — trong tutorial grid, sau hàng đầu ===== */}

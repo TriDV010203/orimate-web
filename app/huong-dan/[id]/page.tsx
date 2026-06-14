@@ -1,22 +1,29 @@
-// app/huong-dan/[id]/page.tsx — Route động: /huong-dan/1, /huong-dan/2, ...
-// Next.js App Router: [id] là dynamic segment
+// app/huong-dan/[id]/page.tsx — Route động: /huong-dan/[slug]
+// Next.js App Router: [id] là dynamic segment (dùng slug của tutorial)
 // Toàn bộ UI được tách sang _components/TutorialDetailPage.tsx
 
 import type { Metadata } from "next";
 import TutorialDetailPage from "../../_components/TutorialDetailPage";
 
-// SEO metadata cho trang chi tiết hướng dẫn
-export const metadata: Metadata = {
-  title: "Hạc giấy truyền thống | OriGami",
-  description:
-    "Học cách gấp hạc giấy truyền thống Nhật Bản chỉ với 8 bước đơn giản. Phù hợp cho người mới bắt đầu. Miễn phí hoàn toàn.",
-  openGraph: {
-    title: "Hạc giấy truyền thống — Origami 8 bước dễ làm",
-    description: "Gấp hạc giấy biểu tượng may mắn của Nhật Bản. Hướng dẫn chi tiết từng bước.",
-    type: "article",
-  },
-};
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function Page() {
-  return <TutorialDetailPage />;
+// SEO metadata động cho trang chi tiết hướng dẫn
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  return {
+    title: `Hướng dẫn gấp giấy | OriGami`,
+    description: `Xem hướng dẫn gấp giấy Origami chi tiết từng bước tại OriGami. Slug: ${id}`,
+    openGraph: {
+      title: `Hướng dẫn Origami — OriGami`,
+      description: "Học nghệ thuật gấp giấy Origami qua các bước hướng dẫn chi tiết.",
+      type: "article",
+    },
+  };
+}
+
+export default async function Page({ params }: PageProps) {
+  const { id } = await params;
+  return <TutorialDetailPage slug={id} />;
 }
