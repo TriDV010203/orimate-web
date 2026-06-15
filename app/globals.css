@@ -373,15 +373,25 @@ body {
   }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease forwards;
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
-.animate-slide-left {
-  animation: slideInLeft 0.5s ease forwards;
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
-.animate-float {
-  animation: float 3s ease-in-out infinite;
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
+
+
+.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
+.animate-slide-left { animation: slideInLeft 0.5s ease forwards; }
+.animate-float { animation: float 3s ease-in-out infinite; }
 
 /* Stagger delays */
 .delay-100 {
@@ -732,5 +742,68 @@ body {
   }
   .creators-grid {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* ===== PROFILE PAGE ===== */
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+}
+
+@media (max-width: 900px) {
+  .profile-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (max-width: 600px) {
+  .profile-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ===== ACHIEVEMENTS PAGE ===== */
+.achievements-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.875rem;
+}
+
+@media (max-width: 1100px) {
+  .achievements-badge-grid { grid-template-columns: repeat(6, 1fr) !important; }
+}
+
+@media (max-width: 768px) {
+  .achievements-badge-grid { grid-template-columns: repeat(4, 1fr) !important; }
+}
+
+@media (max-width: 480px) {
+  .achievements-badge-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+/* Achievement stats mini bar responsive */
+@media (max-width: 768px) {
+  .achievement-stats-bar {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .achievement-stats-bar {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Achievement grid responsive */
+@media (max-width: 900px) {
+  .achievements-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+@media (max-width: 580px) {
+  .achievements-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ===== PROFILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .profile-header-actions {
+    width: 100%;
+    justify-content: flex-start !important;
   }
 }

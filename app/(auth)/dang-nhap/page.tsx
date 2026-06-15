@@ -1,4 +1,4 @@
-// app/(auth)/login/page.tsx — Route trang đăng nhập (/login)
+// app/(auth)/dang-nhap/page.tsx — Route trang đăng nhập (/dang-nhap)
 // Next.js App Router yêu cầu file này tên là page.tsx
 // Toàn bộ UI được tách sang _components/LoginPage.tsx
 

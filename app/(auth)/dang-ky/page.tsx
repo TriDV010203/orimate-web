@@ -1,4 +1,4 @@
-// app/(auth)/register/page.tsx — Route trang đăng ký (/register)
+// app/(auth)/dang-ky/page.tsx — Route trang đăng ký (/dang-ky)
 // Next.js App Router yêu cầu file này tên là page.tsx
 // Toàn bộ UI được tách sang _components/RegisterPage.tsx
 
