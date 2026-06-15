@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent">("idle");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -34,10 +36,11 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    setUnverifiedEmail(null);
+    setResendStatus("idle");
     try {
       const data = await authApi.login(email.trim(), password);
       saveSession(data, remember);
-      // Thông báo Navbar cập nhật trạng thái đăng nhập
       window.dispatchEvent(new Event("authChange"));
       router.push("/");
     } catch (err) {
@@ -45,12 +48,29 @@ export default function LoginPage() {
       if (apiErr.status === 401 || apiErr.status === 400) {
         setError("Email hoặc mật khẩu không đúng. Vui lòng thử lại.");
       } else if (apiErr.status === 403) {
-        setError("Tài khoản của bạn đã bị tạm khóa.");
+        const msg = apiErr.message?.toLowerCase() ?? "";
+        if (msg.includes("verify")) {
+          setUnverifiedEmail(email.trim());
+          setError("Email của bạn chưa được xác minh. Vui lòng kiểm tra hộp thư và nhấn link xác minh.");
+        } else {
+          setError("Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ hỗ trợ.");
+        }
       } else {
         setError(apiErr.message ?? "Đã xảy ra lỗi. Vui lòng thử lại.");
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!unverifiedEmail || resendStatus === "sending") return;
+    setResendStatus("sending");
+    try {
+      await authApi.resendVerification(unverifiedEmail);
+      setResendStatus("sent");
+    } catch {
+      setResendStatus("idle");
     }
   }
 
@@ -134,23 +154,47 @@ export default function LoginPage() {
 
           {/* Error banner */}
           {error && (
-            <div style={{
-              background: "rgba(192, 57, 43, 0.08)",
-              border: "1.5px solid rgba(192, 57, 43, 0.3)",
-              borderRadius: "10px",
-              padding: "0.75rem 1rem",
-              marginBottom: "1rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.625rem",
-              color: "var(--color-error)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              {error}
+            <div style={{ marginBottom: "1rem" }}>
+              <div style={{
+                background: "rgba(192, 57, 43, 0.08)",
+                border: "1.5px solid rgba(192, 57, 43, 0.3)",
+                borderRadius: "10px",
+                padding: "0.75rem 1rem",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "0.625rem",
+                color: "var(--color-error)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ flexShrink: 0, marginTop: "1px" }}>
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{error}</span>
+              </div>
+              {unverifiedEmail && resendStatus !== "sent" && (
+                <button
+                  id="btn-resend-verification"
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendStatus === "sending"}
+                  style={{ marginTop: "0.625rem", width: "100%", background: "none", border: "1.5px solid var(--color-border-dark)", borderRadius: "8px", padding: "0.5rem 1rem", fontSize: "0.8125rem", color: "var(--color-text-secondary)", cursor: resendStatus === "sending" ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.375rem", opacity: resendStatus === "sending" ? 0.7 : 1 }}
+                >
+                  {resendStatus === "sending" ? (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: "spin 0.8s linear infinite" }}>
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      Đang gửi...
+                    </>
+                  ) : "Gửi lại email xác minh"}
+                </button>
+              )}
+              {resendStatus === "sent" && (
+                <p style={{ marginTop: "0.5rem", fontSize: "0.8125rem", color: "var(--color-success)", textAlign: "center" }}>
+                  Email xác minh đã được gửi lại. Vui lòng kiểm tra hộp thư.
+                </p>
+              )}
             </div>
           )}
 

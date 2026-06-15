@@ -3,7 +3,7 @@
 
 export type { ApiError } from "./client";
 
-export type { AuthResponse } from "./auth";
+export type { AuthResponse, MessageResponse } from "./auth";
 export { authApi } from "./auth";
 
 export type {

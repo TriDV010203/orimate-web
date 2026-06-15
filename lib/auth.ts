@@ -5,6 +5,7 @@ import type { AuthResponse } from "./api/auth";
 
 const TOKEN_KEY = "origami_token";
 const USER_KEY = "origami_user";
+const REFRESH_KEY = "origami_refresh_token";
 
 export interface StoredUser {
   userId: string;
@@ -16,6 +17,10 @@ export interface StoredUser {
 export function saveSession(data: AuthResponse, remember: boolean): void {
   const storage = remember ? localStorage : sessionStorage;
   storage.setItem(TOKEN_KEY, data.token);
+  if (data.refreshToken) {
+    // Refresh token luôn lưu localStorage để tồn tại qua session
+    localStorage.setItem(REFRESH_KEY, data.refreshToken);
+  }
   // Chuẩn hóa expiresAt: .NET trả DateTime.UtcNow không có 'Z', thêm vào để parse đúng UTC
   const rawExpiry = data.expiresAt ?? "";
   const expiresAt = rawExpiry && !rawExpiry.endsWith("Z") && !rawExpiry.includes("+")
@@ -35,6 +40,11 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
 }
 
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_KEY);
+}
+
 export function getUser(): StoredUser | null {
   if (typeof window === "undefined") return null;
   const raw =
@@ -51,6 +61,7 @@ export function clearSession(): void {
   [localStorage, sessionStorage].forEach((s) => {
     s.removeItem(TOKEN_KEY);
     s.removeItem(USER_KEY);
+    s.removeItem(REFRESH_KEY);
   });
 }
 

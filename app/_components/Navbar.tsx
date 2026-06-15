@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { isLoggedIn, getUser, clearSession, type StoredUser } from "@/lib/auth";
+import { isLoggedIn, getUser, getToken, clearSession, type StoredUser } from "@/lib/auth";
+import { authApi } from "@/lib/api";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function Navbar() {
@@ -45,7 +46,16 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
+    const token = getToken();
+    // Gọi API logout để vô hiệu hoá refresh token trên server (best-effort)
+    if (token) {
+      try {
+        await authApi.logout(token);
+      } catch {
+        // Tiếp tục logout local dù server có lỗi
+      }
+    }
     clearSession();
     setLoggedIn(false);
     setUser(null);
@@ -400,6 +410,12 @@ export default function Navbar() {
                           href="/huong-dan/cua-toi"
                           icon="📚"
                           label="Bài hướng dẫn của tôi"
+                          onClick={() => setUserDropdownOpen(false)}
+                        />
+                        <DropdownItem
+                          href="/ho-so/doi-mat-khau"
+                          icon="🔑"
+                          label="Đổi mật khẩu"
                           onClick={() => setUserDropdownOpen(false)}
                         />
                         <div
