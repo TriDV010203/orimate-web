@@ -35,6 +35,7 @@ export interface PaginatedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 // ── Achievements API ──────────────────────────────────────────────────────────

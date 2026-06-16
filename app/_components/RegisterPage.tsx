@@ -7,19 +7,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { authApi, type ApiError } from "@/lib/api";
-import { saveSession } from "@/lib/auth";
 
 export default function RegisterPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
 
   // Tính độ mạnh mật khẩu
   const getStrength = (pw: string): { level: number; label: string; color: string } => {
@@ -52,9 +49,8 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const data = await authApi.register(email.trim(), password, email.trim());
-      saveSession(data, true); // sau khi đăng ký → tự động đăng nhập, remember = true
-      router.push("/");
+      await authApi.register(email.trim(), password, email.trim());
+      setRegistered(true);
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.status === 400 || apiErr.status === 409) {
@@ -129,6 +125,36 @@ export default function RegisterPage() {
       {/* ===== RIGHT PANEL — form ===== */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", background: "var(--color-bg)", overflowY: "auto" }}>
         <div style={{ width: "100%", maxWidth: "440px" }}>
+
+          {/* ── Pending email verification ── */}
+          {registered ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: "4.5rem", height: "4.5rem", borderRadius: "50%", background: "rgba(22,163,74,0.1)", border: "2px solid rgba(22,163,74,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5">
+                  <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </div>
+              <h1 className="text-heading" style={{ fontSize: "1.625rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>
+                Đăng ký thành công!
+              </h1>
+              <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem", lineHeight: 1.65, marginBottom: "2rem" }}>
+                Chúng tôi đã gửi email xác minh đến{" "}
+                <strong style={{ color: "var(--color-text-primary)" }}>{email}</strong>.{" "}
+                Vui lòng kiểm tra hộp thư (bao gồm thư mục <strong>Spam</strong>) và nhấn link để kích hoạt tài khoản.
+              </p>
+              <div style={{ background: "rgba(45,106,79,0.06)", border: "1.5px solid rgba(45,106,79,0.18)", borderRadius: "12px", padding: "1rem 1.25rem", marginBottom: "1.5rem", textAlign: "left" }}>
+                <p style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)", lineHeight: 1.6, margin: 0 }}>
+                  💡 Link xác minh có hiệu lực trong <strong>24 giờ</strong>. Nếu hết hạn, bạn có thể{" "}
+                  <a href="/xac-minh-email" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>yêu cầu gửi lại</a>.
+                </p>
+              </div>
+              <a href="/dang-nhap" style={{ display: "block", textAlign: "center", fontSize: "0.875rem", color: "var(--color-text-muted)", textDecoration: "none" }}>
+                Quay lại{" "}
+                <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Đăng nhập</span>
+              </a>
+            </div>
+          ) : (
+          <>
           <div style={{ marginBottom: "1.75rem" }}>
             <h1 className="text-heading" style={{ fontSize: "1.625rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>
               Tạo tài khoản mới ✨
@@ -272,6 +298,8 @@ export default function RegisterPage() {
               Đăng nhập
             </Link>
           </p>
+          </>
+          )}
         </div>
       </div>
 
