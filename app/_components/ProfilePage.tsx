@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { isLoggedIn, getUser } from "@/lib/auth";
+import { isLoggedIn, getToken } from "@/lib/auth";
+import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
 
 
 // ── Mock data ──────────────────────────────────────────────────────────────
@@ -48,11 +49,10 @@ const TUTORIALS = [
   { id: 6, title: "Cá koi đơn giản", emoji: "🐟", color: "#F0F8FF", difficulty: "Dễ", diffClass: "badge-easy", type: "Miễn phí", typeClass: "badge-free", views: "1.8K", likes: 241, steps: 10 },
 ];
 
-const ACHIEVEMENTS_PREVIEW = [
-  { id: 1, title: "Rồng 3D hoàn thành!", emoji: "🐉", date: "12/06/2025", likes: 234, comments: 18, isPublic: true },
-  { id: 2, title: "Thành công với Phượng Hoàng", emoji: "🦅", date: "05/05/2025", likes: 189, comments: 12, isPublic: true },
-  { id: 3, title: "Bộ sưu tập hạc 1000 con", emoji: "🦢", date: "20/04/2025", likes: 512, comments: 43, isPublic: true },
-];
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
 
 const TABS = ["Bài hướng dẫn", "Thành tựu", "Cộng đồng"] as const;
 type Tab = (typeof TABS)[number];
@@ -84,6 +84,8 @@ export default function ProfilePage() {
     website: USER.website,
     avatarColor: USER.avatarColor,
   });
+  const [achievementsPreview, setAchievementsPreview] = useState<AchievementDto[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,6 +100,17 @@ export default function ProfilePage() {
       window.removeEventListener("storage", refreshAuth);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "Thành tựu") return;
+    const tok = getToken();
+    if (!tok) return;
+    setAchievementsLoading(true);
+    achievementsApi.getMine(tok, 1, 3)
+      .then((r) => setAchievementsPreview(r.items))
+      .catch(() => {})
+      .finally(() => setAchievementsLoading(false));
+  }, [activeTab]);
 
   // Close modal on Escape
   useEffect(() => {
@@ -614,85 +627,78 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Recent achievements grid */}
-                <div
-                  style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}
-                >
-                  {ACHIEVEMENTS_PREVIEW.map((a) => (
-                    <Link
-                      key={a.id}
-                      href="/ho-so/thanh-tich"
-                      style={{ textDecoration: "none", display: "block" }}
-                    >
-                    <div className="card" style={{ cursor: "pointer", overflow: "hidden", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)";
-                      }}
-                    >
-                      {/* Photo placeholder */}
-                      <div
-                        style={{
-                          aspectRatio: "4/3",
-                          background: "linear-gradient(135deg, #F0F7F4 0%, #E8F5E8 100%)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "4rem",
-                          position: "relative",
-                        }}
-                      >
-                        {a.emoji}
+                {achievementsLoading ? (
+                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
+                    <div style={{ display: "inline-block", width: "2rem", height: "2rem", border: "3px solid var(--color-border)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                  </div>
+                ) : achievementsPreview.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted)", background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--color-border)" }}>
+                    <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏅</div>
+                    <p style={{ fontSize: "0.875rem" }}>Chưa có thành tựu nào. Hãy thêm thành tựu đầu tiên!</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                    {achievementsPreview.map((a) => (
+                      <Link key={a.id} href="/ho-so/thanh-tich" style={{ textDecoration: "none", display: "block" }}>
                         <div
-                          style={{
-                            position: "absolute",
-                            top: "0.625rem",
-                            right: "0.625rem",
-                            background: a.isPublic ? "#DCFCE7" : "#F5F5F0",
-                            color: a.isPublic ? "#16A34A" : "#888",
-                            borderRadius: "var(--radius-full)",
-                            padding: "0.2rem 0.5rem",
-                            fontSize: "0.6875rem",
-                            fontWeight: 600,
+                          className="card"
+                          style={{ cursor: "pointer", overflow: "hidden", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                            (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                            (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)";
                           }}
                         >
-                          {a.isPublic ? "🌍 Công khai" : "🔒 Riêng tư"}
-                        </div>
-                      </div>
-                      <div style={{ padding: "0.875rem" }}>
-                        <h3
-                          style={{
-                            fontWeight: 700,
-                            fontSize: "0.9rem",
-                            marginBottom: "0.5rem",
-                            color: "var(--color-text-primary)",
-                          }}
-                        >
-                          {a.title}
-                        </h3>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            color: "var(--color-text-muted)",
-                            fontSize: "0.8125rem",
-                          }}
-                        >
-                          <span>📅 {a.date}</span>
-                          <div style={{ display: "flex", gap: "0.75rem" }}>
-                            <span>❤️ {a.likes}</span>
-                            <span>💬 {a.comments}</span>
+                          <div
+                            style={{
+                              aspectRatio: "4/3",
+                              background: a.photoUrl ? "var(--color-surface-2)" : "linear-gradient(135deg, #F0F7F4 0%, #E8F5E8 100%)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "4rem",
+                              position: "relative",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {a.photoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={a.photoUrl} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              "🏅"
+                            )}
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "0.625rem",
+                                right: "0.625rem",
+                                background: a.isPublic ? "#DCFCE7" : "#F5F5F0",
+                                color: a.isPublic ? "#16A34A" : "#888",
+                                borderRadius: "var(--radius-full)",
+                                padding: "0.2rem 0.5rem",
+                                fontSize: "0.6875rem",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {a.isPublic ? "🌍 Công khai" : "🔒 Riêng tư"}
+                            </div>
+                          </div>
+                          <div style={{ padding: "0.875rem" }}>
+                            <h3 style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.5rem", color: "var(--color-text-primary)" }}>
+                              {a.tutorialTitle}
+                            </h3>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
+                              <span>📅 {formatDate(a.createdAt)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                    </Link>
-                  ))}
-                </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1018,6 +1024,7 @@ export default function ProfilePage() {
           to   { opacity: 1; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(12px); } to { opacity:1; transform:scale(1) translateY(0); } }
       `}</style>
     </>
   );
