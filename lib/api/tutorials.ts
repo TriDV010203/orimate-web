@@ -80,7 +80,17 @@ export const tutorialsApi = {
   },
 
   /** GET /api/tutorials/{slug} — Chi tiết tutorial theo slug (public) */
-  getBySlug(slug: string): Promise<TutorialDetailDto> {
-    return request<TutorialDetailDto>(`/api/tutorials/${slug}`);
+  async getBySlug(slug: string): Promise<TutorialDetailDto> {
+    const raw = await request<any>(`/api/tutorials/${slug}`);
+    return {
+      ...raw,
+      steps: (raw.steps || []).map((s: any) => ({
+        id: s.id,
+        stepOrder: s.stepOrder,
+        title: `Bước ${s.stepOrder}`,
+        content: s.description || "",
+        mediaUrl: s.imageUrl || null,
+      })),
+    };
   },
 };

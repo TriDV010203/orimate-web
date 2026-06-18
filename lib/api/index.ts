@@ -22,3 +22,12 @@ export type {
   PaginatedResult,
 } from "./achievements";
 export { achievementsApi } from "./achievements";
+
+export type {
+  BlockedWordResponse,
+  AdminUserResponse,
+  PendingReportDto,
+  TutorialReviewItemResponse,
+  CategoryResponse,
+} from "./admin";
+export { adminApi } from "./admin";

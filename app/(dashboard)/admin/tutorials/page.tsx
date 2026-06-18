@@ -1,267 +1,168 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminApi, ApiError } from "@/lib/api";
+import { Check, X, ExternalLink, Loader2, PartyPopper } from "lucide-react";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
+import toast from "react-hot-toast";
 
-export default function AdminTutorialsPage() {
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [searchTerm, setSearchTerm] = useState("");
+export default function TutorialsQueuePage() {
+  const qc = useQueryClient();
 
-  const tutorialsData = [
-    {
-      id: "T-1004",
-      title: "Hướng dẫn gấp Chim Hạc giấy truyền thống Nhật Bản",
-      category: "Động vật",
-      author: "ichigo_fold",
-      status: "published",
-      views: "4.2K",
-    },
-    {
-      id: "T-1003",
-      title: "Mô hình siêu rồng Kusudama phức tạp",
-      category: "Nâng cao",
-      author: "orimaster_99",
-      status: "pending",
-      views: "0",
-    },
-    {
-      id: "T-1002",
-      title: "Cách gấp máy bay phản lực bay cực xa",
-      category: "Đồ chơi",
-      author: "tuan_tu",
-      status: "published",
-      views: "18.5K",
-    },
-    {
-      id: "T-1001",
-      title: "Thuyền buồm hai cánh buồm cơ bản",
-      category: "Cơ bản",
-      author: "hoa_giay",
-      status: "hidden",
-      views: "341",
-    },
-  ];
-
-  const filteredData = tutorialsData.filter((item) => {
-    const matchStatus = filterStatus === "all" || item.status === filterStatus;
-    const keyword = searchTerm.trim().toLowerCase();
-    return (
-      matchStatus &&
-      (item.id.toLowerCase().includes(keyword) ||
-        item.title.toLowerCase().includes(keyword) ||
-        item.author.toLowerCase().includes(keyword) ||
-        item.category.toLowerCase().includes(keyword))
-    );
+  // Fetch danh sách chờ duyệt
+  const { data: queueData, isLoading } = useQuery({
+    queryKey: ["admin-tutorials-queue"],
+    queryFn: () => adminApi.getContributorQueue(),
   });
 
+  const queue = queueData?.items || [];
+
+  // Mutation: Xuất bản
+  const publishMut = useMutation({
+    mutationFn: (id: string) => adminApi.publishTutorial(id),
+    onSuccess: () => {
+      toast.success("Đã xuất bản bài viết thành công!");
+      qc.invalidateQueries({ queryKey: ["admin-tutorials-queue"] });
+    },
+    onError: (error: unknown) => {
+      const err = error as ApiError;
+      toast.error(err.message || "Lỗi xuất bản bài viết");
+    },
+  });
+
+  // Mutation: Từ chối / Yêu cầu sửa
+  const rejectMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminApi.contributorRequestRevision(id, reason),
+    onSuccess: () => {
+      toast.success("Đã gửi yêu cầu chỉnh sửa đến tác giả.");
+      qc.invalidateQueries({ queryKey: ["admin-tutorials-queue"] });
+    },
+    onError: (error: unknown) => {
+      const err = error as ApiError;
+      toast.error(err.message || "Lỗi thao tác");
+    },
+  });
+
+  const handleReject = (id: string) => {
+    const reason = prompt("Nhập lý do từ chối (tối thiểu 10 ký tự):");
+    if (!reason || reason.length < 10) {
+      if (reason !== null) toast.error("Lý do quá ngắn hoặc không hợp lệ!");
+      return;
+    }
+    rejectMut.mutate({ id, reason });
+  };
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div></div>
-        <button className="btn btn-primary">Thêm bài viết mới</button>
-      </div>
-
-      {/* KHU VỰC BỘ LỌC (FILTER BAR) */}
-      <div
-        className="card p-4 flex flex-col sm:flex-row justify-between gap-3 items-center"
-        style={{ backgroundColor: "var(--color-surface)" }}
-      >
-        <div className="search-bar w-full sm:max-w-sm">
-          <svg
-            className="search-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Tìm theo tiêu đề, mã số, tác giả..."
-            style={{ borderRadius: "var(--radius-md)" }}
-          />
+    <div className="space-y-8 animate-fade-in">
+      {/* KHỐI HEADER */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
+        <div className="relative z-10">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
+            Duyệt bài Hướng dẫn
+          </h1>
+          <br/>
         </div>
-
-        <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-end">
-          <span
-            className="text-[11px] font-bold uppercase tracking-wider"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Trạng thái:
-          </span>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="input-field py-1.5 px-3"
-            style={{
-              width: "140px",
-              borderRadius: "var(--radius-md)",
-              fontSize: "0.875rem",
-            }}
-          >
-            <option value="all">Tất cả</option>
-            <option value="published">Đã duyệt</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="hidden">Bị ẩn</option>
-          </select>
-        </div>
-      </div>
-
-      {/* BẢNG DỮ LIỆU ĐỒ ÁN (DATATABLE UI) */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table
-            className="w-full text-left border-collapse"
-            style={{ fontSize: "0.875rem" }}
-          >
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: "var(--color-surface-2)",
-                  color: "var(--color-text-secondary)",
-                  borderBottom: "1px solid var(--color-border)",
-                }}
-              >
-                <th className="p-4 font-semibold">Mã số</th>
-                <th className="p-4 font-semibold w-[40%]">Tiêu đề bài viết</th>
-                <th className="p-4 font-semibold">Danh mục</th>
-                <th className="p-4 font-semibold">Tác giả</th>
-                <th className="p-4 font-semibold">Trạng thái</th>
-                <th className="p-4 font-semibold">Lượt xem</th>
-                <th className="p-4 font-semibold text-center">Thao tác</th>
-              </tr>
-            </thead>
-
-            <tbody
-              className="divide-y"
-              style={{ borderColor: "var(--color-border)" }}
-            >
-              {filteredData.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="p-10 text-center"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    Không tìm thấy bài viết nào phù hợp với bộ lọc
-                  </td>
-                </tr>
-              ) : (
-                filteredData.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="transition-colors"
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        "rgba(45, 106, 79, 0.02)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "transparent")
-                    }
-                  >
-                    <td
-                      className="p-4 font-mono text-xs font-bold"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {item.id}
-                    </td>
-                    <td
-                      className="p-4 font-semibold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {item.title}
-                    </td>
-                    <td className="p-4">
-                      <span className="badge badge-category">
-                        {item.category}
-                      </span>
-                    </td>
-                    <td
-                      className="p-4"
-                      style={{
-                        color: "var(--color-primary-light)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      @{item.author}
-                    </td>
-                    <td className="p-4">
-                      {item.status === "published" && (
-                        <span className="badge badge-free">Đã duyệt</span>
-                      )}
-                      {item.status === "pending" && (
-                        <span className="badge badge-medium">Chờ duyệt</span>
-                      )}
-                      {item.status === "hidden" && (
-                        <span
-                          className="badge"
-                          style={{
-                            backgroundColor: "var(--color-surface-2)",
-                            color: "var(--color-text-muted)",
-                          }}
-                        >
-                          Bị ẩn
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 font-medium">{item.views}</td>
-                    <td className="p-4">
-                      <div className="flex justify-center gap-1">
-                        <button
-                          className="p-1.5 rounded-lg text-sm hover:bg-slate-200/60"
-                          title="Chỉnh sửa nghiệp vụ"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg text-sm hover:bg-slate-200/60"
-                          title="Ẩn hiển thị"
-                        >
-                          👁️
-                        </button>
-                        <button
-                          className="p-1.5 rounded-lg text-sm hover:bg-rose-50 text-rose-600"
-                          title="Xóa vĩnh viễn dữ liệu"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* PHÂN TRANG (PAGINATION) */}
-        <div
-          className="flex justify-between items-center p-4 border-t"
-          style={{
-            backgroundColor: "var(--color-surface-2)",
-            borderColor: "var(--color-border)",
-            color: "var(--color-text-secondary)",
-            fontSize: "0.8125rem",
-          }}
-        >
-          <span>
-            Hiển thị <strong>{filteredData.length}</strong> trên tổng số{" "}
-            <strong>{tutorialsData.length}</strong> bài viết
-          </span>
-          <div className="flex gap-1.5">
-            <button
-              disabled
-              className="filter-chip py-1 px-3 opacity-40 cursor-not-allowed"
-            >
-              Trước
-            </button>
-            <button className="filter-chip active py-1 px-3">1</button>
-            <button className="filter-chip py-1 px-3">Tiếp</button>
+        <div className="relative z-10 bg-amber-50 border border-amber-200 text-amber-700 px-5 py-3 rounded-xl flex items-center gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+              Bài chờ duyệt
+            </span>
+            <span className="text-2xl font-extrabold leading-none">{queue.length}</span>
           </div>
         </div>
+      </div>
+
+      {/* DANH SÁCH BÀI VIẾT */}
+      <div className="flex flex-col gap-4">
+        {isLoading ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-16 text-center">
+            <Loader2
+              className="animate-spin mx-auto text-emerald-500 mb-4"
+              size={32}
+            />
+            <p className="text-slate-500 font-medium">
+              Đang nạp dữ liệu từ hệ thống...
+            </p>
+          </div>
+        ) : queue.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-20 text-center">
+            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <PartyPopper className="text-slate-400" size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">
+              Tuyệt vời, không có hàng chờ!
+            </h3>
+            <p className="text-slate-500 text-sm">
+              Hiện không có bài hướng dẫn nào cần phê duyệt. Bạn có thể nghỉ ngơi.
+            </p>
+          </div>
+        ) : (
+          queue.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between md:items-center gap-6 hover:border-emerald-200 hover:shadow-md transition-all group"
+            >
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700">
+                    Đang chờ duyệt
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+                    🕒 {format(new Date(item.createdAt), "HH:mm dd/MM/yyyy", {
+                      locale: vi,
+                    })}
+                  </span>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
+                  {item.title}
+                  <a
+                    href={`/huong-dan/${item.slug}?preview=true`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                    title="Xem trước nội dung"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Tác giả:{" "}
+                  <span className="font-semibold text-slate-700">
+                    {item.authorName}
+                  </span>{" "}
+                  <span className="mx-2 text-slate-300">|</span> Quy mô:{" "}
+                  <span className="font-semibold text-slate-700">
+                    {item.stepCount} bước
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-100 md:border-t-0 md:pt-0">
+                <button
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-red-200 text-red-600 font-medium text-sm hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50"
+                  onClick={() => handleReject(item.id)}
+                  disabled={rejectMut.isPending || publishMut.isPending}
+                >
+                  <X size={16} /> Sửa
+                </button>
+                <button
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm shadow-sm transition-all disabled:opacity-50"
+                  onClick={() => publishMut.mutate(item.id)}
+                  disabled={rejectMut.isPending || publishMut.isPending}
+                >
+                  {publishMut.isPending && publishMut.variables === item.id ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Check size={16} />
+                  )}
+                  Xuất bản
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
