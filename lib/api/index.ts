@@ -22,3 +22,10 @@ export type {
   PaginatedResult,
 } from "./achievements";
 export { achievementsApi } from "./achievements";
+
+export type {
+  CreatorProfileDto,
+  UpdateProfileRequest,
+  ToggleFollowResponse,
+} from "./users";
+export { usersApi } from "./users";
