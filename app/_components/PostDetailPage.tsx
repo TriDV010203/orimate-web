@@ -1,259 +1,364 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { getToken, isLoggedIn } from "@/lib/auth";
+import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
+import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
 
-const POST = {
-  id: "post-3",
-  author: "Hoàng Nam",
-  authorColor: "#2C7DA0",
-  username: "@hoangnam.origami3d",
-  time: "1 ngày trước",
-  fullDate: "21/06/2026 09:30",
-  content: `Bộ sưu tập 1000 con hạc giấy của tôi sau 6 tháng kiên trì! 🦢✨
+const AVATAR_COLORS = ["#2D6A4F","#D4713B","#2C7DA0","#9B59B6","#E03131","#F59F00","#16A34A","#7C3AED"];
+function avatarColor(id: string) {
+  let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function timeAgo(iso: string) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "vừa xong";
+  if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
+  if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
+  return `${Math.floor(s / 86400)} ngày trước`;
+}
 
-Mỗi con hạc mang một ước nguyện. Theo truyền thuyết Nhật Bản (Senbazuru - Thiên Hạc), ai gấp được 1000 con hạc giấy sẽ được thần linh ban cho một điều ước.
-
-Tôi bắt đầu dự án này vào tháng 12/2025 với mục tiêu rèn luyện kiên nhẫn và tập trung. Mỗi ngày gấp khoảng 5-6 con, kết hợp với thiền định buổi sáng.
-
-Vật liệu tôi dùng:
-• Giấy washi Nhật Bản (15×15cm) nhiều màu sắc
-• Chỉ buộc bằng len tơ tằm
-• Khung gỗ tùy chỉnh để trưng bày
-
-Cảm ơn cộng đồng OriGami đã đồng hành và ủng hộ tôi trong suốt hành trình này! 🙏`,
-  image: "🦢",
-  imageColor: "#E8F5E8",
-  likes: 512,
-  comments: 93,
-  shares: 47,
-  saves: 128,
-  tags: ["#1000HạcGiấy", "#Senbazuru", "#Origami", "#KiênTrì"],
-  tutorialRef: { title: "Hạc giấy nghệ thuật", id: "hac-giay-nghe-thuat" },
-  isLiked: false,
-};
-
-const COMMENTS = [
-  { id: 1, author: "Thu Hương", color: "#D4713B", username: "@thunguyen.craft", time: "23 giờ trước", text: "Wow! 1000 con hạc thật sự ấn tượng! Bạn có thể chia sẻ cách tổ chức thời gian gấp giấy mỗi ngày không? Mình cũng muốn thử nhưng hay bỏ cuộc giữa chừng 😅", likes: 34, isLiked: false },
-  { id: 2, author: "Quang Minh", color: "#2D6A4F", username: "@quangminh_origami", time: "20 giờ trước", text: "Tuyệt vời! Khung gỗ trưng bày rất đẹp. Bạn mua ở đâu hay tự làm vậy? Mình cũng muốn trưng bày tác phẩm như thế này!", likes: 28, isLiked: true },
-  { id: 3, author: "Lan Anh", color: "#9B59B6", username: "@lananh.papercraft", time: "18 giờ trước", text: "Mình ngưỡng mộ sự kiên nhẫn của bạn quá! 6 tháng, mỗi ngày đều gấp — đó là tinh thần Origami thực sự ❤️", likes: 67, isLiked: false },
-  { id: 4, author: "Minh Tâm", color: "#E03131", username: "@minhtam.fold", time: "15 giờ trước", text: "Dự án đầy cảm hứng! Bạn có thể cho biết điều ước của bạn là gì không? 🙏 (nếu không tiết lộ thì ước nguyện sẽ không thành haha)", likes: 89, isLiked: false },
-  { id: 5, author: "Bảo Châu", color: "#F59F00", username: "@baochau.origami", time: "8 giờ trước", text: "Tôi cũng đang trong hành trình 1000 hạc! Hiện được 347 con rồi, mỗi lần nhìn bài của bạn lại có thêm động lực tiếp tục 💪", likes: 45, isLiked: false },
-];
-
-const RELATED_POSTS = [
-  { id: "post-1", title: "Vừa hoàn thành con rồng Origami 3D...", author: "Quang Minh", color: "#2D6A4F", emoji: "🐉", emojiColor: "#F0F0FF" },
-  { id: "post-2", title: "Workshop gấp hoa sen cho các em nhỏ...", author: "Thu Hương", color: "#D4713B", emoji: "🌸", emojiColor: "#FFF0F5" },
-];
-
-function CommentItem({ comment }: { comment: typeof COMMENTS[0] }) {
-  const [liked, setLiked] = useState(comment.isLiked);
-  const [likeCount, setLikeCount] = useState(comment.likes);
+function Avatar({ userId, profile, size = 40 }: { userId: string; profile?: CreatorProfileDto | null; size?: number }) {
+  const initials = profile?.displayName
+    ? profile.displayName.split(" ").slice(-1)[0][0]?.toUpperCase()
+    : userId.slice(0, 1).toUpperCase();
+  const color = avatarColor(userId);
   return (
-    <div style={{ display: "flex", gap: "0.875rem" }}>
-      <div style={{ width: "2.25rem", height: "2.25rem", borderRadius: "50%", background: comment.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", fontWeight: 700, color: "white", flexShrink: 0, marginTop: "0.125rem" }}>
-        {comment.author.charAt(0)}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", padding: "0.875rem 1rem", marginBottom: "0.375rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.375rem" }}>
-            <Link href={`/kenh/${comment.username.replace("@", "")}`} style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-text-primary)", textDecoration: "none" }}>{comment.author}</Link>
-            <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{comment.username}</span>
-          </div>
-          <p style={{ fontSize: "0.9rem", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>{comment.text}</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", paddingLeft: "0.25rem" }}>
-          <button onClick={() => { setLiked((v) => !v); setLikeCount((c) => liked ? c - 1 : c + 1); }}
-            style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.8125rem", color: liked ? "var(--color-error)" : "var(--color-text-muted)", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.25rem" }}>
-            {liked ? "❤️" : "🤍"} {likeCount}
-          </button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 600 }}>Trả lời</button>
-          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{comment.time}</span>
-        </div>
-      </div>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: profile?.avatarUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
+      {profile?.avatarUrl
+        ? <img src={profile.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        : initials}
     </div>
   );
 }
 
-export default function PostDetailPage() {
-  const [liked, setLiked] = useState(POST.isLiked);
-  const [likeCount, setLikeCount] = useState(POST.likes);
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(COMMENTS);
+// ── Comment Item ──────────────────────────────────────────────────────────────
+function CommentItem({
+  comment, profile, currentUserId, token, onDelete,
+}: {
+  comment: CommentDto;
+  profile?: CreatorProfileDto | null;
+  currentUserId: string | null;
+  token: string | null;
+  onDelete: (id: string) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const name = profile?.displayName ?? `#${comment.authorId.slice(0, 6).toUpperCase()}`;
+  const isOwn = currentUserId === comment.authorId;
 
-  function handleAddComment() {
-    if (!comment.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      author: "Bạn",
-      color: "#2D6A4F",
-      username: "@you",
-      time: "Vừa xong",
-      text: comment.trim(),
-      likes: 0,
-      isLiked: false,
-    };
-    setComments((prev) => [...prev, newComment]);
-    setComment("");
+  async function handleDelete() {
+    if (!token) return;
+    setDeleting(true);
+    try { await communityPostsApi.deleteComment(token, comment.id); onDelete(comment.id); }
+    catch { setDeleting(false); }
   }
+
+  return (
+    <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", padding: "0.875rem 0", borderBottom: "1px solid var(--color-border)" }}>
+      <Avatar userId={comment.authorId} profile={profile} size={36} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
+          <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-text-primary)" }}>{name}</span>
+          {profile?.roles?.includes("Creator") && (
+            <span style={{ fontSize: "0.65rem", background: "linear-gradient(135deg,#D4713B,#e8955f)", color: "white", padding: "0.1rem 0.35rem", borderRadius: "99px", fontWeight: 700 }}>Creator</span>
+          )}
+          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{timeAgo(comment.createdAt)}</span>
+        </div>
+        <p style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{comment.content}</p>
+      </div>
+      {isOwn && (
+        <button onClick={handleDelete} disabled={deleting}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.8rem", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", opacity: deleting ? 0.5 : 1 }}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--color-error)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
+          {deleting ? "..." : "Xóa"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+export default function PostDetailPage() {
+  const params = useParams();
+  const postId = params?.id as string;
+
+  const [token, setToken] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const [post, setPost] = useState<CommunityPostDto | null>(null);
+  const [postProfile, setPostProfile] = useState<CreatorProfileDto | null>(null);
+  const [loadingPost, setLoadingPost] = useState(true);
+  const [postError, setPostError] = useState<string | null>(null);
+
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [liking, setLiking] = useState(false);
+
+  const [comments, setComments] = useState<CommentDto[]>([]);
+  const [commentProfiles, setCommentProfiles] = useState<Map<string, CreatorProfileDto>>(new Map());
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Decode JWT to get userId
+  function decodeUserId(tok: string | null): string | null {
+    if (!tok) return null;
+    try {
+      const payload = JSON.parse(atob(tok.split(".")[1]));
+      return payload["sub"] || payload["nameid"] || payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || null;
+    } catch { return null; }
+  }
+
+  useEffect(() => {
+    const t = getToken();
+    setToken(t); setLoggedIn(isLoggedIn());
+    setCurrentUserId(decodeUserId(t));
+  }, []);
+
+  // Load post
+  useEffect(() => {
+    if (!postId) return;
+    setLoadingPost(true);
+    communityPostsApi.getFeed({ page: 1, pageSize: 1 }, token ?? undefined)
+      .then(() => {
+        // We fetch feed and filter — since there's no GET /api/community-posts/{id} endpoint,
+        // we get the first page of feed and try to find the post.
+        // For robustness, we also try a bigger page.
+      })
+      .catch(() => {});
+
+    // Actually: load via feed filtering is unreliable. Instead, we fetch a wide feed
+    // and find the post, or show an error. We'll do a broad fetch.
+    communityPostsApi.getFeed({ page: 1, pageSize: 100 }, token ?? undefined)
+      .then(result => {
+        const found = result.items.find(p => p.id === postId);
+        if (!found) { setPostError("Không tìm thấy bài viết."); return; }
+        setPost(found);
+        setLiked(found.isLikedByCurrentUser);
+        setLikeCount(found.likeCount);
+        // load author profile
+        return usersApi.getProfile(found.authorId, token ?? undefined);
+      })
+      .then(profile => { if (profile) setPostProfile(profile); })
+      .catch(() => setPostError("Không thể tải bài viết. Vui lòng thử lại."))
+      .finally(() => setLoadingPost(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId, token]);
+
+  // Load comments
+  useEffect(() => {
+    if (!postId) return;
+    setLoadingComments(true);
+    communityPostsApi.getComments(postId)
+      .then(result => {
+        setComments(result.items);
+        // fetch profiles for unique authors
+        const uniqueIds = [...new Set(result.items.map(c => c.authorId))];
+        uniqueIds.forEach(id => {
+          usersApi.getProfile(id, token ?? undefined)
+            .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
+            .catch(() => {});
+        });
+      })
+      .catch(() => {})
+      .finally(() => setLoadingComments(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]);
+
+  async function handleLike() {
+    if (!token || liking) return;
+    setLiking(true);
+    const was = liked;
+    setLiked(!was); setLikeCount(c => was ? c - 1 : c + 1);
+    try { await communityPostsApi.toggleLike(token, postId, "CommunityPost"); }
+    catch { setLiked(was); setLikeCount(c => was ? c + 1 : c - 1); }
+    finally { setLiking(false); }
+  }
+
+  async function handleAddComment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !commentText.trim()) return;
+    setCommentError(null);
+    setSubmittingComment(true);
+    try {
+      await communityPostsApi.addComment(token, { targetId: postId, targetType: "CommunityPost", content: commentText.trim() });
+      setCommentText("");
+      // Reload comments
+      const result = await communityPostsApi.getComments(postId);
+      setComments(result.items);
+      const uniqueIds = [...new Set(result.items.map(c => c.authorId))];
+      uniqueIds.forEach(id => {
+        if (!commentProfiles.has(id)) {
+          usersApi.getProfile(id, token ?? undefined)
+            .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
+            .catch(() => {});
+        }
+      });
+    } catch (err: unknown) {
+      setCommentError((err as { message?: string })?.message ?? "Không thể đăng bình luận.");
+    } finally {
+      setSubmittingComment(false);
+    }
+  }
+
+  function handleDeleteComment(id: string) {
+    setComments(prev => prev.filter(c => c.id !== id));
+  }
+
+  const authorName = postProfile?.displayName ?? (post ? `#${post.authorId.slice(0,6).toUpperCase()}` : "");
 
   return (
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", background: "var(--color-bg)", paddingTop: "1.5rem", paddingBottom: "4rem" }}>
-        <div className="container">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: "2rem", alignItems: "start" }}>
+        <div className="container-sm">
+          {/* Breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", fontSize: "0.875rem" }}>
+            <Link href="/cong-dong" style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>Cộng đồng</Link>
+            <span style={{ color: "var(--color-text-muted)" }}>›</span>
+            <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>Bài viết</span>
+          </div>
 
-            {/* ── Main Post ── */}
-            <div>
-              {/* Back */}
-              <Link href="/cong-dong" style={{ display: "inline-flex", alignItems: "center", gap: "0.375rem", color: "var(--color-text-muted)", textDecoration: "none", fontSize: "0.875rem", marginBottom: "1.25rem" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
-                Quay lại cộng đồng
-              </Link>
+          {/* Loading */}
+          {loadingPost && (
+            <div style={{ textAlign: "center", padding: "4rem", color: "var(--color-text-muted)" }}>
+              <div style={{ display: "inline-block", width: "2.5rem", height: "2.5rem", border: "3px solid var(--color-border)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+              <p style={{ marginTop: "1rem" }}>Đang tải bài viết...</p>
+            </div>
+          )}
 
-              {/* Post */}
-              <article style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", overflow: "hidden", boxShadow: "var(--shadow-sm)", marginBottom: "1.5rem" }}>
-                {/* Header */}
-                <div style={{ padding: "1.25rem 1.25rem 0.75rem", display: "flex", alignItems: "center", gap: "0.875rem" }}>
-                  <Link href={`/kenh/${POST.username.replace("@", "")}`}>
-                    <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: POST.authorColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
-                      {POST.author.charAt(0)}
+          {/* Error */}
+          {postError && !loadingPost && (
+            <div style={{ textAlign: "center", padding: "4rem", background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)" }}>
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>😕</div>
+              <h2 style={{ fontWeight: 700, marginBottom: "0.5rem" }}>{postError}</h2>
+              <Link href="/cong-dong" className="btn btn-primary" style={{ textDecoration: "none", marginTop: "1rem", display: "inline-flex" }}>← Về cộng đồng</Link>
+            </div>
+          )}
+
+          {/* Post Detail */}
+          {post && !loadingPost && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              {/* Post card */}
+              <article style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-md)", overflow: "hidden" }}>
+                {/* Author header */}
+                <div style={{ padding: "1.5rem 1.5rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                    <Avatar userId={post.authorId} profile={postProfile} size={48} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{authorName}</div>
+                      {postProfile?.roles?.includes("Creator") && (
+                        <span style={{ fontSize: "0.7rem", background: "linear-gradient(135deg,#D4713B,#e8955f)", color: "white", padding: "0.15rem 0.5rem", borderRadius: "99px", fontWeight: 700 }}>Creator</span>
+                      )}
+                      <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>{timeAgo(post.createdAt)}</div>
                     </div>
-                  </Link>
-                  <div>
-                    <Link href={`/kenh/${POST.username.replace("@", "")}`} style={{ textDecoration: "none" }}>
-                      <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{POST.author}</span>
-                    </Link>
-                    <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>{POST.username} · {POST.time} · {POST.fullDate}</div>
                   </div>
+                  <Link href={`/nguoi-dung/${post.authorId}`}
+                    style={{ fontSize: "0.8rem", color: "var(--color-primary)", textDecoration: "none", padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)", border: "1px solid var(--color-primary)", fontWeight: 600 }}>
+                    Xem hồ sơ
+                  </Link>
                 </div>
 
                 {/* Content */}
-                <div style={{ padding: "0 1.25rem 0.875rem" }}>
-                  <p style={{ fontSize: "0.9375rem", color: "var(--color-text-primary)", lineHeight: 1.75, whiteSpace: "pre-wrap", marginBottom: "0.875rem" }}>{POST.content}</p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                    {POST.tags.map((tag) => (
-                      <Link key={tag} href={`/tim-kiem?q=${encodeURIComponent(tag)}`} style={{ fontSize: "0.8125rem", color: "var(--color-primary)", fontWeight: 500, textDecoration: "none" }}>{tag}</Link>
-                    ))}
+                <div style={{ padding: "0 1.5rem 1.25rem" }}>
+                  <p style={{ fontSize: "1rem", color: "var(--color-text-primary)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{post.content}</p>
+                </div>
+
+                {/* Media */}
+                {post.media?.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: post.media.length === 1 ? "1fr" : "1fr 1fr", gap: "2px" }}>
+                    {post.media.slice(0, 4).map((m, i) =>
+                      m.mediaType === "Image" ? (
+                        <img key={i} src={m.mediaUrl} alt="" style={{ width: "100%", aspectRatio: post.media.length === 1 ? "16/9" : "4/3", objectFit: "cover", display: "block" }} />
+                      ) : (
+                        <video key={i} src={m.mediaUrl} controls style={{ width: "100%", aspectRatio: "16/9", display: "block" }} />
+                      )
+                    )}
                   </div>
-                </div>
+                )}
 
-                {/* Image */}
-                <div style={{ background: POST.imageColor, display: "flex", alignItems: "center", justifyContent: "center", height: "300px", fontSize: "8rem", position: "relative" }}>
-                  {POST.image}
-                  {POST.tutorialRef && (
-                    <Link href={`/huong-dan/${POST.tutorialRef.id}`} style={{ position: "absolute", bottom: "1rem", left: "1rem", background: "rgba(45,106,79,0.92)", color: "white", padding: "0.5rem 1rem", borderRadius: "var(--radius-full)", fontSize: "0.8125rem", fontWeight: 600, textDecoration: "none", backdropFilter: "blur(4px)" }}>
-                      📌 Xem hướng dẫn: {POST.tutorialRef.title}
-                    </Link>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div style={{ padding: "0.875rem 1.25rem", display: "flex", gap: "1.5rem", borderBottom: "1px solid var(--color-border)", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-                  <span>{liked ? likeCount : POST.likes} lượt thích</span>
-                  <span>{POST.comments} bình luận</span>
-                  <span>{POST.shares} chia sẻ</span>
-                  <span style={{ marginLeft: "auto" }}>{POST.saves} đã lưu</span>
-                </div>
-
-                {/* Actions */}
-                <div style={{ padding: "0.5rem 1rem", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                  <button onClick={() => { setLiked((v) => !v); setLikeCount((c) => liked ? c - 1 : c + 1); }} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", background: "none", border: "none", cursor: "pointer", padding: "0.625rem", borderRadius: "var(--radius-md)", color: liked ? "var(--color-error)" : "var(--color-text-muted)", fontWeight: 600, fontSize: "0.875rem" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
-                    Thích
+                {/* Like / Comment counts */}
+                <div style={{ padding: "1rem 1.5rem", borderTop: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: "1.5rem" }}>
+                  <button id="btn-like-post" onClick={handleLike} disabled={!token || liking}
+                    className="like-btn"
+                    style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: liked ? "rgba(224,49,49,0.08)" : "var(--color-surface-2)", border: "none", cursor: token ? "pointer" : "default", padding: "0.5rem 1rem", borderRadius: "var(--radius-md)", color: liked ? "#E03131" : "var(--color-text-muted)", fontWeight: 600, fontSize: "0.9375rem", transition: "all 0.15s" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                    {likeCount} Thích
                   </button>
-                  <button style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", background: "none", border: "none", cursor: "pointer", padding: "0.625rem", borderRadius: "var(--radius-md)", color: "var(--color-text-muted)", fontWeight: 600, fontSize: "0.875rem" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                    Bình luận
-                  </button>
-                  <button style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", background: "none", border: "none", cursor: "pointer", padding: "0.625rem", borderRadius: "var(--radius-md)", color: "var(--color-text-muted)", fontWeight: 600, fontSize: "0.875rem" }}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
-                    Chia sẻ
-                  </button>
+                  <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
+                    💬 {comments.length} bình luận
+                  </span>
                 </div>
               </article>
 
-              {/* ── Comments ── */}
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "1.5rem", boxShadow: "var(--shadow-sm)" }}>
-                <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "1.25rem" }}>
+              {/* Comments section */}
+              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)", padding: "1.5rem" }}>
+                <h2 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "1.25rem" }}>
                   💬 Bình luận ({comments.length})
                 </h2>
 
-                {/* Add Comment */}
-                <div style={{ display: "flex", gap: "0.875rem", marginBottom: "1.5rem" }}>
-                  <div style={{ width: "2.25rem", height: "2.25rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>U</div>
-                  <div style={{ flex: 1 }}>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Viết bình luận của bạn..."
-                      rows={2}
-                      style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--color-border)", background: "var(--color-surface-2)", fontSize: "0.9rem", color: "var(--color-text-primary)", resize: "none", outline: "none", fontFamily: "inherit", lineHeight: 1.5 }}
-                    />
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.5rem" }}>
-                      <button onClick={handleAddComment} disabled={!comment.trim()} className="btn btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.875rem", opacity: comment.trim() ? 1 : 0.5 }}>
-                        Gửi
-                      </button>
+                {/* Add comment */}
+                {loggedIn ? (
+                  <form onSubmit={handleAddComment} style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                      <div style={{ width: "2.25rem", height: "2.25rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "white", flexShrink: 0, fontSize: "0.875rem" }}>✏️</div>
+                      <div style={{ flex: 1 }}>
+                        <textarea id="comment-input" ref={commentInputRef} value={commentText} onChange={e => setCommentText(e.target.value)}
+                          placeholder="Viết bình luận..." rows={2} maxLength={500}
+                          className="input-field" style={{ resize: "none", lineHeight: 1.6, fontFamily: "inherit" }}
+                          onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleAddComment(e as unknown as React.FormEvent); }} />
+                        {commentError && <p style={{ color: "var(--color-error)", fontSize: "0.8rem", marginTop: "0.375rem" }}>{commentError}</p>}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Ctrl+Enter để gửi</span>
+                          <button id="btn-submit-comment" type="submit" disabled={!commentText.trim() || submittingComment} className="btn btn-primary btn-sm"
+                            style={{ opacity: !commentText.trim() || submittingComment ? 0.6 : 1 }}>
+                            {submittingComment ? "Đang gửi..." : "Gửi"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
+                  </form>
+                ) : (
+                  <div style={{ padding: "1rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", textAlign: "center", marginBottom: "1.5rem" }}>
+                    <span style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
+                      <Link href="/dang-nhap" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}>Đăng nhập</Link> để bình luận
+                    </span>
                   </div>
-                </div>
+                )}
 
-                {/* Comment List */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-                  {comments.map((c) => <CommentItem key={c.id} comment={c} />)}
-                </div>
-
-                <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-                  <button className="btn btn-outline" style={{ padding: "0.5rem 1.5rem", fontSize: "0.875rem" }}>Xem thêm bình luận</button>
-                </div>
+                {/* Comments list */}
+                {loadingComments ? (
+                  <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Đang tải bình luận...</div>
+                ) : comments.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "2.5rem", color: "var(--color-text-muted)" }}>
+                    <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>💬</div>
+                    <p>Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+                  </div>
+                ) : (
+                  <div>
+                    {comments.map(c => (
+                      <CommentItem key={c.id} comment={c} profile={commentProfiles.get(c.authorId) ?? null}
+                        currentUserId={currentUserId} token={token} onDelete={handleDeleteComment} />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* ── Sidebar ── */}
-            <aside style={{ position: "sticky", top: "5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              {/* Author */}
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "1rem" }}>Về tác giả</h3>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", marginBottom: "1rem" }}>
-                  <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: POST.authorColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white" }}>{POST.author.charAt(0)}</div>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)" }}>{POST.author}</p>
-                    <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>21.3K người theo dõi</p>
-                  </div>
-                </div>
-                <Link href={`/kenh/${POST.username.replace("@", "")}`} className="btn btn-outline" style={{ width: "100%", textDecoration: "none", justifyContent: "center", padding: "0.5rem", display: "flex", fontSize: "0.875rem" }}>Xem kênh</Link>
-              </div>
-
-              {/* Related Posts */}
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "1rem" }}>Bài viết liên quan</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-                  {RELATED_POSTS.map((p) => (
-                    <Link key={p.id} href={`/cong-dong/${p.id}`} style={{ display: "flex", gap: "0.75rem", textDecoration: "none" }}>
-                      <div style={{ width: "3.5rem", height: "3.5rem", borderRadius: "var(--radius-md)", background: p.emojiColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>{p.emoji}</div>
-                      <div>
-                        <p style={{ fontSize: "0.875rem", color: "var(--color-text-primary)", fontWeight: 500, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.title}</p>
-                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{p.author}</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          </div>
+          )}
         </div>
       </main>
       <Footer />
-
-      <style>{`
-        @media (max-width: 900px) {
-          .container > div { grid-template-columns: 1fr !important; }
-          aside { position: static !important; }
-        }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

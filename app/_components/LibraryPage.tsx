@@ -1,56 +1,94 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AdBanner from "./AdBanner";
+import { tutorialsApi, type TutorialListItemDto } from "@/lib/api";
 
 const CATEGORIES = ["Tất cả", "Động vật", "Hoa & Thực vật", "Chim", "Origami 3D", "Modular", "Hình học", "Nhân vật", "Biển cả", "Thiên nhiên"];
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
 const TYPES = ["Tất cả", "Miễn phí", "VIP"];
-const SORTS = ["Phổ biến nhất", "Mới nhất", "Đánh giá cao", "Nhiều bước nhất"];
+const SORTS = ["Mới nhất", "Phổ biến nhất"];
+const PAGE_SIZE = 12;
 
-const TUTORIALS = [
-  { id: "rong-origami-3d", title: "Rồng Origami 3D huyền thoại", emoji: "🐉", color: "#F0F0FF", category: "Origami 3D", difficulty: "Khó", type: "VIP", steps: 28, views: "8.7K", likes: 1203, rating: 4.9, author: "Quang Minh", authorColor: "#2D6A4F" },
-  { id: "hac-giay-nghe-thuat", title: "Hạc giấy nghệ thuật truyền thống", emoji: "🦢", color: "#E8F5E8", category: "Chim", difficulty: "Trung bình", type: "Miễn phí", steps: 15, views: "12.3K", likes: 2841, rating: 4.8, author: "Thu Hương", authorColor: "#D4713B" },
-  { id: "hoa-hong-origami", title: "Hoa hồng Origami lãng mạn", emoji: "🌸", color: "#FFF0F5", category: "Hoa & Thực vật", difficulty: "Trung bình", type: "Miễn phí", steps: 20, views: "9.1K", likes: 1876, rating: 4.7, author: "Thu Hương", authorColor: "#D4713B" },
-  { id: "ca-koi-don-gian", title: "Cá koi đơn giản cho trẻ em", emoji: "🐟", color: "#F0F8FF", category: "Biển cả", difficulty: "Dễ", type: "Miễn phí", steps: 10, views: "15.2K", likes: 3210, rating: 4.6, author: "Lan Anh", authorColor: "#9B59B6" },
-  { id: "phuong-hoang-huyen-thoai", title: "Phượng hoàng huyền thoại", emoji: "🦅", color: "#FFF5F0", category: "Chim", difficulty: "Khó", type: "VIP", steps: 30, views: "5.2K", likes: 876, rating: 4.9, author: "Quang Minh", authorColor: "#2D6A4F" },
-  { id: "buom-3d-modular", title: "Bướm 3D Modular nghệ thuật", emoji: "🦋", color: "#FFFBF0", category: "Modular", difficulty: "Trung bình", type: "Miễn phí", steps: 18, views: "6.8K", likes: 1120, rating: 4.7, author: "Hoàng Nam", authorColor: "#2C7DA0" },
-  { id: "ky-lan-giay", title: "Kỳ lân giấy thần thoại", emoji: "🦄", color: "#F5F0FF", category: "Nhân vật", difficulty: "Khó", type: "VIP", steps: 26, views: "6.4K", likes: 921, rating: 4.8, author: "Quang Minh", authorColor: "#2D6A4F" },
-  { id: "tho-origami", title: "Thỏ Origami dễ thương", emoji: "🐰", color: "#FFF0F0", category: "Động vật", difficulty: "Dễ", type: "Miễn phí", steps: 12, views: "11.4K", likes: 2456, rating: 4.5, author: "Lan Anh", authorColor: "#9B59B6" },
-  { id: "ngoi-sao-modular", title: "Ngôi sao Modular 6 cánh", emoji: "⭐", color: "#FFFDF0", category: "Hình học", difficulty: "Trung bình", type: "Miễn phí", steps: 22, views: "7.3K", likes: 1340, rating: 4.6, author: "Hoàng Nam", authorColor: "#2C7DA0" },
-  { id: "sua-den-bien-sau", title: "Sứa biển đại dương", emoji: "🪼", color: "#E0F7FA", category: "Biển cả", difficulty: "Trung bình", type: "VIP", steps: 16, views: "3.8K", likes: 678, rating: 4.7, author: "Thu Hương", authorColor: "#D4713B" },
-  { id: "cuoi-rong-giay", title: "Tháp rồng giấy modular", emoji: "🏯", color: "#F0F4FF", category: "Modular", difficulty: "Khó", type: "VIP", steps: 35, views: "2.9K", likes: 567, rating: 4.9, author: "Hoàng Nam", authorColor: "#2C7DA0" },
-  { id: "sen-trang-thien-nhien", title: "Hoa sen trắng thanh khiết", emoji: "🪷", color: "#F5FCFF", category: "Hoa & Thực vật", difficulty: "Dễ", type: "Miễn phí", steps: 9, views: "18.6K", likes: 4102, rating: 4.4, author: "Lan Anh", authorColor: "#9B59B6" },
-];
+// Ánh xạ loại từ tiếng Việt sang giá trị BE
+function mapTypeToBe(type: string): string | undefined {
+  if (type === "Miễn phí") return "Free";
+  if (type === "VIP") return "VIP";
+  return undefined;
+}
 
-function getDiffClass(d: string) {
-  if (d === "Dễ") return "badge-easy";
-  if (d === "Trung bình") return "badge-medium";
+// Màu avatar dựa theo ký tự đầu
+const AUTHOR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
+function authorColor(name: string) {
+  const idx = name.charCodeAt(0) % AUTHOR_COLORS.length;
+  return AUTHOR_COLORS[idx];
+}
+
+function getDiffClass(d?: string | null) {
+  if (d === "Dễ" || d === "Easy") return "badge-easy";
+  if (d === "Trung bình" || d === "Medium") return "badge-medium";
   return "badge-hard";
 }
 function getTypeClass(t: string) {
-  return t === "VIP" ? "badge-vip" : "badge-free";
+  return t === "VIP" || t === "vip" ? "badge-vip" : "badge-free";
+}
+function getTypeLabel(t: string) {
+  return t === "Free" ? "Miễn phí" : t;
 }
 
 export default function LibraryPage() {
   const [category, setCategory] = useState("Tất cả");
   const [difficulty, setDifficulty] = useState("Tất cả");
   const [type, setType] = useState("Tất cả");
-  const [sort, setSort] = useState("Phổ biến nhất");
+  const [sort, setSort] = useState("Mới nhất");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    return TUTORIALS.filter((t) => {
-      if (category !== "Tất cả" && t.category !== category) return false;
-      if (difficulty !== "Tất cả" && t.difficulty !== difficulty) return false;
-      if (type !== "Tất cả" && t.type !== type) return false;
-      if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [category, difficulty, type, search]);
+  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTutorials = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await tutorialsApi.getList({
+        search: search.trim() || undefined,
+        difficulty: difficulty !== "Tất cả" ? difficulty : undefined,
+        type: mapTypeToBe(type),
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      setTutorials(result.items);
+      setTotalPages(result.totalPages);
+      setTotalCount(result.totalCount);
+    } catch {
+      setError("Không thể tải danh sách bài hướng dẫn. Vui lòng thử lại.");
+      setTutorials([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, difficulty, type, page]);
+
+  // Debounce search; reset page khi filter thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, difficulty, type, category]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchTutorials, search ? 350 : 0);
+    return () => clearTimeout(timer);
+  }, [fetchTutorials]);
+
+  // Lọc client-side theo category (BE chưa có endpoint filter theo tên danh mục)
+  const filtered = category === "Tất cả"
+    ? tutorials
+    : tutorials.filter((t) => t.categoryName === category);
 
   return (
     <>
@@ -142,16 +180,10 @@ export default function LibraryPage() {
           {/* ── Result count ── */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
             <p style={{ color: "var(--color-text-muted)", fontSize: "0.9375rem" }}>
-              Tìm thấy <strong style={{ color: "var(--color-text-primary)" }}>{filtered.length}</strong> bài hướng dẫn
+              {loading ? "Đang tải..." : (
+                <>Tìm thấy <strong style={{ color: "var(--color-text-primary)" }}>{totalCount}</strong> bài hướng dẫn</>
+              )}
             </p>
-            <div style={{ display: "flex", gap: "0.25rem" }}>
-              <button style={{ padding: "0.375rem", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--color-primary)", background: "var(--color-primary)", color: "white", cursor: "pointer", display: "flex", alignItems: "center" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>
-              </button>
-              <button style={{ padding: "0.375rem", borderRadius: "var(--radius-sm)", border: "1.5px solid var(--color-border)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", color: "var(--color-text-muted)" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-              </button>
-            </div>
           </div>
 
           {/* ── Ad Banner ── */}
@@ -159,16 +191,43 @@ export default function LibraryPage() {
             <AdBanner size="leaderboard" slotId="library-leaderboard" />
           </div>
 
+          {/* ── Loading ── */}
+          {loading && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
+                  <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
+                  <div style={{ padding: "1rem" }}>
+                    <div style={{ height: "1rem", background: "var(--color-surface-2)", borderRadius: "4px", marginBottom: "0.5rem" }} />
+                    <div style={{ height: "0.75rem", background: "var(--color-surface-2)", borderRadius: "4px", width: "60%" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Error ── */}
+          {!loading && error && (
+            <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
+              <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
+              <h3 style={{ fontWeight: 700, fontSize: "1.25rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>{error}</h3>
+              <button onClick={fetchTutorials} className="btn btn-primary" style={{ marginTop: "1rem" }}>Thử lại</button>
+            </div>
+          )}
+
           {/* ── Tutorial Grid ── */}
-          {filtered.length > 0 ? (
+          {!loading && !error && filtered.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
               {filtered.map((t) => (
                 <article key={t.id} className="card tutorial-card" style={{ overflow: "hidden" }}>
-                  <Link href={`/huong-dan/${t.id}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-                    <div style={{ aspectRatio: "4/3", background: t.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
-                      {t.emoji}
+                  <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                    <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
+                      {t.coverImageUrl
+                        ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                        : "📄"
+                      }
                       <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", display: "flex", gap: "0.375rem" }}>
-                        <span className={`badge ${getTypeClass(t.type)}`}>{t.type}</span>
+                        <span className={`badge ${getTypeClass(t.type)}`}>{getTypeLabel(t.type)}</span>
                       </div>
                     </div>
                     <div style={{ padding: "1rem" }}>
@@ -176,27 +235,20 @@ export default function LibraryPage() {
                         {t.title}
                       </h3>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
-                        <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: t.authorColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
-                          {t.author.charAt(0)}
+                        <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: authorColor(t.author.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
+                          {t.author.displayName.charAt(0)}
                         </div>
-                        <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author}</span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>{t.steps} bước</span>
+                        <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author.displayName}</span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>{t.stepCount} bước</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
-                        <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>
-                        <span className="badge badge-category">{t.category}</span>
-                        <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                          ⭐ {t.rating}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px solid var(--color-border)" }}>
-                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>👁 {t.views}</span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>❤️ {t.likes.toLocaleString()}</span>
+                        {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                        <span className="badge badge-category">{t.categoryName}</span>
                       </div>
                     </div>
                   </Link>
                   <div style={{ padding: "0 1rem 1rem" }}>
-                    <Link href={t.type === "VIP" ? `/huong-dan/${t.id}/vip` : `/huong-dan/${t.id}`}
+                    <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
                       className="btn btn-primary"
                       style={{ width: "100%", justifyContent: "center", textDecoration: "none", padding: "0.5rem" }}>
                       {t.type === "VIP" ? "🔒 Xem VIP" : "Xem ngay"}
@@ -205,7 +257,10 @@ export default function LibraryPage() {
                 </article>
               ))}
             </div>
-          ) : (
+          )}
+
+          {/* ── Empty ── */}
+          {!loading && !error && filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
               <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🔍</div>
               <h3 style={{ fontWeight: 700, fontSize: "1.25rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Không tìm thấy kết quả</h3>
@@ -215,21 +270,28 @@ export default function LibraryPage() {
           )}
 
           {/* ── Pagination ── */}
-          {filtered.length > 0 && (
+          {!loading && totalPages > 1 && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem" }}>
-              <button className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}>← Trước</button>
-              {[1, 2, 3].map((p) => (
-                <button key={p} style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: `1.5px solid ${p === 1 ? "var(--color-primary)" : "var(--color-border)"}`, background: p === 1 ? "var(--color-primary)" : "transparent", color: p === 1 ? "white" : "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>{p}</button>
-              ))}
-              <span style={{ color: "var(--color-text-muted)" }}>...</span>
-              <button style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "transparent", color: "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>12</button>
-              <button className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem" }}>Sau →</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === 1 ? 0.5 : 1 }}>← Trước</button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const pageNum = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
+                return (
+                  <button key={pageNum} onClick={() => setPage(pageNum)}
+                    style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: `1.5px solid ${page === pageNum ? "var(--color-primary)" : "var(--color-border)"}`, background: page === pageNum ? "var(--color-primary)" : "transparent", color: page === pageNum ? "white" : "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === totalPages ? 0.5 : 1 }}>Sau →</button>
             </div>
           )}
 
         </div>
       </main>
       <Footer />
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
     </>
   );
 }

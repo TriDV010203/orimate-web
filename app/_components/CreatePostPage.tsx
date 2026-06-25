@@ -1,239 +1,330 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { getToken, isLoggedIn } from "@/lib/auth";
+import { communityPostsApi } from "@/lib/api/community-posts";
+import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
+import { tutorialsApi, type TutorialListItemDto } from "@/lib/api/tutorials";
 
-const PRIVACY_OPTIONS = [
-  { value: "public", label: "Công khai", desc: "Mọi người đều thấy", icon: "🌍" },
-  { value: "followers", label: "Người theo dõi", desc: "Chỉ người theo dõi thấy", icon: "👥" },
-  { value: "private", label: "Riêng tư", desc: "Chỉ mình tôi thấy", icon: "🔒" },
-];
+type PostType = "photo" | "achievement" | "tutorial";
 
-const TUTORIAL_SUGGESTIONS = [
-  { id: "rong-origami-3d", title: "Rồng Origami 3D", emoji: "🐉" },
-  { id: "hac-giay-nghe-thuat", title: "Hạc giấy nghệ thuật", emoji: "🦢" },
-  { id: "hoa-hong-origami", title: "Hoa hồng Origami", emoji: "🌸" },
-];
+// ── Spinner ───────────────────────────────────────────────────────────────────
+function Spinner() {
+  return <div style={{ display: "inline-block", width: "1.25rem", height: "1.25rem", border: "2.5px solid rgba(255,255,255,0.4)", borderTopColor: "white", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />;
+}
 
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function CreatePostPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialType = (searchParams.get("type") as PostType | null) ?? "photo";
+
+  const [token, setToken] = useState<string | null>(null);
+  const [type, setType] = useState<PostType>(initialType);
   const [content, setContent] = useState("");
-  const [privacy, setPrivacy] = useState("public");
-  const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [linkedTutorial, setLinkedTutorial] = useState<null | typeof TUTORIAL_SUGGESTIONS[0]>(null);
-  const [showTutorialPicker, setShowTutorialPicker] = useState(false);
-  const [showEmojiPanel, setShowEmojiPanel] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([""]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const EMOJIS = ["🐉", "🦢", "🌸", "🦋", "🐟", "⭐", "🦅", "🐼", "🎋", "🏮", "🌺", "🦄", "🐰", "🎏", "🍂"];
+  // achievement state
+  const [achievements, setAchievements] = useState<AchievementDto[]>([]);
+  const [loadingAch, setLoadingAch] = useState(false);
+  const [selectedAch, setSelectedAch] = useState<AchievementDto | null>(null);
 
-  function addTag() {
-    const t = tagInput.trim().replace(/^#/, "");
-    if (t && !tags.includes(`#${t}`) && tags.length < 5) {
-      setTags((prev) => [...prev, `#${t}`]);
-      setTagInput("");
+  // tutorial state
+  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [loadingTut, setLoadingTut] = useState(false);
+  const [selectedTut, setSelectedTut] = useState<TutorialListItemDto | null>(null);
+  const [tutSearch, setTutSearch] = useState("");
+
+  useEffect(() => {
+    if (!isLoggedIn()) { router.replace("/dang-nhap"); return; }
+    setToken(getToken());
+  }, [router]);
+
+  // load achievements when tab = achievement
+  useEffect(() => {
+    if (type !== "achievement" || !token) return;
+    setLoadingAch(true);
+    achievementsApi.getMine(token, 1, 50)
+      .then(r => setAchievements(r.items))
+      .catch(() => {})
+      .finally(() => setLoadingAch(false));
+  }, [type, token]);
+
+  // load tutorials when tab = tutorial
+  const loadTutorials = useCallback(async (search?: string) => {
+    setLoadingTut(true);
+    try {
+      const r = await tutorialsApi.getList({ search, pageSize: 20 });
+      setTutorials(r.items);
+    } catch { /**/ }
+    finally { setLoadingTut(false); }
+  }, []);
+
+  useEffect(() => {
+    if (type === "tutorial") loadTutorials();
+  }, [type, loadTutorials]);
+
+  // debounce tutorial search
+  useEffect(() => {
+    if (type !== "tutorial") return;
+    const t = setTimeout(() => loadTutorials(tutSearch || undefined), 400);
+    return () => clearTimeout(t);
+  }, [tutSearch, type, loadTutorials]);
+
+  function addImageField() { setImageUrls(p => [...p, ""]); }
+  function removeImage(i: number) { setImageUrls(p => p.filter((_, j) => j !== i)); }
+  function updateImage(i: number, v: string) { setImageUrls(p => p.map((u, j) => j === i ? v : u)); }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token) return;
+    setError(null);
+
+    // Validate
+    if (!content.trim()) { setError("Vui lòng nhập nội dung bài viết."); return; }
+    if (content.length > 1000) { setError("Nội dung tối đa 1000 ký tự."); return; }
+    if (type === "achievement" && !selectedAch) { setError("Vui lòng chọn một thành tựu."); return; }
+    if (type === "tutorial" && !selectedTut) { setError("Vui lòng chọn hướng dẫn muốn chia sẻ."); return; }
+    const validUrls = imageUrls.filter(u => u.trim());
+    if (type === "photo" && validUrls.length === 0) { setError("Vui lòng nhập ít nhất 1 URL ảnh."); return; }
+
+    setSubmitting(true);
+    try {
+      const mediaItems = type === "photo"
+        ? validUrls.map(u => ({ mediaUrl: u, mediaType: "Image" as const }))
+        : type === "achievement" && selectedAch?.photoUrl
+          ? [{ mediaUrl: selectedAch.photoUrl, mediaType: "Image" as const }]
+          : undefined;
+
+      const tutorialId = type === "tutorial" ? selectedTut?.id
+        : type === "achievement" ? selectedAch?.tutorialId
+        : undefined;
+
+      const body = { content: content.trim(), tutorialId: tutorialId ?? null, mediaItems: mediaItems ?? null };
+      await communityPostsApi.createPost(token, body);
+      setSuccess(true);
+      setTimeout(() => router.push("/cong-dong"), 1500);
+    } catch (err: unknown) {
+      setError((err as { message?: string })?.message ?? "Đăng bài thất bại. Vui lòng thử lại.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  function insertEmoji(emoji: string) {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const newText = content.slice(0, start) + emoji + content.slice(end);
-    setContent(newText);
-    setShowEmojiPanel(false);
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(start + emoji.length, start + emoji.length);
-    }, 0);
-  }
+  if (success) return (
+    <>
+      <Navbar />
+      <main style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", padding: "3rem", background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-lg)", maxWidth: "400px" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🎉</div>
+          <h2 style={{ fontWeight: 800, color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Đăng bài thành công!</h2>
+          <p style={{ color: "var(--color-text-muted)" }}>Đang chuyển về trang cộng đồng...</p>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
 
-  const charLimit = 2000;
-  const isValid = content.trim().length > 0;
+  const TAB_TYPES: { key: PostType; label: string; icon: string }[] = [
+    { key: "photo", label: "Đăng ảnh", icon: "📸" },
+    { key: "achievement", label: "Thành tựu", icon: "🏅" },
+    { key: "tutorial", label: "Hướng dẫn", icon: "📚" },
+  ];
 
   return (
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", background: "var(--color-bg)", paddingTop: "2rem", paddingBottom: "4rem" }}>
         <div className="container-sm">
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-            <Link href="/cong-dong" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "2.25rem", height: "2.25rem", borderRadius: "50%", border: "1.5px solid var(--color-border)", background: "var(--color-surface)", textDecoration: "none", color: "var(--color-text-muted)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
-            </Link>
-            <h1 className="text-heading" style={{ fontSize: "1.375rem", color: "var(--color-text-primary)" }}>Tạo bài viết</h1>
+          {/* Breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem", fontSize: "0.875rem" }}>
+            <Link href="/cong-dong" style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>Cộng đồng</Link>
+            <span style={{ color: "var(--color-text-muted)" }}>›</span>
+            <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>Tạo bài viết</span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "1.5rem", alignItems: "start" }}>
-            {/* ── Composer ── */}
-            <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
-              {/* Author Row */}
-              <div style={{ padding: "1.25rem", display: "flex", alignItems: "center", gap: "0.875rem", borderBottom: "1px solid var(--color-border)" }}>
-                <div style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white" }}>U</div>
-                <div>
-                  <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)" }}>Bạn</p>
-                  {/* Privacy selector */}
-                  <select value={privacy} onChange={(e) => setPrivacy(e.target.value)}
-                    style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-full)", padding: "0.125rem 0.5rem", background: "var(--color-surface-2)", cursor: "pointer", outline: "none" }}>
-                    {PRIVACY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.icon} {o.label}</option>)}
-                  </select>
+          <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-md)", overflow: "hidden" }}>
+            {/* Header */}
+            <div style={{ background: "linear-gradient(135deg,#1B4332,#2D6A4F)", padding: "1.75rem 2rem" }}>
+              <h1 style={{ color: "white", fontWeight: 800, fontSize: "1.5rem", marginBottom: "0.25rem" }}>✍️ Tạo bài viết mới</h1>
+              <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.9375rem" }}>Chia sẻ với cộng đồng Origami của bạn</p>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+              {TAB_TYPES.map(t => (
+                <button key={t.key} id={`tab-${t.key}`} onClick={() => { setType(t.key); setError(null); }}
+                  style={{ flex: 1, padding: "1rem", border: "none", background: type === t.key ? "var(--color-surface)" : "transparent", borderBottom: type === t.key ? "2px solid var(--color-primary)" : "2px solid transparent", cursor: "pointer", fontWeight: type === t.key ? 700 : 500, fontSize: "0.9375rem", color: type === t.key ? "var(--color-primary)" : "var(--color-text-muted)", transition: "all var(--transition-fast)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                  <span>{t.icon}</span> {t.label}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ padding: "1.75rem 2rem" }}>
+              {/* Type hint */}
+              <div style={{ background: "rgba(45,106,79,0.06)", border: "1px solid rgba(45,106,79,0.15)", borderRadius: "var(--radius-md)", padding: "0.75rem 1rem", marginBottom: "1.5rem", fontSize: "0.875rem", color: "var(--color-primary)", fontWeight: 500 }}>
+                {type === "photo" && "📸 Chia sẻ ảnh tác phẩm Origami kèm lời viết."}
+                {type === "achievement" && "🏅 Chọn một thành tựu đã đạt được để chia sẻ với cộng đồng."}
+                {type === "tutorial" && "📚 Giới thiệu một hướng dẫn Origami mà bạn yêu thích hoặc do bạn tạo."}
+              </div>
+
+              {/* Content textarea */}
+              <div className="input-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="input-label">
+                  Nội dung bài viết <span style={{ color: "var(--color-error)" }}>*</span>
+                </label>
+                <textarea id="post-content" value={content} onChange={e => setContent(e.target.value)}
+                  placeholder={
+                    type === "photo" ? "Chia sẻ cảm nhận về tác phẩm này..." :
+                    type === "achievement" ? "Chia sẻ trải nghiệm khi hoàn thành hướng dẫn này..." :
+                    "Giới thiệu về hướng dẫn này, tại sao bạn thích nó..."
+                  }
+                  rows={4} maxLength={1000} style={{ resize: "vertical", lineHeight: 1.65, fontFamily: "inherit" }}
+                  className="input-field" />
+                <div style={{ textAlign: "right", fontSize: "0.8rem", color: content.length > 900 ? "var(--color-error)" : "var(--color-text-muted)" }}>
+                  {content.length}/1000
                 </div>
               </div>
 
-              {/* Textarea */}
-              <div style={{ padding: "1.25rem", position: "relative" }}>
-                <textarea
-                  ref={textareaRef}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value.slice(0, charLimit))}
-                  placeholder="Chia sẻ tác phẩm Origami của bạn, mẹo hay, cảm xúc... 🌿"
-                  rows={8}
-                  style={{ width: "100%", border: "none", outline: "none", resize: "none", fontSize: "1rem", color: "var(--color-text-primary)", lineHeight: 1.75, background: "transparent", fontFamily: "inherit" }}
-                />
-                <div style={{ display: "flex", justifyContent: "flex-end", fontSize: "0.75rem", color: content.length > charLimit * 0.9 ? "var(--color-error)" : "var(--color-text-muted)" }}>
-                  {content.length}/{charLimit}
-                </div>
-              </div>
-
-              {/* Linked Tutorial */}
-              {linkedTutorial && (
-                <div style={{ margin: "0 1.25rem 1rem", background: "rgba(45,106,79,0.06)", borderRadius: "var(--radius-md)", border: "1px solid rgba(45,106,79,0.15)", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <span style={{ fontSize: "1.5rem" }}>{linkedTutorial.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>Liên kết bài hướng dẫn</p>
-                    <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--color-primary)" }}>{linkedTutorial.title}</p>
+              {/* ── Photo type: image URLs ── */}
+              {type === "photo" && (
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <label className="input-label" style={{ marginBottom: "0.75rem", display: "block" }}>
+                    URL ảnh <span style={{ color: "var(--color-error)" }}>*</span>
+                    <span style={{ fontWeight: 400, color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>(tối đa 10 ảnh)</span>
+                  </label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                    {imageUrls.map((url, i) => (
+                      <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <input id={`image-url-${i}`} type="url" value={url} onChange={e => updateImage(i, e.target.value)}
+                          placeholder={`https://example.com/anh-${i + 1}.jpg`}
+                          className="input-field" style={{ flex: 1 }} />
+                        {url && (
+                          <img src={url} alt="" style={{ width: "3rem", height: "3rem", objectFit: "cover", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)", flexShrink: 0 }}
+                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        )}
+                        {imageUrls.length > 1 && (
+                          <button type="button" onClick={() => removeImage(i)} style={{ background: "rgba(192,57,43,0.1)", border: "none", borderRadius: "var(--radius-sm)", width: "2rem", height: "2rem", cursor: "pointer", color: "var(--color-error)", flexShrink: 0, fontSize: "1rem" }}>×</button>
+                        )}
+                      </div>
+                    ))}
+                    {imageUrls.length < 10 && (
+                      <button type="button" onClick={addImageField} style={{ padding: "0.625rem", background: "var(--color-surface-2)", border: "1.5px dashed var(--color-border)", borderRadius: "var(--radius-md)", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.875rem", fontWeight: 500 }}>
+                        + Thêm ảnh
+                      </button>
+                    )}
                   </div>
-                  <button onClick={() => setLinkedTutorial(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                  </button>
                 </div>
               )}
 
-              {/* Tags */}
-              {tags.length > 0 && (
-                <div style={{ padding: "0 1.25rem 0.875rem", display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                  {tags.map((tag) => (
-                    <span key={tag} style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", background: "rgba(45,106,79,0.08)", color: "var(--color-primary)", borderRadius: "var(--radius-full)", padding: "0.25rem 0.75rem", fontSize: "0.8125rem", fontWeight: 500 }}>
-                      {tag}
-                      <button onClick={() => setTags((p) => p.filter((t) => t !== tag))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-primary)", lineHeight: 1, padding: "0 0.125rem" }}>×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Toolbar */}
-              <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid var(--color-border)", display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                {/* Image placeholder */}
-                <button style={{ display: "flex", alignItems: "center", gap: "0.375rem", background: "none", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "0.5rem 0.875rem", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "0.8125rem", fontWeight: 500 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
-                  Thêm ảnh
-                </button>
-
-                {/* Tutorial link */}
-                <button onClick={() => setShowTutorialPicker((v) => !v)} style={{ display: "flex", alignItems: "center", gap: "0.375rem", background: "none", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "0.5rem 0.875rem", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "0.8125rem", fontWeight: 500 }}>
-                  📌 Link bài HD
-                </button>
-
-                {/* Emoji */}
-                <div style={{ position: "relative" }}>
-                  <button onClick={() => setShowEmojiPanel((v) => !v)} style={{ display: "flex", alignItems: "center", gap: "0.375rem", background: "none", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "0.5rem 0.875rem", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "0.8125rem", fontWeight: 500 }}>
-                    😊 Emoji
-                  </button>
-                  {showEmojiPanel && (
-                    <div style={{ position: "absolute", bottom: "calc(100% + 0.5rem)", left: 0, background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", padding: "0.75rem", boxShadow: "var(--shadow-lg)", display: "flex", flexWrap: "wrap", gap: "0.5rem", width: "200px", zIndex: 10 }}>
-                      {EMOJIS.map((e) => (
-                        <button key={e} onClick={() => insertEmoji(e)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.25rem", padding: "0.25rem", borderRadius: "var(--radius-sm)" }}>{e}</button>
+              {/* ── Achievement type: pick achievement ── */}
+              {type === "achievement" && (
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <label className="input-label" style={{ marginBottom: "0.75rem", display: "block" }}>
+                    Chọn thành tựu <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  {loadingAch ? (
+                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Đang tải thành tựu...</div>
+                  ) : achievements.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "2rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-md)", border: "1px dashed var(--color-border)" }}>
+                      <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🏅</div>
+                      <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem", marginBottom: "1rem" }}>Chưa có thành tựu nào. Hãy hoàn thành một hướng dẫn trước!</p>
+                      <Link href="/thanh-tuu" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}>Xem hướng dẫn</Link>
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", maxHeight: "320px", overflowY: "auto", paddingRight: "0.25rem" }}>
+                      {achievements.map(a => (
+                        <div key={a.id} id={`ach-${a.id}`} onClick={() => setSelectedAch(a)}
+                          style={{ padding: "0.875rem", borderRadius: "var(--radius-md)", border: `2px solid ${selectedAch?.id === a.id ? "var(--color-primary)" : "var(--color-border)"}`, background: selectedAch?.id === a.id ? "rgba(45,106,79,0.06)" : "var(--color-surface)", cursor: "pointer", transition: "all var(--transition-fast)" }}>
+                          {a.photoUrl && <img src={a.photoUrl} alt={a.tutorialTitle} style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", borderRadius: "var(--radius-sm)", marginBottom: "0.5rem" }} />}
+                          <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-text-primary)", lineHeight: 1.35 }}>{a.tutorialTitle}</div>
+                          {a.note && <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{a.note}</div>}
+                          {selectedAch?.id === a.id && (
+                            <div style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--color-primary)", fontWeight: 700 }}>✓ Đã chọn</div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
+              )}
 
-                {/* Tag input */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", marginLeft: "auto" }}>
-                  <input
-                    placeholder="#tag"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }}
-                    style={{ width: "90px", padding: "0.5rem 0.75rem", borderRadius: "var(--radius-full)", border: "1.5px solid var(--color-border)", fontSize: "0.8125rem", outline: "none", background: "var(--color-surface-2)" }}
-                  />
-                  <button onClick={addTag} disabled={tags.length >= 5 || !tagInput.trim()} style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius-md)", background: "var(--color-primary)", color: "white", border: "none", cursor: "pointer", fontSize: "0.8125rem", opacity: tags.length >= 5 || !tagInput.trim() ? 0.5 : 1 }}>+</button>
-                </div>
-              </div>
-
-              {/* Tutorial picker dropdown */}
-              {showTutorialPicker && (
-                <div style={{ margin: "0 1.25rem 1rem", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-                  <p style={{ padding: "0.75rem 1rem", fontSize: "0.8125rem", color: "var(--color-text-muted)", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-2)", fontWeight: 500 }}>Chọn bài hướng dẫn liên quan</p>
-                  {TUTORIAL_SUGGESTIONS.map((t) => (
-                    <button key={t.id} onClick={() => { setLinkedTutorial(t); setShowTutorialPicker(false); }}
-                      style={{ width: "100%", padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem", background: "none", border: "none", borderBottom: "1px solid var(--color-border)", cursor: "pointer", textAlign: "left" }}>
-                      <span style={{ fontSize: "1.5rem" }}>{t.emoji}</span>
-                      <span style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", fontWeight: 500 }}>{t.title}</span>
-                    </button>
-                  ))}
+              {/* ── Tutorial type: search & pick ── */}
+              {type === "tutorial" && (
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <label className="input-label" style={{ marginBottom: "0.75rem", display: "block" }}>
+                    Chọn hướng dẫn <span style={{ color: "var(--color-error)" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative", marginBottom: "0.75rem" }}>
+                    <input id="tutorial-search" type="text" value={tutSearch} onChange={e => setTutSearch(e.target.value)}
+                      placeholder="Tìm kiếm hướng dẫn..." className="input-field"
+                      style={{ paddingLeft: "2.75rem" }} />
+                    <svg style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                    </svg>
+                  </div>
+                  {loadingTut ? (
+                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Đang tải...</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", maxHeight: "320px", overflowY: "auto" }}>
+                      {tutorials.map(t => (
+                        <div key={t.id} id={`tut-${t.id}`} onClick={() => setSelectedTut(t)}
+                          style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", padding: "0.875rem", borderRadius: "var(--radius-md)", border: `2px solid ${selectedTut?.id === t.id ? "var(--color-primary)" : "var(--color-border)"}`, background: selectedTut?.id === t.id ? "rgba(45,106,79,0.06)" : "var(--color-surface)", cursor: "pointer", transition: "all var(--transition-fast)" }}>
+                          {t.coverImageUrl && <img src={t.coverImageUrl} alt={t.title} style={{ width: "4rem", height: "4rem", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0 }} />}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>{t.title}</div>
+                            <div style={{ fontSize: "0.775rem", color: "var(--color-text-muted)" }}>{t.author.displayName} · {t.categoryName}</div>
+                            {selectedTut?.id === t.id && <div style={{ fontSize: "0.75rem", color: "var(--color-primary)", fontWeight: 700, marginTop: "0.25rem" }}>✓ Đã chọn</div>}
+                          </div>
+                        </div>
+                      ))}
+                      {tutorials.length === 0 && !loadingTut && (
+                        <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>Không tìm thấy hướng dẫn nào.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Submit */}
-              <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid var(--color-border)", display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-                <Link href="/cong-dong" className="btn btn-outline" style={{ textDecoration: "none", padding: "0.625rem 1.5rem" }}>Hủy</Link>
-                <button
-                  disabled={!isValid}
-                  onClick={() => router.push("/cong-dong")}
-                  className="btn btn-primary"
-                  style={{ padding: "0.625rem 2rem", opacity: isValid ? 1 : 0.5, cursor: isValid ? "pointer" : "not-allowed" }}>
-                  Đăng bài
+              {/* Selected preview */}
+              {type === "tutorial" && selectedTut && (
+                <div style={{ background: "rgba(45,106,79,0.06)", border: "1px solid rgba(45,106,79,0.2)", borderRadius: "var(--radius-md)", padding: "0.875rem 1rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <span style={{ fontSize: "1.25rem" }}>📚</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-primary)" }}>{selectedTut.title}</div>
+                    <div style={{ fontSize: "0.775rem", color: "var(--color-text-muted)" }}>Người đọc sẽ được dẫn đến trang hướng dẫn này</div>
+                  </div>
+                  <button type="button" onClick={() => setSelectedTut(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "1rem" }}>×</button>
+                </div>
+              )}
+
+              {/* Error */}
+              {error && (
+                <div style={{ background: "rgba(192,57,43,0.08)", border: "1.5px solid rgba(192,57,43,0.3)", borderRadius: "var(--radius-md)", padding: "0.875rem 1rem", marginBottom: "1.25rem", color: "var(--color-error)", fontWeight: 500 }}>
+                  {error}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                <Link href="/cong-dong" className="btn btn-outline" style={{ textDecoration: "none" }}>Hủy</Link>
+                <button id="btn-submit-post" type="submit" disabled={submitting} className="btn btn-primary" style={{ minWidth: "120px", opacity: submitting ? 0.8 : 1 }}>
+                  {submitting ? <><Spinner /> Đang đăng...</> : "📤 Đăng bài"}
                 </button>
               </div>
-            </div>
-
-            {/* ── Tips Sidebar ── */}
-            <div style={{ position: "sticky", top: "5rem" }}>
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "1rem" }}>💡 Mẹo tạo bài viết hay</h3>
-                {[
-                  { icon: "📸", tip: "Thêm ảnh tác phẩm để thu hút nhiều lượt thích hơn" },
-                  { icon: "#️⃣", tip: "Dùng tối đa 5 hashtag liên quan để tăng khả năng tìm kiếm" },
-                  { icon: "📌", tip: "Link bài hướng dẫn bạn đã theo để giúp người khác học theo" },
-                  { icon: "❓", tip: "Đặt câu hỏi ở cuối bài để kích thích bình luận" },
-                ].map((tip) => (
-                  <div key={tip.tip} style={{ display: "flex", gap: "0.75rem", padding: "0.625rem 0", borderBottom: "1px solid var(--color-border)" }}>
-                    <span style={{ fontSize: "1.125rem", flexShrink: 0 }}>{tip.icon}</span>
-                    <p style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>{tip.tip}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", marginTop: "1rem", boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "0.875rem" }}>Quyền riêng tư</h3>
-                {PRIVACY_OPTIONS.map((o) => (
-                  <div key={o.value} onClick={() => setPrivacy(o.value)}
-                    style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.625rem", borderRadius: "var(--radius-md)", cursor: "pointer", background: privacy === o.value ? "rgba(45,106,79,0.06)" : "transparent", border: `1.5px solid ${privacy === o.value ? "var(--color-primary)" : "transparent"}`, marginBottom: "0.375rem" }}>
-                    <span style={{ fontSize: "1.25rem" }}>{o.icon}</span>
-                    <div>
-                      <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text-primary)" }}>{o.label}</p>
-                      <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{o.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </form>
           </div>
         </div>
       </main>
       <Footer />
-
-      <style>{`
-        @media (max-width: 768px) {
-          .container-sm > div { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

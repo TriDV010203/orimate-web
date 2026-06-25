@@ -29,3 +29,20 @@ export type {
   ToggleFollowResponse,
 } from "./users";
 export { usersApi } from "./users";
+
+export type {
+  MediaItemDto,
+  CommunityPostDto,
+  CreateCommunityPostRequest,
+  ToggleLikeResponse,
+  CommentDto,
+  AddCommentRequest,
+} from "./community-posts";
+export { communityPostsApi } from "./community-posts";
+
+export type {
+  JournalDto,
+  CreateJournalRequest,
+  UpdateJournalRequest,
+} from "./journals";
+export { journalsApi } from "./journals";

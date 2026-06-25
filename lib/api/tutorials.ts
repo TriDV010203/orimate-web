@@ -65,6 +65,7 @@ export const tutorialsApi = {
     categoryId?: number;
     difficulty?: string;
     type?: string;
+    authorId?: string;
     page?: number;
     pageSize?: number;
   }): Promise<PagedResult<TutorialListItemDto>> {
@@ -73,6 +74,7 @@ export const tutorialsApi = {
     if (params?.categoryId) q.set("categoryId", String(params.categoryId));
     if (params?.difficulty) q.set("difficulty", params.difficulty);
     if (params?.type)       q.set("type",       params.type);
+    if (params?.authorId)   q.set("authorId",   params.authorId);
     if (params?.page)       q.set("page",       String(params.page));
     if (params?.pageSize)   q.set("pageSize",   String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
