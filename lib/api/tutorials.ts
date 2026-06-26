@@ -31,6 +31,9 @@ export interface TutorialListItemDto {
   author: AuthorDto;
   stepCount: number;
   publishedAt: string;
+  likeCount?: number;
+  isLiked?: boolean | null;
+  isSaved?: boolean | null;
 }
 
 export interface TutorialDetailDto {
@@ -46,6 +49,11 @@ export interface TutorialDetailDto {
   author: AuthorDto;
   steps: TutorialStepDto[];
   publishedAt: string;
+  likeCount?: number;
+  isLiked?: boolean | null;
+  isSaved?: boolean | null;
+  isCompleted?: boolean;
+  achievementId?: string | null;
 }
 
 export interface PagedResult<T> {
@@ -59,30 +67,35 @@ export interface PagedResult<T> {
 // ── Tutorials API ─────────────────────────────────────────────────────────────
 
 export const tutorialsApi = {
-  /** GET /api/tutorials — Danh sách tutorial đã publish (public) */
-  getList(params?: {
-    search?: string;
-    categoryId?: number;
-    difficulty?: string;
-    type?: string;
-    authorId?: string;
-    page?: number;
-    pageSize?: number;
-  }): Promise<PagedResult<TutorialListItemDto>> {
+  /** GET /api/tutorials — Danh sách tutorial đã publish; token tùy chọn để trả về isLiked/isSaved */
+  getList(
+    params?: {
+      search?: string;
+      categoryId?: number;
+      difficulty?: string;
+      type?: string;
+      authorId?: string;
+      sortBy?: string;   // "date" | "likes"
+      page?: number;
+      pageSize?: number;
+    },
+    token?: string
+  ): Promise<PagedResult<TutorialListItemDto>> {
     const q = new URLSearchParams();
     if (params?.search)     q.set("search",     params.search);
     if (params?.categoryId) q.set("categoryId", String(params.categoryId));
     if (params?.difficulty) q.set("difficulty", params.difficulty);
     if (params?.type)       q.set("type",       params.type);
     if (params?.authorId)   q.set("authorId",   params.authorId);
+    if (params?.sortBy)     q.set("sortBy",     params.sortBy);
     if (params?.page)       q.set("page",       String(params.page));
     if (params?.pageSize)   q.set("pageSize",   String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
-    return request<PagedResult<TutorialListItemDto>>(`/api/tutorials${qs}`);
+    return request<PagedResult<TutorialListItemDto>>(`/api/tutorials${qs}`, { token });
   },
 
-  /** GET /api/tutorials/{slug} — Chi tiết tutorial theo slug (public) */
-  getBySlug(slug: string): Promise<TutorialDetailDto> {
-    return request<TutorialDetailDto>(`/api/tutorials/${slug}`);
+  /** GET /api/tutorials/{slug} — Chi tiết tutorial theo slug; token tùy chọn để trả về isLiked/isSaved/isCompleted */
+  getBySlug(slug: string, token?: string): Promise<TutorialDetailDto> {
+    return request<TutorialDetailDto>(`/api/tutorials/${slug}`, { token });
   },
 };

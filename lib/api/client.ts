@@ -50,6 +50,7 @@ export async function request<T>(
       // ignore parse error
     }
     const err: ApiError = { message, status: res.status };
+    console.error("[api] Error response:", res.status, message);
     throw err;
   }
 

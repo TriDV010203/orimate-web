@@ -46,3 +46,10 @@ export type {
   UpdateJournalRequest,
 } from "./journals";
 export { journalsApi } from "./journals";
+
+export type {
+  WishlistToggleResponse,
+  WishlistItemDto,
+  WishlistPagedResult,
+} from "./wishlists";
+export { wishlistsApi } from "./wishlists";

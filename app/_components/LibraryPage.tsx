@@ -5,45 +5,39 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AdBanner from "./AdBanner";
-import { tutorialsApi, type TutorialListItemDto } from "@/lib/api";
+import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
+import { getToken, isLoggedIn } from "@/lib/auth";
 
 const CATEGORIES = ["Tất cả", "Động vật", "Hoa & Thực vật", "Chim", "Origami 3D", "Modular", "Hình học", "Nhân vật", "Biển cả", "Thiên nhiên"];
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
 const TYPES = ["Tất cả", "Miễn phí", "VIP"];
-const SORTS = ["Mới nhất", "Phổ biến nhất"];
+const SORTS = [{ label: "Mới nhất", value: "date" }, { label: "Phổ biến nhất", value: "likes" }];
 const PAGE_SIZE = 12;
 
-// Ánh xạ loại từ tiếng Việt sang giá trị BE
 function mapTypeToBe(type: string): string | undefined {
   if (type === "Miễn phí") return "Free";
   if (type === "VIP") return "VIP";
   return undefined;
 }
 
-// Màu avatar dựa theo ký tự đầu
 const AUTHOR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
-function authorColor(name: string) {
-  const idx = name.charCodeAt(0) % AUTHOR_COLORS.length;
-  return AUTHOR_COLORS[idx];
-}
+function authorColor(name: string) { return AUTHOR_COLORS[name.charCodeAt(0) % AUTHOR_COLORS.length]; }
 
 function getDiffClass(d?: string | null) {
   if (d === "Dễ" || d === "Easy") return "badge-easy";
   if (d === "Trung bình" || d === "Medium") return "badge-medium";
   return "badge-hard";
 }
-function getTypeClass(t: string) {
-  return t === "VIP" || t === "vip" ? "badge-vip" : "badge-free";
-}
-function getTypeLabel(t: string) {
-  return t === "Free" ? "Miễn phí" : t;
-}
+function getTypeClass(t: string) { return t === "VIP" || t === "vip" ? "badge-vip" : "badge-free"; }
+function getTypeLabel(t: string) { return t === "Free" ? "Miễn phí" : t; }
+
+interface CardState { isLiked: boolean; likeCount: number; isSaved: boolean; }
 
 export default function LibraryPage() {
   const [category, setCategory] = useState("Tất cả");
   const [difficulty, setDifficulty] = useState("Tất cả");
   const [type, setType] = useState("Tất cả");
-  const [sort, setSort] = useState("Mới nhất");
+  const [sort, setSort] = useState("date");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -52,43 +46,88 @@ export default function LibraryPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [cardStates, setCardStates] = useState<Record<string, CardState>>({});
+
+  useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
 
   const fetchTutorials = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const token = isLoggedIn() ? getToken() ?? undefined : undefined;
       const result = await tutorialsApi.getList({
         search: search.trim() || undefined,
         difficulty: difficulty !== "Tất cả" ? difficulty : undefined,
         type: mapTypeToBe(type),
+        sortBy: sort,
         page,
         pageSize: PAGE_SIZE,
-      });
+      }, token);
       setTutorials(result.items);
       setTotalPages(result.totalPages);
       setTotalCount(result.totalCount);
+      // Khởi tạo card states từ BE response
+      const states: Record<string, CardState> = {};
+      result.items.forEach((t) => {
+        states[t.id] = {
+          isLiked: t.isLiked ?? false,
+          likeCount: t.likeCount ?? 0,
+          isSaved: t.isSaved ?? false,
+        };
+      });
+      setCardStates(states);
     } catch {
       setError("Không thể tải danh sách bài hướng dẫn. Vui lòng thử lại.");
       setTutorials([]);
     } finally {
       setLoading(false);
     }
-  }, [search, difficulty, type, page]);
+  }, [search, difficulty, type, sort, page]);
 
-  // Debounce search; reset page khi filter thay đổi
-  useEffect(() => {
-    setPage(1);
-  }, [search, difficulty, type, category]);
+  useEffect(() => { setPage(1); }, [search, difficulty, type, category, sort]);
 
   useEffect(() => {
     const timer = setTimeout(fetchTutorials, search ? 350 : 0);
     return () => clearTimeout(timer);
   }, [fetchTutorials]);
 
-  // Lọc client-side theo category (BE chưa có endpoint filter theo tên danh mục)
+  // Lọc client-side theo category (BE chưa có filter theo tên danh mục)
   const filtered = category === "Tất cả"
     ? tutorials
     : tutorials.filter((t) => t.categoryName === category);
+
+  const handleLike = useCallback(async (tutorialId: string) => {
+    if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
+    const token = getToken()!;
+    const prev = cardStates[tutorialId] ?? { isLiked: false, likeCount: 0, isSaved: false };
+    setCardStates((s) => ({
+      ...s,
+      [tutorialId]: { ...prev, isLiked: !prev.isLiked, likeCount: prev.likeCount + (prev.isLiked ? -1 : 1) },
+    }));
+    try {
+      const res = await communityPostsApi.toggleLike(token, tutorialId, "Tutorial");
+      if (typeof res.isLiked === "boolean") {
+        setCardStates((s) => ({ ...s, [tutorialId]: { ...s[tutorialId], isLiked: res.isLiked } }));
+      }
+    } catch (err) {
+      console.error("[like] failed:", err);
+      setCardStates((s) => ({ ...s, [tutorialId]: prev }));
+    }
+  }, [cardStates]);
+
+  const handleSave = useCallback(async (tutorialId: string) => {
+    if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
+    const token = getToken()!;
+    const prev = cardStates[tutorialId] ?? { isLiked: false, likeCount: 0, isSaved: false };
+    setCardStates((s) => ({ ...s, [tutorialId]: { ...prev, isSaved: !prev.isSaved } }));
+    try {
+      await wishlistsApi.toggle(token, tutorialId);
+    } catch (err) {
+      console.error("[wishlist] failed:", err);
+      setCardStates((s) => ({ ...s, [tutorialId]: prev }));
+    }
+  }, [cardStates]);
 
   return (
     <>
@@ -171,7 +210,7 @@ export default function LibraryPage() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="15" y2="12" /><line x1="3" y1="18" x2="9" y2="18" /></svg>
                 <select value={sort} onChange={(e) => setSort(e.target.value)}
                   style={{ border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "0.375rem 0.75rem", fontSize: "0.875rem", color: "var(--color-text-primary)", background: "var(--color-surface)", cursor: "pointer", outline: "none" }}>
-                  {SORTS.map((s) => <option key={s}>{s}</option>)}
+                  {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
             </div>
@@ -184,6 +223,11 @@ export default function LibraryPage() {
                 <>Tìm thấy <strong style={{ color: "var(--color-text-primary)" }}>{totalCount}</strong> bài hướng dẫn</>
               )}
             </p>
+            {!loggedIn && (
+              <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+                <Link href="/dang-nhap" style={{ color: "var(--color-primary)", fontWeight: 600 }}>Đăng nhập</Link> để like và lưu yêu thích
+              </p>
+            )}
           </div>
 
           {/* ── Ad Banner ── */}
@@ -191,7 +235,7 @@ export default function LibraryPage() {
             <AdBanner size="leaderboard" slotId="library-leaderboard" />
           </div>
 
-          {/* ── Loading ── */}
+          {/* ── Loading skeleton ── */}
           {loading && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
               {Array.from({ length: 6 }).map((_, i) => (
@@ -218,44 +262,90 @@ export default function LibraryPage() {
           {/* ── Tutorial Grid ── */}
           {!loading && !error && filtered.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
-              {filtered.map((t) => (
-                <article key={t.id} className="card tutorial-card" style={{ overflow: "hidden" }}>
-                  <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
-                    <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
-                      {t.coverImageUrl
-                        ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
-                        : "📄"
-                      }
-                      <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", display: "flex", gap: "0.375rem" }}>
-                        <span className={`badge ${getTypeClass(t.type)}`}>{getTypeLabel(t.type)}</span>
-                      </div>
-                    </div>
-                    <div style={{ padding: "1rem" }}>
-                      <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", lineHeight: 1.4, marginBottom: "0.5rem", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {t.title}
-                      </h3>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
-                        <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: authorColor(t.author.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
-                          {t.author.displayName.charAt(0)}
+              {filtered.map((t) => {
+                const cs = cardStates[t.id] ?? { isLiked: false, likeCount: 0, isSaved: false };
+                return (
+                  <article key={t.id} className="card tutorial-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                      <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
+                        {t.coverImageUrl
+                          ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                          : "📄"
+                        }
+                        <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", display: "flex", gap: "0.375rem" }}>
+                          <span className={`badge ${getTypeClass(t.type)}`}>{getTypeLabel(t.type)}</span>
                         </div>
-                        <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author.displayName}</span>
-                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>{t.stepCount} bước</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
-                        {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
-                        <span className="badge badge-category">{t.categoryName}</span>
+                      <div style={{ padding: "1rem 1rem 0.5rem" }}>
+                        <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", lineHeight: 1.4, marginBottom: "0.5rem", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {t.title}
+                        </h3>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                          <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: authorColor(t.author.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
+                            {t.author.displayName.charAt(0)}
+                          </div>
+                          <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author.displayName}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>{t.stepCount} bước</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
+                          {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                          <span className="badge badge-category">{t.categoryName}</span>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                  <div style={{ padding: "0 1rem 1rem" }}>
-                    <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
-                      className="btn btn-primary"
-                      style={{ width: "100%", justifyContent: "center", textDecoration: "none", padding: "0.5rem" }}>
-                      {t.type === "VIP" ? "🔒 Xem VIP" : "Xem ngay"}
                     </Link>
-                  </div>
-                </article>
-              ))}
+
+                    {/* Action row: like / save / xem */}
+                    <div style={{ padding: "0.5rem 1rem 1rem", marginTop: "auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      {/* Like */}
+                      <button
+                        onClick={() => handleLike(t.id)}
+                        title={cs.isLiked ? "Bỏ like" : "Like"}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "0.3rem",
+                          padding: "0.375rem 0.625rem", borderRadius: "var(--radius-sm)",
+                          border: `1.5px solid ${cs.isLiked ? "#ef4444" : "var(--color-border)"}`,
+                          background: cs.isLiked ? "#FEF2F2" : "transparent",
+                          color: cs.isLiked ? "#ef4444" : "var(--color-text-muted)",
+                          cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600,
+                          transition: "all var(--transition-fast)",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill={cs.isLiked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                        </svg>
+                        {cs.likeCount > 0 && <span>{cs.likeCount}</span>}
+                      </button>
+
+                      {/* Save */}
+                      <button
+                        onClick={() => handleSave(t.id)}
+                        title={cs.isSaved ? "Bỏ lưu" : "Lưu yêu thích"}
+                        style={{
+                          display: "flex", alignItems: "center",
+                          padding: "0.375rem 0.5rem", borderRadius: "var(--radius-sm)",
+                          border: `1.5px solid ${cs.isSaved ? "var(--color-primary)" : "var(--color-border)"}`,
+                          background: cs.isSaved ? "#F0FDF4" : "transparent",
+                          color: cs.isSaved ? "var(--color-primary)" : "var(--color-text-muted)",
+                          cursor: "pointer", transition: "all var(--transition-fast)",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill={cs.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                          <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+                        </svg>
+                      </button>
+
+                      {/* Xem */}
+                      <Link
+                        href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                        className="btn btn-primary"
+                        style={{ flex: 1, justifyContent: "center", textDecoration: "none", padding: "0.4rem 0.5rem", fontSize: "0.875rem" }}
+                      >
+                        {t.type === "VIP" ? "🔒 Xem VIP" : "Xem ngay"}
+                      </Link>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
 

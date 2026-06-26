@@ -7,6 +7,8 @@ import Footer from "./Footer";
 import { isLoggedIn, getToken, getUser } from "@/lib/auth";
 import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
 import { usersApi, CreatorProfileDto } from "@/lib/api/users";
+import { wishlistsApi } from "@/lib/api/wishlists";
+import type { TutorialListItemDto } from "@/lib/api/tutorials";
 import type { ApiError } from "@/lib/api/client";
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -16,7 +18,7 @@ const AVATAR_COLORS = [
   "#1098AD", "#74C0FC", "#A9E34B", "#FF6B6B",
 ];
 
-const TABS = ["Bài hướng dẫn", "Thành tựu", "Cộng đồng"] as const;
+const TABS = ["Bài hướng dẫn", "Thành tựu", "Wishlist"] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -65,6 +67,12 @@ export default function ProfilePage() {
   // Achievements preview
   const [achievementsPreview, setAchievementsPreview] = useState<AchievementDto[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
+
+  // Wishlist preview
+  const [wishlistItems, setWishlistItems] = useState<TutorialListItemDto[]>([]);
+  const [wishlistSavedAt, setWishlistSavedAt] = useState<Record<string, string>>({});
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [wishlistTotal, setWishlistTotal] = useState(0);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -118,6 +126,30 @@ export default function ProfilePage() {
       .then((r) => setAchievementsPreview(r.items))
       .catch(() => {})
       .finally(() => setAchievementsLoading(false));
+  }, [activeTab]);
+
+  // ── Load wishlist preview when tab active ─────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== "Wishlist") return;
+    const tok = getToken();
+    if (!tok) return;
+    setWishlistLoading(true);
+    wishlistsApi.getMyWishlist(tok, { pageSize: 6 })
+      .then((res) => {
+        const tutorials: TutorialListItemDto[] = [];
+        const atMap: Record<string, string> = {};
+        for (const item of res.items) {
+          if (item.tutorial) {
+            tutorials.push(item.tutorial);
+            atMap[item.tutorial.id] = item.savedAt;
+          }
+        }
+        setWishlistItems(tutorials);
+        setWishlistSavedAt(atMap);
+        setWishlistTotal(tutorials.length);
+      })
+      .catch(() => {})
+      .finally(() => setWishlistLoading(false));
   }, [activeTab]);
 
   // ── Close modal on Escape ─────────────────────────────────────────────────
@@ -396,7 +428,7 @@ export default function ProfilePage() {
               >
                 {tab === "Bài hướng dẫn" && "📚 "}
                 {tab === "Thành tựu" && "🏅 "}
-                {tab === "Cộng đồng" && "💬 "}
+                {tab === "Wishlist" && "🔖 "}
                 {tab}
               </button>
             ))}
@@ -477,11 +509,101 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Community Tab */}
-            {activeTab === "Cộng đồng" && (
-              <div className="animate-fade-in" style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--color-text-muted)" }}>
-                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>💬</div>
-                <p style={{ fontSize: "1rem" }}>Bài đăng cộng đồng sẽ hiển thị ở đây</p>
+            {/* Wishlist Tab */}
+            {activeTab === "Wishlist" && (
+              <div className="animate-fade-in">
+                {/* Header row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <div>
+                    <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>
+                      🔖 Danh sách yêu thích
+                    </h2>
+                    {!wishlistLoading && (
+                      <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+                        {wishlistTotal} bài đã lưu
+                      </p>
+                    )}
+                  </div>
+                  <Link href="/danh-sach-yeu-thich" className="btn btn-outline btn-sm">
+                    Xem tất cả
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </Link>
+                </div>
+
+                {/* Loading */}
+                {wishlistLoading && (
+                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
+                    <div style={{ display: "inline-block", width: "2rem", height: "2rem", border: "3px solid var(--color-border)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                  </div>
+                )}
+
+                {/* Empty */}
+                {!wishlistLoading && wishlistItems.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--color-text-muted)", background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--color-border)" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔖</div>
+                    <p style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Chưa có bài nào được lưu</p>
+                    <p style={{ fontSize: "0.875rem", marginBottom: "1.25rem" }}>Lưu bài hướng dẫn yêu thích để xem lại sau.</p>
+                    <Link href="/huong-dan" className="btn btn-primary" style={{ textDecoration: "none" }}>Khám phá thư viện</Link>
+                  </div>
+                )}
+
+                {/* Grid */}
+                {!wishlistLoading && wishlistItems.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                    {wishlistItems.map((t) => {
+                      const savedDate = wishlistSavedAt[t.id];
+                      return (
+                        <Link
+                          key={t.id}
+                          href={t.type?.toLowerCase() === "vip" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                          style={{ textDecoration: "none", display: "block" }}
+                        >
+                          <div
+                            className="card"
+                            style={{ overflow: "hidden", cursor: "pointer", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)"; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
+                          >
+                            <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
+                              {t.coverImageUrl
+                                ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                                : "📄"
+                              }
+                              <div style={{ position: "absolute", top: "0.625rem", left: "0.625rem" }}>
+                                <span style={{ background: t.type?.toLowerCase() === "vip" ? "#FEF3C7" : "#D1FAE5", color: t.type?.toLowerCase() === "vip" ? "#92400E" : "#065F46", fontSize: "0.6875rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: "999px" }}>
+                                  {t.type?.toLowerCase() === "vip" ? "VIP" : "Miễn phí"}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ padding: "0.875rem" }}>
+                              {savedDate && (
+                                <div style={{ fontSize: "0.6875rem", color: "var(--color-text-muted)", marginBottom: "0.375rem" }}>
+                                  🔖 {formatDate(savedDate)}
+                                </div>
+                              )}
+                              <h3 style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.375rem", color: "var(--color-text-primary)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                                {t.title}
+                              </h3>
+                              <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", display: "flex", justifyContent: "space-between" }}>
+                                <span>{t.author.displayName}</span>
+                                <span>{t.stepCount} bước</span>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* View all link if there are more items */}
+                {!wishlistLoading && wishlistTotal > 6 && (
+                  <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
+                    <Link href="/danh-sach-yeu-thich" className="btn btn-outline">
+                      Xem thêm {wishlistTotal - 6} bài khác
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>

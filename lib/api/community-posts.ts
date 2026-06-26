@@ -95,9 +95,10 @@ export const communityPostsApi = {
     targetId: string,
     targetType: "CommunityPost" | "Tutorial"
   ): Promise<ToggleLikeResponse> {
+    // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType)
     return request<ToggleLikeResponse>("/api/likes/toggle", {
       method: "POST",
-      body: JSON.stringify({ targetId, targetType }),
+      body: JSON.stringify({ TargetId: targetId, TargetType: targetType }),
       token,
     });
   },
@@ -119,9 +120,14 @@ export const communityPostsApi = {
     token: string,
     body: AddCommentRequest
   ): Promise<{ commentId: string }> {
+    // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType, Content)
     return request<{ commentId: string }>("/api/comments", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        TargetId: body.targetId,
+        TargetType: body.targetType,
+        Content: body.content,
+      }),
       token,
     });
   },
