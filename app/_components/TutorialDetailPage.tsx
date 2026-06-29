@@ -317,9 +317,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     tutorialsApi.getBySlug(slug, token)
       .then((data) => {
         setTutorial(data);
-        setIsLiked(data.isLiked ?? false);
+        setIsLiked(data.isLikedByCurrentUser ?? false);
         setLikeCount(data.likeCount ?? 0);
-        setIsSaved(data.isSaved ?? false);
+        setIsSaved(data.isWishlistedByCurrentUser ?? false);
         // Mở bước đầu tiên mặc định
         if (data.steps?.length > 0) {
           const sorted = [...data.steps].sort((a, b) => a.stepOrder - b.stepOrder);

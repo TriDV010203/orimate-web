@@ -32,8 +32,10 @@ export interface TutorialListItemDto {
   stepCount: number;
   publishedAt: string;
   likeCount?: number;
-  isLiked?: boolean | null;
-  isSaved?: boolean | null;
+  wishlistCount?: number;
+  commentCount?: number;
+  isLikedByCurrentUser?: boolean | null;
+  isWishlistedByCurrentUser?: boolean | null;
 }
 
 export interface TutorialDetailDto {
@@ -50,8 +52,9 @@ export interface TutorialDetailDto {
   steps: TutorialStepDto[];
   publishedAt: string;
   likeCount?: number;
-  isLiked?: boolean | null;
-  isSaved?: boolean | null;
+  wishlistCount?: number;
+  isLikedByCurrentUser?: boolean | null;
+  isWishlistedByCurrentUser?: boolean | null;
   isCompleted?: boolean;
   achievementId?: string | null;
 }

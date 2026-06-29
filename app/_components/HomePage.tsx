@@ -88,9 +88,9 @@ export default function HomePage() {
         const states: Record<string, CardState> = {};
         res.items.forEach((t) => {
           states[t.id] = {
-            isLiked: t.isLiked ?? false,
+            isLiked: t.isLikedByCurrentUser ?? false,
             likeCount: t.likeCount ?? 0,
-            isSaved: t.isSaved ?? false,
+            isSaved: t.isWishlistedByCurrentUser ?? false,
           };
         });
         setCardStates(states);
