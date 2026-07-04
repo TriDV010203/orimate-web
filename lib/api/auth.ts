@@ -55,7 +55,9 @@ export const authApi = {
 
   /** GET /api/auth/verify-email?token=xxx */
   verifyEmail(token: string) {
-    return request<MessageResponse>(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+    return request<MessageResponse>(
+      `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+    );
   },
 
   /** POST /api/auth/resend-verification */
@@ -75,7 +77,12 @@ export const authApi = {
   },
 
   /** POST /api/auth/change-password — Yêu cầu đăng nhập (Bearer token) */
-  changePassword(currentPassword: string, newPassword: string, confirmPassword: string, token: string) {
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+    token: string,
+  ) {
     return request<MessageResponse>("/api/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),

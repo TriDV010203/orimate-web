@@ -1,5 +1,5 @@
 @import "tailwindcss";
-
+@custom-variant dark (&:where(.dark, .dark *));
 /* ===== ORIGAMI DESIGN SYSTEM ===== */
 :root {
   /* Brand Colors */
@@ -374,24 +374,44 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(24px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-
-.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
-.animate-slide-left { animation: slideInLeft 0.5s ease forwards; }
-.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+.animate-slide-left {
+  animation: slideInLeft 0.5s ease forwards;
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
 
 /* Stagger delays */
 .delay-100 {
@@ -752,11 +772,15 @@ body {
 }
 
 @media (max-width: 900px) {
-  .profile-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .profile-stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 
 @media (max-width: 600px) {
-  .profile-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 /* ===== ACHIEVEMENTS PAGE ===== */
@@ -767,15 +791,21 @@ body {
 }
 
 @media (max-width: 1100px) {
-  .achievements-badge-grid { grid-template-columns: repeat(6, 1fr) !important; }
+  .achievements-badge-grid {
+    grid-template-columns: repeat(6, 1fr) !important;
+  }
 }
 
 @media (max-width: 768px) {
-  .achievements-badge-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .achievements-badge-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
 }
 
 @media (max-width: 480px) {
-  .achievements-badge-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .achievements-badge-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 
 /* Achievement stats mini bar responsive */
@@ -793,11 +823,15 @@ body {
 
 /* Achievement grid responsive */
 @media (max-width: 900px) {
-  .achievements-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .achievements-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 @media (max-width: 580px) {
-  .achievements-grid { grid-template-columns: 1fr !important; }
+  .achievements-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ===== PROFILE RESPONSIVE ===== */

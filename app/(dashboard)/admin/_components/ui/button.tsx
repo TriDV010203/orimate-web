@@ -1,4 +1,4 @@
-import { cn } from "./card";
+import { cn } from "./utils";
 import { Loader2 } from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -14,14 +14,14 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+    "inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variants = {
     primary:
-      "bg-gradient-to-r from-[#2d6a4f] to-[#40916c] text-white shadow-md hover:shadow-lg",
+      "bg-[#10b981] hover:bg-[#059669] text-white shadow-lg shadow-[#10b981]/20",
     outline:
-      "border-2 border-gray-200 bg-white text-gray-700 hover:border-[#2d6a4f] hover:text-[#2d6a4f]",
-    ghost: "bg-transparent text-gray-500 hover:bg-gray-100",
+      "border border-white/10 bg-transparent text-slate-300 hover:bg-white/5 hover:text-white",
+    ghost: "bg-transparent text-slate-400 hover:bg-white/5 hover:text-white",
   };
 
   return (

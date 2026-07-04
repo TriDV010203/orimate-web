@@ -1,8 +1,4 @@
-import { clsx, type ClassValue } from "clsx";
-
-export function cn(...classes: ClassValue[]) {
-  return clsx(classes);
-}
+import { cn } from "./utils";
 
 export function Card({
   className,
@@ -12,7 +8,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden",
+        "bg-white dark:bg-[#131722] rounded-2xl border border-slate-200 dark:border-white/5 overflow-hidden text-slate-900 dark:text-white shadow-sm transition-colors duration-300",
         className,
       )}
       {...props}
