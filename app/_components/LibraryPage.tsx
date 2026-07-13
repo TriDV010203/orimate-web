@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import AdBanner from "./AdBanner";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 
@@ -230,10 +229,6 @@ export default function LibraryPage() {
             )}
           </div>
 
-          {/* ── Ad Banner ── */}
-          <div style={{ marginBottom: "2rem" }}>
-            <AdBanner size="leaderboard" slotId="library-leaderboard" />
-          </div>
 
           {/* ── Loading skeleton ── */}
           {loading && (

@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import AdBanner from "./AdBanner";
 import { useEffect, useState, useCallback } from "react";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
@@ -217,12 +216,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===== AD SLOT 1 ===== */}
-        <div style={{ padding: "1.25rem 0", background: "var(--color-surface-2)", borderTop: "1px solid var(--color-border)", borderBottom: "1px solid var(--color-border)" }}>
-          <div className="container">
-            <AdBanner size="leaderboard" slotId="ad-leaderboard-hero" />
-          </div>
-        </div>
+
 
         {/* ===== TUTORIALS SECTION — nổi bật theo lượt like ===== */}
         <section style={{ padding: "4rem 0", background: "var(--color-bg)" }}>
@@ -358,16 +352,7 @@ export default function HomePage() {
               }
             </div>
 
-            {/* AD inline */}
-            <div style={{ marginTop: "1.5rem", padding: "1.25rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexShrink: 0 }}>
-                <span style={{ fontSize: "1.25rem" }}>📢</span>
-                <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Được tài trợ</span>
-              </div>
-              <div style={{ flex: 1, minWidth: "200px" }}>
-                <AdBanner size="inline-wide" slotId="ad-inline-tutorials" />
-              </div>
-            </div>
+
           </div>
         </section>
 
@@ -387,7 +372,6 @@ export default function HomePage() {
               {[
                 { icon: "🖼️", title: "Chia sẻ thành quả", desc: "Đăng ảnh/video những tác phẩm Origami bạn đã hoàn thành và nhận phản hồi từ cộng đồng." },
                 { icon: "👥", title: "Follow nhà sáng tạo", desc: "Theo dõi các NST yêu thích và không bỏ lỡ bất kỳ bài hướng dẫn mới nào của họ." },
-                { icon: "👨‍👩‍👧‍👦", title: "Dự án gia đình", desc: "Tạo dự án Origami chung cùng gia đình, cùng nhau hoàn thành từng bước và lưu giữ kỷ niệm." },
               ].map((f) => (
                 <div key={f.title} style={{ background: "rgba(255,255,255,0.06)", borderRadius: "var(--radius-lg)", padding: "2rem", border: "1px solid rgba(255,255,255,0.1)", textAlign: "left" }}>
                   <div style={{ fontSize: "2rem", marginBottom: "0.875rem" }}>{f.icon}</div>
@@ -403,16 +387,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===== AD BILLBOARD ===== */}
-        <div style={{ padding: "2rem 0", background: "var(--color-bg)" }}>
-          <div className="container">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem", opacity: 0.5 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /></svg>
-              <span style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)" }}>Quảng cáo</span>
-            </div>
-            <AdBanner size="billboard" slotId="ad-billboard-mid" />
-          </div>
-        </div>
+
 
         {/* ===== FEATURED CREATORS ===== */}
         <section style={{ padding: "4rem 0", background: "var(--color-surface-2)" }}>
@@ -471,15 +446,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ===== AD BOTTOM ===== */}
-        <div style={{ padding: "2rem 0 1.5rem", background: "var(--color-surface-2)", borderTop: "1px solid var(--color-border)" }}>
-          <div className="container" style={{ textAlign: "center" }}>
-            <div style={{ marginBottom: "0.5rem", opacity: 0.45 }}>
-              <span style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--color-text-muted)" }}>Quảng cáo</span>
-            </div>
-            <AdBanner size="leaderboard" slotId="ad-leaderboard-bottom" />
-          </div>
-        </div>
+
       </main>
       <Footer />
       <style>{`

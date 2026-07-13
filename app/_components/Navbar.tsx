@@ -141,7 +141,6 @@ export default function Navbar() {
             {[
               { href: "/huong-dan", label: "Thư viện" },
               { href: "/cong-dong", label: "Cộng đồng" },
-              { href: "/gia-dinh", label: "Gia đình" },
             ].map((link) => (
               <Link
                 key={link.href}
