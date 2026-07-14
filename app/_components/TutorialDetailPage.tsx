@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ReportModal from "./ReportModal";
 import { useEffect, useState, useCallback } from "react";
 import {
   tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi,
@@ -305,6 +306,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Report
+  const [showReportModal, setShowReportModal] = useState(false);
+
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
@@ -496,6 +500,13 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       {showSuccessModal && (
         <SuccessModal onClose={() => setShowSuccessModal(false)} />
       )}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetId={tutorial.id}
+        targetType="Tutorial"
+        targetTitle={tutorial.title}
+      />
 
       <main>
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
@@ -584,6 +595,31 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   </svg>
                   {likeCount > 0 ? fmtLikes(likeCount) : (isLiked ? "Đã like" : "Like")}
                 </button>
+
+                {/* Report button */}
+                {loggedIn && (
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    title="Báo cáo vi phạm"
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.375rem",
+                      padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)",
+                      border: "1.5px solid rgba(255,255,255,0.3)",
+                      background: "rgba(255,255,255,0.1)",
+                      color: "rgba(255,255,255,0.7)",
+                      cursor: "pointer",
+                      fontSize: "0.875rem", fontWeight: 500,
+                      transition: "all var(--transition-fast)",
+                      backdropFilter: "blur(4px)",
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                      <line x1="4" y1="22" x2="4" y2="15" />
+                    </svg>
+                    Báo cáo
+                  </button>
+                )}
 
                 {/* Save button */}
                 <button

@@ -139,7 +139,8 @@ export default function PostDetailPage() {
     // and find the post, or show an error. We'll do a broad fetch.
     communityPostsApi.getFeed({ page: 1, pageSize: 100 }, token ?? undefined)
       .then(result => {
-        const found = result.items.find(p => p.id === postId);
+        const items = Array.isArray(result) ? (result as CommunityPostDto[]) : [];
+        const found = items.find((p: CommunityPostDto) => p.id === postId);
         if (!found) { setPostError("Không tìm thấy bài viết."); return; }
         setPost(found);
         setLiked(found.isLikedByCurrentUser);

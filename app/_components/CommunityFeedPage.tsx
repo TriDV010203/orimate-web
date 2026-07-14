@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ReportModal from "./ReportModal";
 import { communityPostsApi, type CommunityPostDto } from "@/lib/api";
 import { usersApi, type CreatorProfileDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
@@ -61,6 +62,7 @@ function PostCard({
   const [liked, setLiked] = useState(post.isLikedByCurrentUser);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liking, setLiking] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const profile = profileCache.get(post.authorId) ?? null;
 
   useEffect(() => {
@@ -172,6 +174,20 @@ function PostCard({
         </Link>
 
         <div style={{ flex: 1 }} />
+
+        {token && (
+          <button onClick={() => setShowReport(true)} title="Báo cáo"
+            style={{ display: "flex", alignItems: "center", gap: "0.25rem", background: "none", border: "none", cursor: "pointer", padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", color: "var(--color-text-muted)", fontSize: "0.75rem", fontWeight: 500, transition: "color 0.15s" }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#DC2626")}
+            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+              <line x1="4" y1="22" x2="4" y2="15" />
+            </svg>
+          </button>
+        )}
+
         <Link href={`/cong-dong/${post.id}`}
           style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", textDecoration: "none", padding: "0.5rem 0.75rem", borderRadius: "var(--radius-md)" }}
           onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
@@ -179,6 +195,14 @@ function PostCard({
           Xem chi tiết →
         </Link>
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReport}
+        onClose={() => setShowReport(false)}
+        targetId={post.id}
+        targetType="CommunityPost"
+      />
     </article>
   );
 }

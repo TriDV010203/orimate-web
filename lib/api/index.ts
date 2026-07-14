@@ -12,6 +12,11 @@ export type {
   TutorialListItemDto,
   TutorialDetailDto,
   PagedResult,
+  MyTutorialDto,
+  CreateTutorialRequest,
+  UpdateTutorialRequest,
+  CreateTutorialStepRequest,
+  TutorialProgressDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";
 
@@ -53,3 +58,25 @@ export type {
   WishlistPagedResult,
 } from "./wishlists";
 export { wishlistsApi } from "./wishlists";
+
+export type {
+  NotificationDto,
+  NotificationPagedResult,
+} from "./notifications";
+export { notificationsApi } from "./notifications";
+
+export type {
+  SubscriptionDto,
+  SubscriptionPagedResult,
+  VipTierDto,
+  CreatorRevenueDto,
+  RevenueMonthDto,
+} from "./subscriptions";
+export { subscriptionsApi } from "./subscriptions";
+
+export type {
+  SubmitReportRequest,
+  ReportTargetType,
+} from "./reports";
+export { reportsApi } from "./reports";
+
