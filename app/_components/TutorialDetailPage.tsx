@@ -397,12 +397,16 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoggedIn(isLoggedIn());
   }, []);
 
   useEffect(() => {
     if (!slug) return;
+    
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+
     tutorialsApi.getBySlug(slug)
       .then((data) => {
         setTutorial(data);

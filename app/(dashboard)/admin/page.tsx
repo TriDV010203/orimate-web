@@ -25,7 +25,6 @@ import {
 } from "recharts";
 import { useTheme } from "next-themes";
 
-// --- MOCK DATA BIỂU ĐỒ ---
 const trafficData = [
   { name: "T2", visitors: 1240 },
   { name: "T3", visitors: 1850 },
@@ -105,7 +104,6 @@ export default function DashboardHomePage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        // Fetch dữ liệu song song để tối ưu tốc độ
         const [usersResult, tutorialsResult, reportsResult, keywordsResult] =
           await Promise.allSettled([
             adminApi.getUsers({ page: 1, pageSize: 1 }),
@@ -206,52 +204,40 @@ export default function DashboardHomePage() {
   const isDark = resolvedTheme === "dark";
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {/* HEADER SECTION */}
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-[#10b981]/10 text-emerald-600 dark:text-[#10b981] rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 border border-emerald-100 dark:border-[#10b981]/20">
+    <div className="pageContainer">
+      <div className="pageHeader">
+        <div className="welcomeBadge">
           <span>✦</span> Chào mừng trở lại
         </div>
-        <h1 className="text-[28px] font-bold text-slate-900 dark:text-white tracking-tight mb-1">
-          Tổng quan Hệ thống
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
+        <h1 className="pageTitle">Tổng quan Hệ thống</h1>
+        <p className="pageDescription">
           Theo dõi các chỉ số quan trọng và tình trạng hoạt động của nền tảng
           OriGami.
         </p>
       </div>
 
-      {/* KPI CARDS VỚI SPARKLINE SVG */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="statsGrid">
         {stats.map((stat, idx) => {
           const Icon = stat.icon;
           const isPositive =
             stat.changeType === "positive" || stat.changeType === "neutral";
 
           return (
-            <Link
-              key={idx}
-              href={stat.link}
-              className="bg-white dark:bg-[#131722] rounded-2xl p-5 border border-slate-200 dark:border-white/5 relative overflow-hidden hover:border-slate-300 dark:hover:border-white/10 shadow-sm transition-all text-decoration-none group flex flex-col justify-between min-h-[140px]"
-            >
-              <div className="flex justify-between items-start z-10">
-                <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  {stat.label}
-                </span>
+            <Link key={idx} href={stat.link} className="statCard">
+              <div className="statHeader">
+                <span className="statLabel">{stat.label}</span>
                 <div
-                  className={`p-2 rounded-xl ${stat.iconBg} ${stat.iconColor} group-hover:scale-110 transition-transform`}
+                  className={`statIconWrapper ${stat.iconBg} ${stat.iconColor}`}
                 >
                   <Icon size={18} strokeWidth={2} />
                 </div>
               </div>
 
-              <div className="mt-2 z-10">
-                <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
-                  {stat.value}
-                </h3>
-                <div className="flex items-center gap-1.5 text-xs font-medium">
+              <div className="statContent">
+                <h3 className="statValue">{stat.value}</h3>
+                <div className="statChangeWrapper">
                   <span
-                    className={`flex items-center gap-1 ${isPositive ? "text-[#10b981]" : "text-rose-500"}`}
+                    className={`statChange ${isPositive ? "statChangePositive" : "statChangeNegative"}`}
                   >
                     {isPositive ? (
                       <TrendingUp size={14} />
@@ -263,12 +249,11 @@ export default function DashboardHomePage() {
                 </div>
               </div>
 
-              {/* Đường lượn sóng trang trí đáy Card */}
-              <div className="absolute bottom-0 left-0 right-0 h-12 opacity-50 pointer-events-none">
+              <div className="waveContainer">
                 <svg
                   viewBox="0 0 100 20"
                   preserveAspectRatio="none"
-                  className="w-full h-full"
+                  className="waveSvg"
                 >
                   <path
                     d="M0,10 C20,20 40,0 60,10 C80,20 100,0 100,0 L100,20 L0,20 Z"
@@ -303,35 +288,28 @@ export default function DashboardHomePage() {
         })}
       </div>
 
-      {/* BỐ CỤC 2 CỘT */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* KHU VỰC BIỂU ĐỒ RECHARTS (Chiếm 2 cột) */}
-        <div className="bg-white dark:bg-[#131722] p-6 rounded-2xl border border-slate-200 dark:border-white/5 lg:col-span-2 flex flex-col shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-50 dark:bg-[#10b981]/10 text-emerald-600 dark:text-[#10b981] rounded-xl flex items-center justify-center">
+      <div className="contentGrid">
+        <div className="chartSection">
+          <div className="chartHeader">
+            <div className="chartTitleWrapper">
+              <div className="chartIcon">
                 <Activity size={20} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                  Hoạt động hệ thống
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <h3 className="chartTitle">Hoạt động hệ thống</h3>
+                <p className="chartDescription">
                   Lưu lượng truy cập 7 ngày qua
                 </p>
               </div>
             </div>
 
-            {/* Tabs giả lập */}
-            <div className="flex items-center bg-slate-50 dark:bg-[#0b0f19] p-1 rounded-xl border border-slate-100 dark:border-white/5">
+            <div className="tabsContainer">
               {["Lưu lượng", "Tương tác"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                    activeTab === tab
-                      ? "bg-white dark:bg-[#1f2937] text-slate-900 dark:text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  className={`tabButton ${
+                    activeTab === tab ? "tabActive" : "tabInactive"
                   }`}
                 >
                   {tab}
@@ -340,7 +318,7 @@ export default function DashboardHomePage() {
             </div>
           </div>
 
-          <div className="flex-1 w-full min-h-[300px]">
+          <div className="chartContainer">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={trafficData}
@@ -404,16 +382,14 @@ export default function DashboardHomePage() {
         </div>
 
         {/* LỐI TẮT TRUY CẬP */}
-        <div className="space-y-5">
-          <div className="bg-white dark:bg-[#131722] p-6 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-              Truy cập nhanh
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+        <div className="shortcutsSection">
+          <div className="shortcutsCard">
+            <h3 className="shortcutsTitle">Truy cập nhanh</h3>
+            <p className="shortcutsDescription">
               Các tác vụ quản lý thường dùng
             </p>
 
-            <div className="space-y-3">
+            <div className="shortcutsList">
               {[
                 {
                   href: "/admin/tutorials",
@@ -437,23 +413,14 @@ export default function DashboardHomePage() {
                   icon: ShieldAlert,
                 },
               ].map((link, idx) => (
-                <Link
-                  key={idx}
-                  href={link.href}
-                  className="flex items-center p-3 rounded-xl bg-slate-50 dark:bg-[#0b0f19] hover:bg-slate-100 dark:hover:bg-[#1f2937] border border-transparent dark:border-white/5 transition-all group"
-                >
+                <Link key={idx} href={link.href} className="shortcutItem">
                   <div
-                    className={`p-2 rounded-lg ${link.bg} ${link.color} mr-3`}
+                    className={`shortcutIconWrapper ${link.bg} ${link.color}`}
                   >
                     <link.icon size={16} strokeWidth={2} />
                   </div>
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                    {link.text}
-                  </span>
-                  <ArrowRight
-                    size={16}
-                    className="ml-auto text-slate-400 dark:text-slate-600 group-hover:text-slate-700 dark:group-hover:text-white transition-colors"
-                  />
+                  <span className="shortcutText">{link.text}</span>
+                  <ArrowRight size={16} className="shortcutArrow" />
                 </Link>
               ))}
             </div>
