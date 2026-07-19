@@ -72,7 +72,6 @@ export default function UsersManagementPage() {
     }
   };
 
-  // Logic Lưu chỉnh sửa User
   const handleSaveEdit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -94,12 +93,12 @@ export default function UsersManagementPage() {
         },
       );
     } else {
-      // Fallback nếu chưa kịp viết API update
       toast.success("Giao diện đã lấy được dữ liệu, chờ nối API!");
       console.log("Data:", updatedData);
       setEditingUser(null);
     }
   };
+
   // ==========================================
   // GIAO DIỆN: MÀN HÌNH CHỈNH SỬA
   // ==========================================
@@ -306,21 +305,33 @@ export default function UsersManagementPage() {
                               ? "danger"
                               : "default"
                         }
+                        className="gap-2 shadow-sm"
                       >
-                        {user.status === "Active"
-                          ? "Hoạt động"
-                          : user.status === "Suspended"
-                            ? "Bị khóa"
-                            : user.status}
+                        <span
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${user.status === "Active" ? "bg-emerald-500 animate-pulse" : user.status === "Suspended" ? "bg-rose-500" : "bg-slate-500"}`}
+                        ></span>
+                        <span>
+                          {user.status === "Active"
+                            ? "Hoạt động"
+                            : user.status === "Suspended"
+                              ? "Bị khóa"
+                              : user.status}
+                        </span>
                       </Badge>
                     </td>
 
                     <td className="tdRoles">
-                      <div className="rolesWrapper">
+                      <div className="rolesWrapper gap-2">
                         {user.roles.map((r: string) => (
                           <Badge
                             key={r}
-                            variant={r === "Admin" ? "warning" : "default"}
+                            variant={
+                              r === "Admin"
+                                ? "warning"
+                                : r === "Manager"
+                                  ? "success"
+                                  : "default"
+                            }
                           >
                             {r}
                           </Badge>

@@ -23,10 +23,15 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold border transition-colors",
+        "inline-flex items-center justify-center text-xs font-medium border transition-colors",
         variants[variant],
         className,
       )}
+      style={{
+        padding: "4px 12px",
+        borderRadius: "9999px",
+        whiteSpace: "nowrap",
+      }}
       {...props}
     >
       {children}

@@ -83,11 +83,11 @@ export default function AdminReportsPage() {
               ) : !reports || reports.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="reportsEmpty">
-                    <ShieldCheck
+                    {/* <ShieldCheck
                       className="mx-auto mb-4"
                       size={48}
                       style={{ color: "#94a3b8" }}
-                    />
+                    /> */}
                     <p className="reportsEmptyTitle">
                       Không có báo cáo vi phạm
                     </p>

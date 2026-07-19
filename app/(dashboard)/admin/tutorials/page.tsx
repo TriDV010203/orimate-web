@@ -75,13 +75,25 @@ export default function TutorialsQueuePage() {
 
       <div className="tutorialsList">
         {isLoading ? (
-          <div className="tutorialsLoadingBox">
-            <Loader2
-              className="animate-spin mx-auto mb-4"
-              size={32}
-              style={{ color: "#10b981" }}
-            />
-          </div>
+          <>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="tutorialsItem">
+                <div>
+                  <div className="tutorialsItemHeader">
+                    <span className="skeleton" style={{ width: 100, height: 24, display: 'inline-block', borderRadius: 12 }}></span>
+                    <span className="skeleton" style={{ width: 120, height: 24, display: 'inline-block' }}></span>
+                  </div>
+                  <div className="skeleton" style={{ width: '80%', height: 28, marginBottom: 12, borderRadius: 6 }}></div>
+                  <div className="skeleton" style={{ width: '60%', height: 20, borderRadius: 6 }}></div>
+                </div>
+
+                <div className="tutorialsItemActions">
+                  <div className="skeleton" style={{ width: 80, height: 36, borderRadius: 6 }}></div>
+                  <div className="skeleton" style={{ width: 100, height: 36, borderRadius: 6 }}></div>
+                </div>
+              </div>
+            ))}
+          </>
         ) : queue.length === 0 ? (
           <div className="tutorialsEmptyBox">
             <div className="tutorialsEmptyIcon">
