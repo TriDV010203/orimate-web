@@ -8,6 +8,7 @@ import Footer from "./Footer";
 import { useEffect, useState, useCallback } from "react";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl } from "@/lib/utils";
 
 const CREATORS = [
   { name: "Quang Minh", tutorials: 48, followers: "12.4K", color: "#2D6A4F", initial: "QM", tag: "Origami Nâng cao" },
@@ -268,7 +269,7 @@ export default function HomePage() {
                             {/* Thumbnail */}
                             <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit" }}>
                               <div style={{ position: "relative", overflow: "hidden", aspectRatio: "4/3", background: bgColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem" }}>
-                                {t.coverImageUrl ? (
+                                {isValidImageUrl(t.coverImageUrl) ? (
                                   <Image src={t.coverImageUrl} alt={t.title} fill sizes="(max-width: 768px) 100vw, 25vw" style={{ objectFit: "cover" }} />
                                 ) : (
                                   <span>{emoji}</span>

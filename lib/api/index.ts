@@ -32,6 +32,8 @@ export type {
   CreatorProfileDto,
   UpdateProfileRequest,
   ToggleFollowResponse,
+  FollowerUserDto,
+  UserPagedResult,
 } from "./users";
 export { usersApi } from "./users";
 

@@ -256,11 +256,12 @@ export default function CommunityFeedPage() {
     if (append) setLoadingMore(true); else setLoading(true);
     setError(null);
     try {
-      const items = await communityPostsApi.getFeed({ page: pageNum, pageSize: PAGE_SIZE }, tokenRef.current ?? undefined);
-      const safeItems = Array.isArray(items) ? items : [];
+      const result = await communityPostsApi.getFeed({ page: pageNum, pageSize: PAGE_SIZE }, tokenRef.current ?? undefined);
+      // Backend trả về PagedResult<CommunityPostDto> với field .items và .totalPages
+      const safeItems = Array.isArray(result) ? result : (result?.items ?? []);
+      const pages = (result as { totalPages?: number })?.totalPages ?? (safeItems.length >= PAGE_SIZE ? pageNum + 1 : pageNum);
       setPosts(prev => append ? [...prev, ...safeItems] : safeItems);
-      // Nếu trả về đủ PAGE_SIZE bài thì có thể còn trang tiếp
-      setTotalPages(safeItems.length >= PAGE_SIZE ? pageNum + 1 : pageNum);
+      setTotalPages(pages);
     } catch {
       setError("Không thể tải bài viết. Vui lòng thử lại.");
     } finally {

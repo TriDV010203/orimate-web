@@ -123,30 +123,17 @@ export default function PostDetailPage() {
     setCurrentUserId(decodeUserId(t));
   }, []);
 
-  // Load post
+  // Load post bằng API trực tiếp
   useEffect(() => {
     if (!postId) return;
     setLoadingPost(true);
-    communityPostsApi.getFeed({ page: 1, pageSize: 1 }, token ?? undefined)
-      .then(() => {
-        // We fetch feed and filter — since there's no GET /api/community-posts/{id} endpoint,
-        // we get the first page of feed and try to find the post.
-        // For robustness, we also try a bigger page.
-      })
-      .catch(() => {});
-
-    // Actually: load via feed filtering is unreliable. Instead, we fetch a wide feed
-    // and find the post, or show an error. We'll do a broad fetch.
-    communityPostsApi.getFeed({ page: 1, pageSize: 100 }, token ?? undefined)
-      .then(result => {
-        const items = Array.isArray(result) ? (result as CommunityPostDto[]) : [];
-        const found = items.find((p: CommunityPostDto) => p.id === postId);
-        if (!found) { setPostError("Không tìm thấy bài viết."); return; }
+    const tok = token ?? undefined;
+    communityPostsApi.getById(postId, tok)
+      .then(found => {
         setPost(found);
         setLiked(found.isLikedByCurrentUser);
         setLikeCount(found.likeCount);
-        // load author profile
-        return usersApi.getProfile(found.authorId, token ?? undefined);
+        return usersApi.getProfile(found.authorId, tok);
       })
       .then(profile => { if (profile) setPostProfile(profile); })
       .catch(() => setPostError("Không thể tải bài viết. Vui lòng thử lại."))

@@ -29,6 +29,25 @@ export interface ToggleFollowResponse {
   isFollowing: boolean;
 }
 
+export interface FollowerUserDto {
+  userId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  followerCount: number;
+  tutorialCount: number;
+  isFollowing: boolean;
+  roles: string[];
+}
+
+export interface UserPagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 // ── Users API ─────────────────────────────────────────────────────────────────
 
 export const usersApi = {
@@ -71,4 +90,41 @@ export const usersApi = {
       { method: "POST", token }
     );
   },
+
+  /**
+   * GET /api/users/{id}/followers — Danh sách người theo dõi user đó
+   */
+  getFollowers(
+    userId: string,
+    params?: { page?: number; pageSize?: number },
+    token?: string
+  ): Promise<UserPagedResult<FollowerUserDto>> {
+    const q = new URLSearchParams();
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<UserPagedResult<FollowerUserDto>>(
+      `/api/users/${userId}/followers${qs}`,
+      { token }
+    );
+  },
+
+  /**
+   * GET /api/users/{id}/following — Danh sách người mà user đó đang theo dõi
+   */
+  getFollowing(
+    userId: string,
+    params?: { page?: number; pageSize?: number },
+    token?: string
+  ): Promise<UserPagedResult<FollowerUserDto>> {
+    const q = new URLSearchParams();
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<UserPagedResult<FollowerUserDto>>(
+      `/api/users/${userId}/following${qs}`,
+      { token }
+    );
+  },
 };
+

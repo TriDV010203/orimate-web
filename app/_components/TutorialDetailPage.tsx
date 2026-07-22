@@ -12,6 +12,7 @@ import {
   type TutorialDetailDto, type TutorialStepDto, type AchievementDto, type ApiError,
 } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl } from "@/lib/utils";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getDiffLabel(d?: string | null) {
@@ -512,7 +513,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
         {/* ── HERO ─────────────────────────────────────────────────────────── */}
         <div
           style={{
-            background: tutorial.coverImageUrl
+            background: isValidImageUrl(tutorial.coverImageUrl)
               ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.8) 100%)`
               : "var(--gradient-primary)",
             position: "relative",
@@ -521,7 +522,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
             display: "flex", alignItems: "flex-end",
           }}
         >
-          {tutorial.coverImageUrl && (
+          {isValidImageUrl(tutorial.coverImageUrl) && (
             <Image src={tutorial.coverImageUrl} alt={tutorial.title} fill sizes="100vw" style={{ objectFit: "cover", zIndex: 0 }} priority />
           )}
           <div style={{ position: "relative", zIndex: 1, width: "100%", padding: "3rem 0 2rem" }}>

@@ -66,15 +66,23 @@ export const communityPostsApi = {
   getFeed(
     params?: { page?: number; pageSize?: number },
     token?: string
-  ): Promise<CommunityPostDto[]> {
+  ): Promise<PagedResult<CommunityPostDto>> {
     const q = new URLSearchParams();
     if (params?.page)     q.set("page",     String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
-    return request<CommunityPostDto[]>(
+    return request<PagedResult<CommunityPostDto>>(
       `/api/community-posts/feed${qs}`,
       { token }
     );
+  },
+
+  /** GET /api/community-posts/{id} — Lấy một bài viết theo ID */
+  getById(
+    postId: string,
+    token?: string
+  ): Promise<CommunityPostDto> {
+    return request<CommunityPostDto>(`/api/community-posts/${postId}`, { token });
   },
 
   /** POST /api/community-posts — Tạo bài viết mới (cần đăng nhập) */
