@@ -149,11 +149,11 @@ export default function CreatorChannelPage({ userId }: Props) {
           <div style={{ position: "absolute", bottom: 0, right: 0, fontSize: "12rem", opacity: 0.1, lineHeight: 1, userSelect: "none" }}>🐉</div>
         </div>
 
-        <div className="container">
+        <div className="container" style={{ position: "relative", zIndex: 1 }}>
           {/* ── Profile Row ── */}
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: "-3rem", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: "1.25rem" }}>
-              <div style={{ width: "6rem", height: "6rem", borderRadius: "50%", background: aColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", fontWeight: 800, color: "white", border: "4px solid var(--color-surface)", boxShadow: "var(--shadow-md)", flexShrink: 0 }}>
+              <div style={{ width: "6rem", height: "6rem", borderRadius: "50%", background: aColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", fontWeight: 800, color: "white", border: "4px solid var(--color-surface)", boxShadow: "var(--shadow-md)", flexShrink: 0, marginTop: "-3rem" }}>
                 {initial}
               </div>
               <div style={{ paddingBottom: "0.375rem" }}>

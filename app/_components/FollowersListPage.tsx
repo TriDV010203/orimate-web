@@ -132,7 +132,7 @@ export default function FollowersListPage() {
               ) : (
                 filtered.map((user, i) => (
                   <div key={user.userId} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none" }}>
-                    <Link href={`/nguoi-dung/${user.userId}`} style={{ textDecoration: "none", flexShrink: 0 }}>
+                    <Link href={`/kenh/${user.userId}`} style={{ textDecoration: "none", flexShrink: 0 }}>
                       <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: user.avatarUrl ? "transparent" : avatarColor(user.userId), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white", overflow: "hidden", border: "2px solid var(--color-border)" }}>
                         {user.avatarUrl
                           ? <img src={user.avatarUrl} alt={user.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -140,7 +140,7 @@ export default function FollowersListPage() {
                       </div>
                     </Link>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Link href={`/nguoi-dung/${user.userId}`} style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", textDecoration: "none", display: "block", marginBottom: "0.125rem" }}>
+                      <Link href={`/kenh/${user.userId}`} style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", textDecoration: "none", display: "block", marginBottom: "0.125rem" }}>
                         {user.displayName}
                         {user.roles?.includes("Creator") && (
                           <span style={{ marginLeft: "0.375rem", fontSize: "0.65rem", background: "linear-gradient(135deg,#D4713B,#e8955f)", color: "white", padding: "0.1rem 0.35rem", borderRadius: "99px", fontWeight: 700 }}>Creator</span>

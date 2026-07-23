@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback } from "react";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
@@ -283,12 +284,12 @@ export default function HomePage() {
                               </div>
                               <div style={{ padding: "1rem 1rem 0.5rem" }}>
                                 <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.5rem", color: "var(--color-text-primary)", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</h3>
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                                <AuthorLink authorId={t.author.id} style={{ gap: "0.5rem", marginBottom: "0.5rem" }}>
                                   <div style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0 }}>
                                     {initials}
                                   </div>
                                   <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t.author.displayName}</span>
-                                </div>
+                                </AuthorLink>
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
                                   <span>🗂 {t.categoryName}</span>
                                   <span>📋 {t.stepCount} bước</span>

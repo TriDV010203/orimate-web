@@ -6,6 +6,7 @@ import Image from "next/image";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
+import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback } from "react";
 import {
   tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi,
@@ -564,12 +565,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
               {/* Meta row */}
               <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                 {/* Author */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <AuthorLink authorId={tutorial.author.id} style={{ gap: "0.5rem" }}>
                   <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: "var(--gradient-primary)", border: "2px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.6875rem", color: "white", flexShrink: 0 }}>
                     {tutorial.author.displayName.split(" ").map((n) => n[0]).slice(-2).join("").toUpperCase()}
                   </div>
                   <span style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.875rem", fontWeight: 600 }}>{tutorial.author.displayName}</span>
-                </div>
+                </AuthorLink>
                 <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.875rem" }}>📋 {totalSteps} bước</div>
                 <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.875rem" }}>
                   📅 {new Date(tutorial.publishedAt).toLocaleDateString("vi-VN")}

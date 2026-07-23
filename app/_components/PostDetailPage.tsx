@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import AuthorLink from "./AuthorLink";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
@@ -59,10 +60,14 @@ function CommentItem({
 
   return (
     <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", padding: "0.875rem 0", borderBottom: "1px solid var(--color-border)" }}>
-      <Avatar userId={comment.authorId} profile={profile} size={36} />
+      <AuthorLink authorId={comment.authorId}>
+        <Avatar userId={comment.authorId} profile={profile} size={36} />
+      </AuthorLink>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
-          <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-text-primary)" }}>{name}</span>
+          <AuthorLink authorId={comment.authorId}>
+            <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-text-primary)" }}>{name}</span>
+          </AuthorLink>
           {profile?.roles?.includes("Creator") && (
             <span style={{ fontSize: "0.65rem", background: "linear-gradient(135deg,#D4713B,#e8955f)", color: "white", padding: "0.1rem 0.35rem", borderRadius: "99px", fontWeight: 700 }}>Creator</span>
           )}
@@ -239,7 +244,7 @@ export default function PostDetailPage() {
               <article style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-md)", overflow: "hidden" }}>
                 {/* Author header */}
                 <div style={{ padding: "1.5rem 1.5rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
+                  <AuthorLink authorId={post.authorId} style={{ gap: "0.875rem" }}>
                     <Avatar userId={post.authorId} profile={postProfile} size={48} />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{authorName}</div>
@@ -248,8 +253,8 @@ export default function PostDetailPage() {
                       )}
                       <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginTop: "0.15rem" }}>{timeAgo(post.createdAt)}</div>
                     </div>
-                  </div>
-                  <Link href={`/nguoi-dung/${post.authorId}`}
+                  </AuthorLink>
+                  <Link href={`/kenh/${post.authorId}`}
                     style={{ fontSize: "0.8rem", color: "var(--color-primary)", textDecoration: "none", padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)", border: "1px solid var(--color-primary)", fontWeight: 600 }}>
                     Xem hồ sơ
                   </Link>

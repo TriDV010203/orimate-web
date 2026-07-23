@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import AuthorLink from "./AuthorLink";
 import { isLoggedIn, getToken, getUser } from "@/lib/auth";
 import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
 import { usersApi, CreatorProfileDto } from "@/lib/api/users";
 import { wishlistsApi } from "@/lib/api/wishlists";
+import { tutorialsApi } from "@/lib/api/tutorials";
 import type { TutorialListItemDto } from "@/lib/api/tutorials";
 import type { ApiError } from "@/lib/api/client";
 
@@ -64,6 +66,10 @@ export default function ProfilePage() {
     avatarColor: "#2D6A4F",
   });
 
+  // Tutorials preview (bài hướng dẫn của bản thân)
+  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [tutorialsLoading, setTutorialsLoading] = useState(false);
+
   // Achievements preview
   const [achievementsPreview, setAchievementsPreview] = useState<AchievementDto[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
@@ -115,6 +121,19 @@ export default function ProfilePage() {
       window.removeEventListener("storage", onAuthChange);
     };
   }, []);
+
+  // ── Load own tutorials when tab active ─────────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== "Bài hướng dẫn") return;
+    const storedUser = getUser();
+    if (!storedUser) return;
+    const tok = getToken() ?? undefined;
+    setTutorialsLoading(true);
+    tutorialsApi.getList({ authorId: storedUser.userId, pageSize: 6 }, tok)
+      .then((r) => setTutorials(r.items.filter((t) => t.author.id === storedUser.userId)))
+      .catch(() => {})
+      .finally(() => setTutorialsLoading(false));
+  }, [activeTab]);
 
   // ── Load achievements preview when tab active ─────────────────────────────
   useEffect(() => {
@@ -356,6 +375,13 @@ export default function ProfilePage() {
                     Chỉnh sửa hồ sơ
                   </button>
                   <Link
+                    href="/studio"
+                    className="btn btn-outline btn-sm"
+                    style={{ minWidth: "110px", justifyContent: "center" }}
+                  >
+                    🎬 Creator Studio
+                  </Link>
+                  <Link
                     href="/ho-so/thanh-tich"
                     className="btn btn-outline btn-sm"
                     style={{ minWidth: "110px", justifyContent: "center" }}
@@ -439,10 +465,82 @@ export default function ProfilePage() {
 
             {/* Tutorials Tab */}
             {activeTab === "Bài hướng dẫn" && (
-              <div className="animate-fade-in" style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--color-text-muted)", background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--color-border)" }}>
-                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📚</div>
-                <p style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Chưa có bài hướng dẫn nào</p>
-                <p style={{ fontSize: "0.875rem" }}>Các bài hướng dẫn của bạn sẽ hiện ở đây.</p>
+              <div className="animate-fade-in">
+                {/* Header row */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "0.75rem" }}>
+                  <div>
+                    <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>
+                      📚 Bài hướng dẫn đã đăng
+                    </h2>
+                    {!tutorialsLoading && (
+                      <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+                        {formatNumber(profile?.postCount ?? tutorials.length)} bài viết
+                      </p>
+                    )}
+                  </div>
+                  <Link href="/studio" className="btn btn-outline btn-sm">
+                    Quản lý trong Studio
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </Link>
+                </div>
+
+                {/* Loading */}
+                {tutorialsLoading && (
+                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
+                    <div style={{ display: "inline-block", width: "2rem", height: "2rem", border: "3px solid var(--color-border)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                  </div>
+                )}
+
+                {/* Empty */}
+                {!tutorialsLoading && tutorials.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--color-text-muted)", background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--color-border)" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📚</div>
+                    <p style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Chưa có bài hướng dẫn nào</p>
+                    <p style={{ fontSize: "0.875rem", marginBottom: "1.25rem" }}>Các bài hướng dẫn của bạn sẽ hiện ở đây.</p>
+                    <Link href="/studio" className="btn btn-primary" style={{ textDecoration: "none" }}>Tạo bài hướng dẫn</Link>
+                  </div>
+                )}
+
+                {/* Grid */}
+                {!tutorialsLoading && tutorials.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                    {tutorials.map((t) => (
+                      <Link
+                        key={t.id}
+                        href={t.type?.toLowerCase() === "vip" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                        style={{ textDecoration: "none", display: "block" }}
+                      >
+                        <div
+                          className="card"
+                          style={{ overflow: "hidden", cursor: "pointer", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
+                        >
+                          <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
+                            {t.coverImageUrl
+                              ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                              : "📄"
+                            }
+                            <div style={{ position: "absolute", top: "0.625rem", left: "0.625rem" }}>
+                              <span style={{ background: t.type?.toLowerCase() === "vip" ? "#FEF3C7" : "#D1FAE5", color: t.type?.toLowerCase() === "vip" ? "#92400E" : "#065F46", fontSize: "0.6875rem", fontWeight: 700, padding: "0.2rem 0.5rem", borderRadius: "999px" }}>
+                                {t.type?.toLowerCase() === "vip" ? "VIP" : "Miễn phí"}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ padding: "0.875rem" }}>
+                            <h3 style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.375rem", color: "var(--color-text-primary)", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                              {t.title}
+                            </h3>
+                            <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", display: "flex", justifyContent: "space-between" }}>
+                              <span>{t.categoryName}</span>
+                              <span>{t.stepCount} bước</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -585,7 +683,7 @@ export default function ProfilePage() {
                                 {t.title}
                               </h3>
                               <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", display: "flex", justifyContent: "space-between" }}>
-                                <span>{t.author.displayName}</span>
+                                <AuthorLink authorId={t.author.id}>{t.author.displayName}</AuthorLink>
                                 <span>{t.stepCount} bước</span>
                               </div>
                             </div>

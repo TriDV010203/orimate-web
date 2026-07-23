@@ -123,7 +123,7 @@ export default function OtherUserJournalPage({ userId }: Props) {
               </span>
             </div>
             <div style={{ display: "flex", gap: "0.625rem", flexShrink: 0 }}>
-              <Link href={`/nguoi-dung/${userId}`} className="btn btn-outline" style={{ textDecoration: "none", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>Xem kênh</Link>
+              <Link href={`/kenh/${userId}`} className="btn btn-outline" style={{ textDecoration: "none", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>Xem kênh</Link>
               {loggedIn && (
                 <button
                   onClick={handleToggleFollow}

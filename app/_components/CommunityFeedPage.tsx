@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
+import AuthorLink from "./AuthorLink";
 import { communityPostsApi, type CommunityPostDto } from "@/lib/api";
 import { usersApi, type CreatorProfileDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
@@ -34,7 +35,7 @@ function AuthorBadge({ authorId, profile }: { authorId: string; profile?: Creato
   const color = avatarColor(authorId);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+    <AuthorLink authorId={authorId} style={{ gap: "0.75rem" }}>
       <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: profile?.avatarUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
         {profile?.avatarUrl
           ? <img src={profile.avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -46,7 +47,7 @@ function AuthorBadge({ authorId, profile }: { authorId: string; profile?: Creato
           <span style={{ fontSize: "0.7rem", background: "linear-gradient(135deg,#D4713B,#e8955f)", color: "white", padding: "0.1rem 0.4rem", borderRadius: "99px", fontWeight: 700 }}>Creator</span>
         )}
       </div>
-    </div>
+    </AuthorLink>
   );
 }
 

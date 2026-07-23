@@ -137,7 +137,7 @@ export default function VIPSubscribePage({
                       {creatorProfile.followerCount.toLocaleString()} người theo dõi
                     </p>
                   </div>
-                  <Link href={`/nguoi-dung/${authorId}`} className="btn btn-outline" style={{ textDecoration: "none", fontSize: "0.875rem", padding: "0.5rem 1rem" }}>
+                  <Link href={`/kenh/${authorId}`} className="btn btn-outline" style={{ textDecoration: "none", fontSize: "0.875rem", padding: "0.5rem 1rem" }}>
                     Xem kênh
                   </Link>
                 </div>
