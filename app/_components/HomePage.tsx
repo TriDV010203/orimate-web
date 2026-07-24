@@ -332,7 +332,7 @@ export default function HomePage() {
             </div>
 
             {/* Cards grid */}
-            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.25rem" }}>
+            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
               {loading
                 ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
                 : (displayTutorials.length === 0

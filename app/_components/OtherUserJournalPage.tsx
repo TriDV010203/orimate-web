@@ -7,6 +7,7 @@ import Footer from "./Footer";
 import { journalsApi, type JournalDto } from "@/lib/api/journals";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
 interface Props { userId: string; }
 
@@ -105,10 +106,10 @@ export default function OtherUserJournalPage({ userId }: Props) {
 
           {/* User Mini Profile */}
           <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "1.5rem", marginBottom: "1.5rem", boxShadow: "var(--shadow-sm)", display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
-            <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: profile.avatarUrl ? "transparent" : "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
-              {profile.avatarUrl
+            <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: isValidImageUrl(profile.avatarUrl) ? "transparent" : getAvatarColor(profile.avatarUrl), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
+              {isValidImageUrl(profile.avatarUrl)
                 ? <img src={profile.avatarUrl} alt={profile.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : profile.displayName.charAt(0)}
+                : getAvatarInitial(profile.displayName)}
             </div>
             <div style={{ flex: 1, minWidth: "200px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.25rem" }}>

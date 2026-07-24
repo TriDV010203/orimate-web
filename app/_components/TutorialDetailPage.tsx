@@ -7,13 +7,14 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi,
   type TutorialDetailDto, type TutorialStepDto, type AchievementDto, type ApiError,
 } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
+import { findLessonContext, getCompletedLessonIds, setCompletedLessonIds } from "./learningPathsData";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getDiffLabel(d?: string | null) {
@@ -162,123 +163,212 @@ function AchievementModal({ tutorialId, tutorialTitle, onClose, onSuccess }: Ach
 }
 
 // ─── Modal thành công ─────────────────────────────────────────────────────────
-function SuccessModal({ onClose }: { onClose: () => void }) {
+interface SuccessModalProps {
+  onClose: () => void;
+  /** Có khi bài này thuộc 1 lộ trình — ưu tiên đưa người dùng quay lại đó. */
+  pathReturn?: { pathSlug: string; pathTitle: string; isLastLesson: boolean };
+}
+
+function SuccessModal({ onClose, pathReturn }: SuccessModalProps) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1001, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", animation: "fadeIn 0.2s ease" }}>
       <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-xl)", width: "100%", maxWidth: "400px", padding: "2.5rem 2rem", textAlign: "center", animation: "slideUp 0.25s ease" }}>
         <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🎉</div>
         <h2 style={{ fontWeight: 800, fontSize: "1.375rem", marginBottom: "0.5rem", color: "var(--color-text-primary)" }}>Đã lưu thành tựu!</h2>
         <p style={{ color: "var(--color-text-secondary)", marginBottom: "1.75rem", lineHeight: 1.6 }}>
-          Thành tựu của bạn đã được lưu. Hãy vào trang Thành tựu để xem và thêm ảnh tác phẩm nhé!
+          {pathReturn
+            ? (pathReturn.isLastLesson
+              ? `Đây là bài cuối cùng — quay lại lộ trình "${pathReturn.pathTitle}" để nhận huy hiệu hoàn thành!`
+              : `Bài tiếp theo trong lộ trình "${pathReturn.pathTitle}" đã được mở khoá.`)
+            : "Thành tựu của bạn đã được lưu. Hãy vào trang Thành tựu để xem và thêm ảnh tác phẩm nhé!"}
         </p>
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
-          <button onClick={onClose} className="btn btn-outline">Đóng</button>
-          <Link href="/ho-so/thanh-tich" className="btn btn-primary">
-            Xem thành tựu
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-          </Link>
-        </div>
+        {pathReturn ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+            <Link href={`/lo-trinh/${pathReturn.pathSlug}`} className="btn btn-primary" style={{ justifyContent: "center" }}>
+              🗺️ Quay lại lộ trình
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            </Link>
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+              <button onClick={onClose} className="btn btn-outline btn-sm">Đóng</button>
+              <Link href="/ho-so/thanh-tich" className="btn btn-outline btn-sm">Xem thành tựu</Link>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <button onClick={onClose} className="btn btn-outline">Đóng</button>
+            <Link href="/ho-so/thanh-tich" className="btn btn-primary">
+              Xem thành tựu
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Step Item ────────────────────────────────────────────────────────────────
-interface StepItemProps {
+// ─── Step Viewer (1 bước / màn hình, điều hướng trái-phải) ────────────────────
+interface StepViewerProps {
   step: TutorialStepDto;
+  index: number;
+  total: number;
   isCompleted: boolean;
-  isActive: boolean;
   onToggle: () => void;
-  onClick: () => void;
+  onPrev: () => void;
+  onNext: () => void;
+  hasPrev: boolean;
+  hasNext: boolean;
 }
 
-function StepItem({ step, isCompleted, isActive, onToggle, onClick }: StepItemProps) {
+function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | "right"; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={direction === "left" ? "Bước trước" : "Bước sau"}
+      style={{
+        position: "absolute", top: "50%", [direction]: "0.625rem", transform: "translateY(-50%)",
+        width: "2.5rem", height: "2.5rem", borderRadius: "50%", flexShrink: 0,
+        border: "none", background: disabled ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.92)",
+        boxShadow: "var(--shadow-md)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        cursor: disabled ? "not-allowed" : "pointer",
+        color: disabled ? "var(--color-text-muted)" : "var(--color-text-primary)",
+        transition: "all var(--transition-fast)",
+        zIndex: 2,
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d={direction === "left" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"} />
+      </svg>
+    </button>
+  );
+}
+
+function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext }: StepViewerProps) {
   return (
     <div
       style={{
-        border: `2px solid ${isActive ? "var(--color-primary)" : isCompleted ? "#D1FAE5" : "var(--color-border)"}`,
+        border: `2px solid ${isCompleted ? "#D1FAE5" : "var(--color-border)"}`,
         borderRadius: "var(--radius-lg)",
         background: isCompleted ? "#F0FDF4" : "var(--color-surface)",
-        overflow: "hidden",
-        transition: "all var(--transition-normal)",
-        cursor: "pointer",
+        padding: "1.25rem",
       }}
     >
-      {/* Step header */}
-      <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem", gap: "0.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+          <button
+            id={`step-check-${step.id}`}
+            onClick={onToggle}
+            style={{
+              width: "2.25rem", height: "2.25rem", borderRadius: "50%", flexShrink: 0,
+              border: `2px solid ${isCompleted ? "#059669" : "var(--color-border)"}`,
+              background: isCompleted ? "#059669" : "transparent",
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "all var(--transition-fast)",
+              color: "white", fontWeight: 700, fontSize: "0.875rem",
+            }}
+          >
+            {isCompleted ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+            ) : (
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 700 }}>{step.stepOrder}</span>
+            )}
+          </button>
+          <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: isCompleted ? "#065F46" : "var(--color-text-primary)" }}>
+            Bước {step.stepOrder} <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>/ {total}</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "0.375rem", flexShrink: 0 }}>
+          <button
+            onClick={onPrev}
+            disabled={!hasPrev}
+            aria-label="Bước trước"
+            style={{
+              width: "2rem", height: "2rem", borderRadius: "50%", border: "1.5px solid var(--color-border)",
+              background: "var(--color-surface)", cursor: hasPrev ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: hasPrev ? "var(--color-text-primary)" : "var(--color-text-muted)", opacity: hasPrev ? 1 : 0.5,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <button
+            onClick={onNext}
+            disabled={!hasNext}
+            aria-label="Bước sau"
+            style={{
+              width: "2rem", height: "2rem", borderRadius: "50%", border: "1.5px solid var(--color-border)",
+              background: "var(--color-surface)", cursor: hasNext ? "pointer" : "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: hasNext ? "var(--color-text-primary)" : "var(--color-text-muted)", opacity: hasNext ? 1 : 0.5,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Image with side arrows */}
+      {isValidImageUrl(step.imageUrl) && (
+        <div style={{ position: "relative", marginBottom: "0.875rem" }}>
+          <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: "min(46vh, 360px)", background: "var(--color-surface-2)" }}>
+            <Image
+              src={step.imageUrl}
+              alt={`Bước ${step.stepOrder}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 60vw"
+              style={{ objectFit: "contain" }}
+              priority={index === 0}
+            />
+          </div>
+          <NavArrowButton direction="left" onClick={onPrev} disabled={!hasPrev} />
+          <NavArrowButton direction="right" onClick={onNext} disabled={!hasNext} />
+        </div>
+      )}
+
+      {/* Description — cuộn riêng nếu quá dài, không kéo giãn cả trang */}
+      <div
+        style={{
+          fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
+          whiteSpace: "pre-wrap", maxHeight: "9.5rem", overflowY: "auto", paddingRight: "0.375rem",
+        }}
+      >
+        {step.description}
+      </div>
+
+      {/* Footer nav */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
+        <button onClick={onPrev} disabled={!hasPrev} className="btn btn-outline btn-sm" style={{ opacity: hasPrev ? 1 : 0.5 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+          Bước trước
+        </button>
+
         <button
-          id={`step-check-${step.id}`}
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          style={{
-            width: "2.25rem", height: "2.25rem", borderRadius: "50%", flexShrink: 0,
-            border: `2px solid ${isCompleted ? "#059669" : "var(--color-border)"}`,
-            background: isCompleted ? "#059669" : "transparent",
-            cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all var(--transition-fast)",
-            color: "white", fontWeight: 700, fontSize: "0.875rem",
-          }}
+          id={`step-done-${step.id}`}
+          onClick={onToggle}
+          className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
         >
           {isCompleted ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              Bỏ đánh dấu
+            </>
           ) : (
-            <span style={{ color: "var(--color-text-muted)", fontWeight: 700 }}>{step.stepOrder}</span>
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+              Đã hoàn thành
+            </>
           )}
         </button>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: isCompleted ? "#065F46" : "var(--color-text-primary)", lineHeight: 1.3 }}>
-            Bước {step.stepOrder}
-          </div>
-        </div>
-
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2"
-          style={{ transform: isActive ? "rotate(180deg)" : "none", transition: "transform var(--transition-fast)", flexShrink: 0 }}>
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        <button onClick={onNext} disabled={!hasNext} className="btn btn-outline btn-sm" style={{ opacity: hasNext ? 1 : 0.5 }}>
+          Bước sau
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
       </div>
-
-      {/* Step content (expanded) */}
-      {isActive && (
-        <div style={{ padding: "0 1.25rem 1.25rem" }}>
-          <div style={{ width: "100%", height: "1px", background: "var(--color-border)", marginBottom: "1rem" }} />
-
-          {step.imageUrl && (
-            <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: "1rem", aspectRatio: "16/9", background: "var(--color-surface-2)" }}>
-              <Image
-                src={step.imageUrl}
-                alt={`Bước ${step.stepOrder}`}
-                fill
-                sizes="(max-width: 768px) 100vw, 60vw"
-                style={{ objectFit: "contain" }}
-              />
-            </div>
-          )}
-
-          <div style={{ fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
-            {step.description}
-          </div>
-
-          <button
-            id={`step-done-${step.id}`}
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
-            style={{ marginTop: "1rem" }}
-          >
-            {isCompleted ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                Bỏ đánh dấu
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
-                Đã hoàn thành bước này
-              </>
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -369,9 +459,24 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       .catch(() => { /* silent */ });
   }, [tutorial?.id]);
 
-  const steps = tutorial
-    ? [...tutorial.steps].sort((a, b) => a.stepOrder - b.stepOrder)
-    : [];
+  // Bài này có thuộc 1 lộ trình học không? (tra theo slug, xem learningPathsData.ts)
+  const pathCtx = useMemo(() => (tutorial ? findLessonContext(tutorial.slug) : undefined), [tutorial]);
+
+  // Nếu bài này thuộc 1 lộ trình và đã có achievement từ trước (vd. hoàn thành trước khi
+  // tính năng lộ trình tồn tại), đảm bảo lộ trình cũng ghi nhận bài này đã xong.
+  useEffect(() => {
+    if (!pathCtx || !existingAchievement) return;
+    const done = getCompletedLessonIds(pathCtx.path.slug);
+    if (!done.has(pathCtx.lesson.id)) {
+      done.add(pathCtx.lesson.id);
+      setCompletedLessonIds(pathCtx.path.slug, done);
+    }
+  }, [pathCtx, existingAchievement]);
+
+  const steps = useMemo(
+    () => (tutorial ? [...tutorial.steps].sort((a, b) => a.stepOrder - b.stepOrder) : []),
+    [tutorial]
+  );
 
   const totalSteps = steps.length;
   const completedCount = steps.filter((s) => completedSteps.has(s.id)).length;
@@ -386,6 +491,36 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       return next;
     });
   }, []);
+
+  const activeStepIndex = steps.findIndex((s) => s.id === activeStep);
+  const hasPrevStep = activeStepIndex > 0;
+  const hasNextStep = activeStepIndex >= 0 && activeStepIndex < steps.length - 1;
+
+  const goPrevStep = useCallback(() => {
+    setActiveStep((cur) => {
+      const idx = steps.findIndex((s) => s.id === cur);
+      return idx > 0 ? steps[idx - 1].id : cur;
+    });
+  }, [steps]);
+
+  const goNextStep = useCallback(() => {
+    setActiveStep((cur) => {
+      const idx = steps.findIndex((s) => s.id === cur);
+      return idx >= 0 && idx < steps.length - 1 ? steps[idx + 1].id : cur;
+    });
+  }, [steps]);
+
+  // Điều hướng bước bằng phím mũi tên trái/phải
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return;
+      if (e.key === "ArrowLeft") goPrevStep();
+      else if (e.key === "ArrowRight") goNextStep();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goPrevStep, goNextStep]);
 
   const handleLike = useCallback(async () => {
     if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
@@ -440,7 +575,16 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     setExistingAchievement(achievement);
     setShowAchievementModal(false);
     setShowSuccessModal(true);
+
+    // Mở khoá bài tiếp theo trong lộ trình (nếu bài này thuộc 1 lộ trình)
+    if (pathCtx) {
+      const done = getCompletedLessonIds(pathCtx.path.slug);
+      done.add(pathCtx.lesson.id);
+      setCompletedLessonIds(pathCtx.path.slug, done);
+    }
   };
+
+  const isLastLessonInPath = pathCtx ? pathCtx.index === pathCtx.path.lessons.length - 1 : false;
 
   const diffColor = getDiffColor(tutorial?.difficulty);
 
@@ -500,7 +644,10 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
         />
       )}
       {showSuccessModal && (
-        <SuccessModal onClose={() => setShowSuccessModal(false)} />
+        <SuccessModal
+          onClose={() => setShowSuccessModal(false)}
+          pathReturn={pathCtx ? { pathSlug: pathCtx.path.slug, pathTitle: pathCtx.path.title, isLastLesson: isLastLessonInPath } : undefined}
+        />
       )}
       <ReportModal
         isOpen={showReportModal}
@@ -536,6 +683,23 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
                 <span style={{ color: "rgba(255,255,255,0.9)" }}>{tutorial.title}</span>
               </div>
+
+              {/* Banner "thuộc lộ trình" */}
+              {pathCtx && (
+                <Link
+                  href={`/lo-trinh/${pathCtx.path.slug}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.5rem",
+                    background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
+                    borderRadius: "var(--radius-full)", padding: "0.375rem 0.875rem",
+                    marginBottom: "0.875rem", textDecoration: "none",
+                    color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
+                  }}
+                >
+                  🗺️ Thuộc lộ trình: {pathCtx.path.title} · Bài {pathCtx.index + 1}/{pathCtx.path.lessons.length}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                </Link>
+              )}
 
               {/* Badges */}
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.875rem" }}>
@@ -664,18 +828,42 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 </span>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {steps.map((step) => (
-                  <StepItem
-                    key={step.id}
-                    step={step}
-                    isCompleted={completedSteps.has(step.id)}
-                    isActive={activeStep === step.id}
-                    onToggle={() => toggleStep(step.id)}
-                    onClick={() => setActiveStep(activeStep === step.id ? null : step.id)}
-                  />
-                ))}
-              </div>
+              {/* Dot indicators — bấm để nhảy nhanh tới bước bất kỳ */}
+              {totalSteps > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "0.875rem" }}>
+                  {steps.map((step, i) => (
+                    <button
+                      key={step.id}
+                      onClick={() => setActiveStep(step.id)}
+                      aria-label={`Đi tới bước ${step.stepOrder}`}
+                      style={{
+                        width: "0.5rem", height: "0.5rem", borderRadius: "50%", border: "none", padding: 0,
+                        cursor: "pointer",
+                        background: i === activeStepIndex
+                          ? "var(--color-primary)"
+                          : completedSteps.has(step.id)
+                            ? "#6ee7b7"
+                            : "var(--color-border)",
+                        transition: "all var(--transition-fast)",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeStepIndex >= 0 && steps[activeStepIndex] && (
+                <StepViewer
+                  step={steps[activeStepIndex]}
+                  index={activeStepIndex}
+                  total={totalSteps}
+                  isCompleted={completedSteps.has(steps[activeStepIndex].id)}
+                  onToggle={() => toggleStep(steps[activeStepIndex].id)}
+                  onPrev={goPrevStep}
+                  onNext={goNextStep}
+                  hasPrev={hasPrevStep}
+                  hasNext={hasNextStep}
+                />
+              )}
 
               {/* Completion CTA — chưa có achievement */}
               {allCompleted && !existingAchievement && (
