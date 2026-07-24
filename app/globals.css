@@ -715,17 +715,11 @@ body {
 
 /* Tutorial grid responsive */
 @media (max-width: 1200px) {
-  .tutorials-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-  }
   .creators-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 @media (max-width: 900px) {
-  .tutorials-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
   .hero-grid {
     grid-template-columns: 1fr !important;
   }

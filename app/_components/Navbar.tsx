@@ -140,6 +140,7 @@ export default function Navbar() {
           >
             {[
               { href: "/huong-dan", label: "Thư viện" },
+              { href: "/lo-trinh", label: "Lộ trình", badge: "Mới" },
               { href: "/cong-dong", label: "Cộng đồng" },
               { href: "/thach-thuc", label: "Thử thách", badge: "Mới" },
             ].map((link) => (

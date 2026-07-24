@@ -12,6 +12,7 @@ import { wishlistsApi } from "@/lib/api/wishlists";
 import { tutorialsApi } from "@/lib/api/tutorials";
 import type { TutorialListItemDto } from "@/lib/api/tutorials";
 import type { ApiError } from "@/lib/api/client";
+import { isValidImageUrl } from "@/lib/utils";
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -325,7 +326,7 @@ export default function ProfilePage() {
 
                 {/* Avatar */}
                 <div style={{ position: "relative", flexShrink: 0 }}>
-                  {profile?.avatarUrl && !profile.avatarUrl.startsWith("#") ? (
+                  {isValidImageUrl(profile?.avatarUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={profile.avatarUrl}
@@ -520,7 +521,7 @@ export default function ProfilePage() {
 
                 {/* Grid */}
                 {!tutorialsLoading && tutorials.length > 0 && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
                     {tutorials.map((t) => (
                       <Link
                         key={t.id}
@@ -534,7 +535,7 @@ export default function ProfilePage() {
                           onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
                         >
                           <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
-                            {t.coverImageUrl
+                            {isValidImageUrl(t.coverImageUrl)
                               ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
                               : "📄"
                             }
@@ -680,7 +681,7 @@ export default function ProfilePage() {
                             onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
                           >
                             <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
-                              {t.coverImageUrl
+                              {isValidImageUrl(t.coverImageUrl)
                                 ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
                                 : "📄"
                               }

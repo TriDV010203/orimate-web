@@ -8,6 +8,7 @@ import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl } from "@/lib/utils";
 
 const AUTHOR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
 function authorColor(name: string) { return AUTHOR_COLORS[name.charCodeAt(0) % AUTHOR_COLORS.length]; }
@@ -158,7 +159,7 @@ export default function WishlistPage() {
 
           {/* Loading skeleton */}
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
               {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           )}
@@ -174,12 +175,12 @@ export default function WishlistPage() {
 
           {/* Grid */}
           {!loading && !error && filtered.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.25rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
               {filtered.map((t) => (
                 <article key={t.id} className="card" style={{ overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
                   <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                     <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
-                      {t.coverImageUrl
+                      {isValidImageUrl(t.coverImageUrl)
                         ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
                         : "📄"
                       }

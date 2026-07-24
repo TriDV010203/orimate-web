@@ -9,14 +9,9 @@ import AuthorLink from "./AuthorLink";
 import { communityPostsApi, type CommunityPostDto } from "@/lib/api";
 import { usersApi, type CreatorProfileDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
 const TRENDING_TAGS = ["#OrigamiViệtNam", "#HạcGiấy", "#Origami3D", "#TrẻEm", "#ModularOrigami", "#HoaGiấy", "#NghệThuậtGấp"];
-const AVATAR_COLORS = ["#2D6A4F","#D4713B","#2C7DA0","#9B59B6","#E03131","#F59F00","#16A34A","#7C3AED"];
-
-function avatarColor(id: string) {
-  let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -28,16 +23,14 @@ function timeAgo(iso: string) {
 
 // ── Author avatar / name mini component ──────────────────────────────────────
 function AuthorBadge({ authorId, profile }: { authorId: string; profile?: CreatorProfileDto | null }) {
-  const initials = profile?.displayName
-    ? profile.displayName.split(" ").slice(-1)[0][0]?.toUpperCase()
-    : authorId.slice(0, 1).toUpperCase();
+  const initials = profile?.displayName ? getAvatarInitial(profile.displayName) : authorId.slice(0, 1).toUpperCase();
   const name = profile?.displayName ?? `Người dùng #${authorId.slice(0, 6).toUpperCase()}`;
-  const color = avatarColor(authorId);
+  const color = getAvatarColor(profile?.avatarUrl);
 
   return (
     <AuthorLink authorId={authorId} style={{ gap: "0.75rem" }}>
-      <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: profile?.avatarUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
-        {profile?.avatarUrl
+      <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: isValidImageUrl(profile?.avatarUrl) ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
+        {isValidImageUrl(profile?.avatarUrl)
           ? <img src={profile.avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           : initials}
       </div>

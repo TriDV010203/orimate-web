@@ -9,12 +9,8 @@ import AuthorLink from "./AuthorLink";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
-const AVATAR_COLORS = ["#2D6A4F","#D4713B","#2C7DA0","#9B59B6","#E03131","#F59F00","#16A34A","#7C3AED"];
-function avatarColor(id: string) {
-  let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "vừa xong";
@@ -24,13 +20,11 @@ function timeAgo(iso: string) {
 }
 
 function Avatar({ userId, profile, size = 40 }: { userId: string; profile?: CreatorProfileDto | null; size?: number }) {
-  const initials = profile?.displayName
-    ? profile.displayName.split(" ").slice(-1)[0][0]?.toUpperCase()
-    : userId.slice(0, 1).toUpperCase();
-  const color = avatarColor(userId);
+  const initials = profile?.displayName ? getAvatarInitial(profile.displayName) : userId.slice(0, 1).toUpperCase();
+  const color = getAvatarColor(profile?.avatarUrl);
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: profile?.avatarUrl ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
-      {profile?.avatarUrl
+    <div style={{ width: size, height: size, borderRadius: "50%", background: isValidImageUrl(profile?.avatarUrl) ? "transparent" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, fontWeight: 700, color: "white", flexShrink: 0, overflow: "hidden", border: "2px solid var(--color-border)" }}>
+      {isValidImageUrl(profile?.avatarUrl)
         ? <img src={profile.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         : initials}
     </div>

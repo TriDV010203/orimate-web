@@ -7,9 +7,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { usersApi, type FollowerUserDto } from "@/lib/api/users";
 import { getToken, getUser, isLoggedIn } from "@/lib/auth";
-
-const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
-function avatarColor(id: string) { return AVATAR_COLORS[id.charCodeAt(0) % AVATAR_COLORS.length]; }
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
 interface Props {
   /** Nếu truyền vào → xem danh sách đang theo dõi của user này (ví dụ từ trang kênh). Mặc định: chính mình. */
@@ -171,10 +169,10 @@ export default function FollowingListPage({ userId: targetUserIdProp, displayNam
                 filtered.map((user, i) => (
                   <div key={user.userId} style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem", borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none" }}>
                     <Link href={`/kenh/${user.userId}`} style={{ textDecoration: "none", flexShrink: 0 }}>
-                      <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: user.avatarUrl ? "transparent" : avatarColor(user.userId), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white", overflow: "hidden", border: "2px solid var(--color-border)" }}>
-                        {user.avatarUrl
+                      <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: isValidImageUrl(user.avatarUrl) ? "transparent" : getAvatarColor(user.avatarUrl), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.125rem", fontWeight: 700, color: "white", overflow: "hidden", border: "2px solid var(--color-border)" }}>
+                        {isValidImageUrl(user.avatarUrl)
                           ? <img src={user.avatarUrl} alt={user.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          : user.displayName.charAt(0)}
+                          : getAvatarInitial(user.displayName)}
                       </div>
                     </Link>
                     <div style={{ flex: 1, minWidth: 0 }}>

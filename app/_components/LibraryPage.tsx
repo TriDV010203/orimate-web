@@ -7,6 +7,7 @@ import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { isValidImageUrl } from "@/lib/utils";
 
 const CATEGORIES = ["Tất cả", "Động vật", "Hoa & Thực vật", "Chim", "Origami 3D", "Modular", "Hình học", "Nhân vật", "Biển cả", "Thiên nhiên"];
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
@@ -233,7 +234,7 @@ export default function LibraryPage() {
 
           {/* ── Loading skeleton ── */}
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "2.5rem" }}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
                   <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
@@ -257,14 +258,14 @@ export default function LibraryPage() {
 
           {/* ── Tutorial Grid ── */}
           {!loading && !error && filtered.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "2.5rem" }}>
               {filtered.map((t) => {
                 const cs = cardStates[t.id] ?? { isLiked: false, likeCount: 0, isSaved: false };
                 return (
                   <article key={t.id} className="card tutorial-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
                     <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                       <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
-                        {t.coverImageUrl
+                        {isValidImageUrl(t.coverImageUrl)
                           ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
                           : "📄"
                         }

@@ -5,7 +5,14 @@ import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { usersApi, tutorialsApi, type CreatorProfileDto, type TutorialListItemDto } from "@/lib/api";
+import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
 import { getToken } from "@/lib/auth";
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
+
+function formatAchievementDate(dateStr: string): string {
+  const d = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
 
 function formatNumber(n: number) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
@@ -22,19 +29,12 @@ function getTypeLabel(t: string) {
   return t === "Free" ? "Miễn phí" : t;
 }
 
-const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131"];
-function avatarColor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
 interface Props {
   userId: string;
 }
 
 export default function CreatorChannelPage({ userId }: Props) {
-  const [activeTab, setActiveTab] = useState<"tutorials" | "about" | "vip">("tutorials");
+  const [activeTab, setActiveTab] = useState<"tutorials" | "about" | "vip" | "achievements">("tutorials");
   const [filterType, setFilterType] = useState<"all" | "free" | "vip">("all");
 
   const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
@@ -44,6 +44,10 @@ export default function CreatorChannelPage({ userId }: Props) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+
+  const [achievements, setAchievements] = useState<AchievementDto[]>([]);
+  const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const [achievementsError, setAchievementsError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getToken() ?? undefined;
@@ -83,6 +87,22 @@ export default function CreatorChannelPage({ userId }: Props) {
     loadTutorials();
   }, [userId]);
 
+  useEffect(() => {
+    async function loadAchievements() {
+      setLoadingAchievements(true);
+      setAchievementsError(null);
+      try {
+        const result = await achievementsApi.getByUser(userId, 1, 24);
+        setAchievements(result.items);
+      } catch {
+        setAchievementsError("Không thể tải thành tựu.");
+      } finally {
+        setLoadingAchievements(false);
+      }
+    }
+    loadAchievements();
+  }, [userId]);
+
   async function handleFollow() {
     const token = getToken();
     if (!token) return;
@@ -107,8 +127,8 @@ export default function CreatorChannelPage({ userId }: Props) {
   });
 
   const vipCount = tutorials.filter((t) => t.type === "VIP").length;
-  const aColor = profile ? avatarColor(profile.userId) : "#2D6A4F";
-  const initial = profile?.displayName?.charAt(0)?.toUpperCase() ?? "?";
+  const aColor = getAvatarColor(profile?.avatarUrl);
+  const initial = getAvatarInitial(profile?.displayName);
 
   // Loading state
   if (loadingProfile) {
@@ -182,16 +202,25 @@ export default function CreatorChannelPage({ userId }: Props) {
           {/* ── Stats ── */}
           <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--color-border)" }}>
             {[
-              { label: "Bài hướng dẫn", value: tutorials.length || profile.postCount, href: null },
-              { label: "Người theo dõi", value: formatNumber(profile.followerCount), href: `/kenh/${userId}/nguoi-theo-doi` },
-              { label: "Đang theo dõi", value: profile.followingCount, href: `/kenh/${userId}/dang-theo-doi` },
-              { label: "Thành tựu", value: profile.achievementCount, href: null },
+              { label: "Bài hướng dẫn", value: tutorials.length || profile.postCount, href: null, onClick: null },
+              { label: "Người theo dõi", value: formatNumber(profile.followerCount), href: `/kenh/${userId}/nguoi-theo-doi`, onClick: null },
+              { label: "Đang theo dõi", value: profile.followingCount, href: `/kenh/${userId}/dang-theo-doi`, onClick: null },
+              { label: "Thành tựu", value: loadingAchievements ? profile.achievementCount : achievements.length, href: null, onClick: () => setActiveTab("achievements") },
             ].map((s) =>
               s.href ? (
                 <Link key={s.label} href={s.href} style={{ textAlign: "center", textDecoration: "none" }}>
                   <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
                   <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
                 </Link>
+              ) : s.onClick ? (
+                <button
+                  key={s.label}
+                  onClick={s.onClick}
+                  style={{ textAlign: "center", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
+                </button>
               ) : (
                 <div key={s.label} style={{ textAlign: "center" }}>
                   <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
@@ -203,7 +232,7 @@ export default function CreatorChannelPage({ userId }: Props) {
 
           {/* ── Tabs ── */}
           <div style={{ display: "flex", gap: "0", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
-            {([["tutorials", "📚 Bài hướng dẫn"], ["about", "👤 Giới thiệu"]] as const).map(([key, label]) => (
+            {([["tutorials", "📚 Bài hướng dẫn"], ["achievements", "🏅 Thành tựu"], ["about", "👤 Giới thiệu"]] as const).map(([key, label]) => (
               <button key={key} onClick={() => setActiveTab(key)}
                 style={{ padding: "0.875rem 1.5rem", border: "none", background: "none", borderBottom: `2.5px solid ${activeTab === key ? "var(--color-primary)" : "transparent"}`, marginBottom: "-2px", color: activeTab === key ? "var(--color-primary)" : "var(--color-text-muted)", fontWeight: activeTab === key ? 700 : 500, fontSize: "0.9375rem", cursor: "pointer" }}>
                 {label}
@@ -225,7 +254,7 @@ export default function CreatorChannelPage({ userId }: Props) {
               </div>
 
               {loadingTutorials ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: "1.25rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
                       <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
@@ -242,12 +271,12 @@ export default function CreatorChannelPage({ userId }: Props) {
                   <p style={{ color: "var(--color-text-muted)" }}>Chưa có bài hướng dẫn nào.</p>
                 </div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: "1.25rem", marginBottom: "3rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "3rem" }}>
                   {filtered.map((t) => (
                     <article key={t.id} className="card" style={{ overflow: "hidden" }}>
                       <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                         <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
-                          {t.coverImageUrl
+                          {isValidImageUrl(t.coverImageUrl)
                             ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
                             : "📄"
                           }
@@ -263,6 +292,62 @@ export default function CreatorChannelPage({ userId }: Props) {
                           </div>
                         </div>
                       </Link>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Achievements tab ── */}
+          {activeTab === "achievements" && (
+            <div style={{ marginBottom: "3rem" }}>
+              {loadingAchievements ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
+                      <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
+                      <div style={{ padding: "0.875rem" }}>
+                        <div style={{ height: "1rem", background: "var(--color-surface-2)", borderRadius: "4px", marginBottom: "0.5rem" }} />
+                        <div style={{ height: "0.75rem", background: "var(--color-surface-2)", borderRadius: "4px", width: "50%" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : achievementsError ? (
+                <div style={{ textAlign: "center", padding: "4rem 1rem", background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)" }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
+                  <p style={{ color: "var(--color-text-muted)" }}>{achievementsError}</p>
+                </div>
+              ) : achievements.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "4rem 1rem", background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)" }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏅</div>
+                  <p style={{ color: "var(--color-text-muted)" }}>{profile.displayName} chưa có thành tựu công khai nào.</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
+                  {achievements.map((a) => (
+                    <article key={a.id} className="card" style={{ overflow: "hidden" }}>
+                      <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
+                        {isValidImageUrl(a.photoUrl)
+                          ? <img src={a.photoUrl!} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                          : "🏅"
+                        }
+                      </div>
+                      <div style={{ padding: "0.875rem" }}>
+                        <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "0.5rem", lineHeight: 1.4 }}>{a.tutorialTitle}</h3>
+                        {a.note && (
+                          <p style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: "0.625rem", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                            {a.note}
+                          </p>
+                        )}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <Link href={`/huong-dan/${a.tutorialSlug}`} style={{ fontSize: "0.75rem", color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}>
+                            📚 Xem bài hướng dẫn
+                          </Link>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{formatAchievementDate(a.createdAt)}</span>
+                        </div>
+                      </div>
                     </article>
                   ))}
                 </div>
