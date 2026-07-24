@@ -12,6 +12,15 @@ export type {
   TutorialListItemDto,
   TutorialDetailDto,
   PagedResult,
+  MyTutorialDto,
+  TutorialStatusValue,
+  CategoryDto,
+  CreateTutorialRequest,
+  UpdateTutorialRequest,
+  CreateTutorialStepRequest,
+  TutorialResponse,
+  TutorialAuthorDetailDto,
+  TutorialProgressDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";
 
@@ -24,10 +33,4 @@ export type {
 export { achievementsApi } from "./achievements";
 
 export type {
-  BlockedWordResponse,
-  AdminUserResponse,
-  PendingReportDto,
-  TutorialReviewItemResponse,
-  CategoryResponse,
-} from "./admin";
-export { adminApi } from "./admin";
+

@@ -1,0 +1,294 @@
+"use client";
+
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import Navbar from "./Navbar";
+import Footer from "./Footer";
+import { usersApi, tutorialsApi, type CreatorProfileDto, type TutorialListItemDto } from "@/lib/api";
+import { getToken } from "@/lib/auth";
+
+function formatNumber(n: number) {
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+  return n.toString();
+}
+
+function getDiffClass(d?: string | null) {
+  if (d === "Dễ" || d === "Easy") return "badge-easy";
+  if (d === "Trung bình" || d === "Medium") return "badge-medium";
+  return "badge-hard";
+}
+
+function getTypeLabel(t: string) {
+  return t === "Free" ? "Miễn phí" : t;
+}
+
+const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131"];
+function avatarColor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+interface Props {
+  userId: string;
+}
+
+export default function CreatorChannelPage({ userId }: Props) {
+  const [activeTab, setActiveTab] = useState<"tutorials" | "about" | "vip">("tutorials");
+  const [filterType, setFilterType] = useState<"all" | "free" | "vip">("all");
+
+  const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
+  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingTutorials, setLoadingTutorials] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+
+  useEffect(() => {
+    const token = getToken() ?? undefined;
+    async function loadProfile() {
+      setLoadingProfile(true);
+      setProfileError(null);
+      try {
+        const data = await usersApi.getProfile(userId, token);
+        setProfile(data);
+        setFollowing(data.isFollowing);
+      } catch {
+        setProfileError("Không tìm thấy hồ sơ người dùng này.");
+      } finally {
+        setLoadingProfile(false);
+      }
+    }
+    loadProfile();
+  }, [userId]);
+
+  // Tải danh sách tutorial của creator (lọc theo authorId nếu BE hỗ trợ)
+  useEffect(() => {
+    async function loadTutorials() {
+      setLoadingTutorials(true);
+      try {
+        const result = await tutorialsApi.getList({ authorId: userId, pageSize: 24 });
+        // Lọc thêm client-side theo authorId nếu BE trả về tất cả
+        const creatorTutorials = result.items.filter(
+          (t) => t.author.id === userId
+        );
+        setTutorials(creatorTutorials.length > 0 ? creatorTutorials : result.items);
+      } catch {
+        setTutorials([]);
+      } finally {
+        setLoadingTutorials(false);
+      }
+    }
+    loadTutorials();
+  }, [userId]);
+
+  async function handleFollow() {
+    const token = getToken();
+    if (!token) return;
+    setFollowLoading(true);
+    try {
+      const res = await usersApi.toggleFollow(token, userId);
+      setFollowing(res.isFollowing);
+      if (profile) {
+        setProfile({ ...profile, followerCount: profile.followerCount + (res.isFollowing ? 1 : -1) });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setFollowLoading(false);
+    }
+  }
+
+  const filtered = tutorials.filter((t) => {
+    if (filterType === "free") return t.type === "Free" || t.type === "Miễn phí";
+    if (filterType === "vip") return t.type === "VIP";
+    return true;
+  });
+
+  const vipCount = tutorials.filter((t) => t.type === "VIP").length;
+  const aColor = profile ? avatarColor(profile.userId) : "#2D6A4F";
+  const initial = profile?.displayName?.charAt(0)?.toUpperCase() ?? "?";
+
+  // Loading state
+  if (loadingProfile) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontSize: "1rem", color: "var(--color-text-muted)" }}>Đang tải hồ sơ...</div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  // Error state
+  if (profileError || !profile) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "1rem" }}>
+          <div style={{ fontSize: "3rem" }}>😕</div>
+          <h2 style={{ color: "var(--color-text-primary)", fontWeight: 700 }}>{profileError ?? "Không tìm thấy người dùng"}</h2>
+          <Link href="/" className="btn btn-outline">Về trang chủ</Link>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Navbar />
+      <main style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
+
+        {/* ── Cover ── */}
+        <div style={{ background: `linear-gradient(135deg, #1B4332 0%, ${aColor} 50%, #40916C 100%)`, height: "220px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.2)" }} />
+          <div style={{ position: "absolute", bottom: 0, right: 0, fontSize: "12rem", opacity: 0.1, lineHeight: 1, userSelect: "none" }}>🐉</div>
+        </div>
+
+        <div className="container" style={{ position: "relative", zIndex: 1 }}>
+          {/* ── Profile Row ── */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: "1.25rem" }}>
+              <div style={{ width: "6rem", height: "6rem", borderRadius: "50%", background: aColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", fontWeight: 800, color: "white", border: "4px solid var(--color-surface)", boxShadow: "var(--shadow-md)", flexShrink: 0, marginTop: "-3rem" }}>
+                {initial}
+              </div>
+              <div style={{ paddingBottom: "0.375rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <h1 style={{ fontWeight: 800, fontSize: "1.625rem", color: "var(--color-text-primary)", lineHeight: 1 }}>{profile.displayName}</h1>
+                  {profile.roles.includes("ContributorReviewer") && <span className="badge badge-vip" style={{ fontSize: "0.7rem" }}>Creator</span>}
+                </div>
+                <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem", marginTop: "0.25rem" }}>
+                  {profile.isSuspended && <span style={{ color: "var(--color-error)", fontWeight: 600 }}>Tài khoản bị tạm khóa • </span>}
+                  ID: {userId.slice(0, 8)}...
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.75rem", paddingBottom: "0.375rem" }}>
+              <button
+                onClick={handleFollow}
+                disabled={followLoading}
+                className={following ? "btn btn-outline" : "btn btn-primary"}
+                style={{ padding: "0.625rem 1.5rem", fontSize: "0.875rem", opacity: followLoading ? 0.7 : 1 }}>
+                {following ? "✓ Đang theo dõi" : "+ Theo dõi"}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Stats ── */}
+          <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--color-border)" }}>
+            {[
+              { label: "Bài hướng dẫn", value: tutorials.length || profile.postCount, href: null },
+              { label: "Người theo dõi", value: formatNumber(profile.followerCount), href: `/kenh/${userId}/nguoi-theo-doi` },
+              { label: "Đang theo dõi", value: profile.followingCount, href: `/kenh/${userId}/dang-theo-doi` },
+              { label: "Thành tựu", value: profile.achievementCount, href: null },
+            ].map((s) =>
+              s.href ? (
+                <Link key={s.label} href={s.href} style={{ textAlign: "center", textDecoration: "none" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
+                </Link>
+              ) : (
+                <div key={s.label} style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* ── Tabs ── */}
+          <div style={{ display: "flex", gap: "0", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
+            {([["tutorials", "📚 Bài hướng dẫn"], ["about", "👤 Giới thiệu"]] as const).map(([key, label]) => (
+              <button key={key} onClick={() => setActiveTab(key)}
+                style={{ padding: "0.875rem 1.5rem", border: "none", background: "none", borderBottom: `2.5px solid ${activeTab === key ? "var(--color-primary)" : "transparent"}`, marginBottom: "-2px", color: activeTab === key ? "var(--color-primary)" : "var(--color-text-muted)", fontWeight: activeTab === key ? 700 : 500, fontSize: "0.9375rem", cursor: "pointer" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Tutorials tab ── */}
+          {activeTab === "tutorials" && (
+            <div>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
+                {([["all", "Tất cả"], ["free", "Miễn phí"], ["vip", "VIP"]] as const).map(([key, label]) => (
+                  <button key={key} onClick={() => setFilterType(key)}
+                    style={{ padding: "0.375rem 1rem", borderRadius: "var(--radius-full)", border: `1.5px solid ${filterType === key ? "var(--color-primary)" : "var(--color-border)"}`, background: filterType === key ? "var(--color-primary)" : "transparent", color: filterType === key ? "white" : "var(--color-text-secondary)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer" }}>
+                    {label}
+                  </button>
+                ))}
+                <span style={{ marginLeft: "auto", fontSize: "0.875rem", color: "var(--color-text-muted)", alignSelf: "center" }}>{filtered.length} bài</span>
+              </div>
+
+              {loadingTutorials ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: "1.25rem" }}>
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
+                      <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
+                      <div style={{ padding: "0.875rem" }}>
+                        <div style={{ height: "1rem", background: "var(--color-surface-2)", borderRadius: "4px", marginBottom: "0.5rem" }} />
+                        <div style={{ height: "0.75rem", background: "var(--color-surface-2)", borderRadius: "4px", width: "50%" }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "4rem 1rem", background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", marginBottom: "3rem" }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>📭</div>
+                  <p style={{ color: "var(--color-text-muted)" }}>Chưa có bài hướng dẫn nào.</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: "1.25rem", marginBottom: "3rem" }}>
+                  {filtered.map((t) => (
+                    <article key={t.id} className="card" style={{ overflow: "hidden" }}>
+                      <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                        <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
+                          {t.coverImageUrl
+                            ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                            : "📄"
+                          }
+                          <div style={{ position: "absolute", top: "0.5rem", right: "0.5rem" }}>
+                            <span className={`badge ${t.type === "VIP" ? "badge-vip" : "badge-free"}`}>{getTypeLabel(t.type)}</span>
+                          </div>
+                        </div>
+                        <div style={{ padding: "0.875rem" }}>
+                          <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "0.5rem", lineHeight: 1.4 }}>{t.title}</h3>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                            {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                            <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước</span>
+                          </div>
+                        </div>
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── About tab ── */}
+          {activeTab === "about" && (
+            <div style={{ maxWidth: "640px", marginBottom: "3rem" }}>
+              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "1.5rem" }}>
+                <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.875rem" }}>Về tôi</h3>
+                {profile.bio ? (
+                  <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.75, fontSize: "0.9375rem" }}>{profile.bio}</p>
+                ) : (
+                  <p style={{ color: "var(--color-text-muted)", fontStyle: "italic" }}>Chưa có tiểu sử.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+      <Footer />
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      `}</style>
+    </>
+  );
+}
