@@ -13,9 +13,9 @@ export interface AuthorDto {
 export interface TutorialStepDto {
   id: string;
   stepOrder: number;
-  title: string;
-  content: string;
-  mediaUrl?: string | null;
+  description: string;
+  imageUrl?: string | null;
+  isLocked?: boolean;
 }
 
 export interface TutorialListItemDto {
@@ -69,37 +69,46 @@ export interface PagedResult<T> {
 
 // ── Author / Studio types ──────────────────────────────────────────────────────
 
+// Trạng thái thật của BE (Domain.Enums.TutorialStatus) — không phải "Pending"/"Rejected" như bản cũ
+export type TutorialStatusValue =
+  | "Draft"
+  | "PendingManagerReview"
+  | "RevisionRequired"
+  | "Published"
+  | "Removed"
+  | "EditPendingReview"
+  | "Merged";
+
 export interface MyTutorialDto {
   id: string;
   title: string;
   slug: string;
-  description: string;
   coverImageUrl?: string | null;
   type: string;         // "Free" | "VIP"
-  difficulty?: string | null;
-  categoryId: number;
-  categoryName: string;
-  status: string;       // "Draft" | "Pending" | "Published" | "Rejected"
+  difficulty: string;   // "Beginner" | "Intermediate" | "Advanced"
+  status: TutorialStatusValue;
   stepCount: number;
-  likeCount?: number;
-  publishedAt?: string | null;
-  updatedAt?: string | null;
-  rejectionReason?: string | null;
+  createdAt: string;
+}
+
+export interface CategoryDto {
+  id: number;
+  name: string;
+  isActive: boolean;
 }
 
 export interface CreateTutorialStepRequest {
   stepOrder: number;
-  title: string;
-  content: string;
-  mediaUrl?: string | null;
+  description: string;
+  imageUrl?: string | null;
 }
 
 export interface CreateTutorialRequest {
   title: string;
   description: string;
   coverImageUrl?: string | null;
-  type: string;       // "Free" | "VIP"
-  difficulty?: string | null;
+  type: string;         // "Free" | "VIP"
+  difficulty: string;   // "Beginner" | "Intermediate" | "Advanced"
   categoryId: number;
   steps: CreateTutorialStepRequest[];
 }
@@ -109,9 +118,40 @@ export interface UpdateTutorialRequest {
   description: string;
   coverImageUrl?: string | null;
   type: string;
-  difficulty?: string | null;
+  difficulty: string;
   categoryId: number;
   steps: CreateTutorialStepRequest[];
+}
+
+/** Đáp ứng TutorialResponse (BE) — trả về khi create/update/submit tutorial. */
+export interface TutorialResponse {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  coverImageUrl?: string | null;
+  type: string;
+  difficulty: string;
+  categoryId: number;
+  status: TutorialStatusValue;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+/** Đáp ứng TutorialAuthorDetailResponse (BE) — GET /api/tutorials/{id}, dùng để đổ dữ liệu lên form sửa. */
+export interface TutorialAuthorDetailDto {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  coverImageUrl?: string | null;
+  type: string;
+  difficulty: string;
+  categoryId: number;
+  status: TutorialStatusValue;
+  steps: TutorialStepDto[];
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 // ── Progress types ─────────────────────────────────────────────────────────────
@@ -174,21 +214,44 @@ export const tutorialsApi = {
     return request<PagedResult<MyTutorialDto>>(`/api/tutorials/my-tutorials${qs}`, { token });
   },
 
-  /** POST /api/tutorials — Tạo bài hướng dẫn mới (draft) */
+  /** GET /api/tutorials/categories — Danh mục đang active, dùng cho dropdown khi tạo/sửa bài */
+  getCategories(token: string): Promise<CategoryDto[]> {
+    return request<CategoryDto[]>("/api/tutorials/categories", { token });
+  },
+
+  /** GET /api/tutorials/{id} — Chi tiết bài của chính tác giả (mọi trạng thái), dùng để đổ dữ liệu lên form sửa */
+  getTutorialForAuthor(token: string, tutorialId: string): Promise<TutorialAuthorDetailDto> {
+    return request<TutorialAuthorDetailDto>(`/api/tutorials/${tutorialId}`, { token });
+  },
+
+  /** POST /api/tutorials — Tạo bài hướng dẫn mới (luôn ở trạng thái Draft) */
   createTutorial(
     token: string,
     body: CreateTutorialRequest
-  ): Promise<TutorialDetailDto> {
-    return request<TutorialDetailDto>("/api/tutorials", {
+  ): Promise<TutorialResponse> {
+    return request<TutorialResponse>("/api/tutorials", {
       method: "POST",
       body: JSON.stringify(body),
       token,
     });
   },
 
-  /** PUT /api/tutorials/{id}/submit — Nộp bài cho manager duyệt */
-  submitTutorial(token: string, tutorialId: string): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/tutorials/${tutorialId}/submit`, {
+  /** PUT /api/tutorials/{id} — Sửa bài khi chưa xuất bản (chỉ Draft/RevisionRequired) */
+  updateTutorial(
+    token: string,
+    tutorialId: string,
+    body: UpdateTutorialRequest
+  ): Promise<TutorialResponse> {
+    return request<TutorialResponse>(`/api/tutorials/${tutorialId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      token,
+    });
+  },
+
+  /** PUT /api/tutorials/{id}/submit — Nộp bài cho manager duyệt (Draft/RevisionRequired → PendingManagerReview) */
+  submitTutorial(token: string, tutorialId: string): Promise<TutorialResponse> {
+    return request<TutorialResponse>(`/api/tutorials/${tutorialId}/submit`, {
       method: "PUT",
       token,
     });

@@ -11,23 +11,38 @@ import { getToken, getUser, isLoggedIn } from "@/lib/auth";
 const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
 function avatarColor(id: string) { return AVATAR_COLORS[id.charCodeAt(0) % AVATAR_COLORS.length]; }
 
-export default function FollowersListPage() {
+interface Props {
+  /** Nếu truyền vào → xem danh sách người theo dõi của user này (ví dụ từ trang kênh). Mặc định: chính mình. */
+  userId?: string;
+  /** Tên hiển thị của chủ tài khoản, dùng cho tiêu đề khi xem danh sách của người khác. */
+  displayName?: string;
+}
+
+export default function FollowersListPage({ userId: targetUserIdProp, displayName: displayNameProp }: Props = {}) {
   const router = useRouter();
+  const isOwn = !targetUserIdProp;
   const [followers, setFollowers] = useState<FollowerUserDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [fetchedDisplayName, setFetchedDisplayName] = useState<string | undefined>(undefined);
+  const displayName = displayNameProp ?? fetchedDisplayName;
 
   useEffect(() => {
-    if (!isLoggedIn()) { router.push("/dang-nhap"); return; }
-    const user = getUser();
-    const token = getToken();
-    if (!user || !token) return;
+    if (!targetUserIdProp || displayNameProp) return;
+    usersApi.getProfile(targetUserIdProp).then(p => setFetchedDisplayName(p.displayName)).catch(() => {});
+  }, [targetUserIdProp, displayNameProp]);
+
+  useEffect(() => {
+    if (isOwn && !isLoggedIn()) { router.push("/dang-nhap"); return; }
+    const token = getToken() ?? undefined;
+    const targetUserId = targetUserIdProp ?? getUser()?.userId;
+    if (!targetUserId) return;
 
     setLoading(true);
-    usersApi.getFollowers(user.userId, { pageSize: 100 }, token)
+    usersApi.getFollowers(targetUserId, { pageSize: 100 }, token)
       .then(result => {
         const items = result?.items ?? [];
         setFollowers(items);
@@ -39,7 +54,7 @@ export default function FollowersListPage() {
         setError(e?.message ?? "Không thể tải danh sách người theo dõi.");
       })
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [router, isOwn, targetUserIdProp]);
 
   const toggleFollow = useCallback(async (userId: string) => {
     const token = getToken();
@@ -70,7 +85,9 @@ export default function FollowersListPage() {
 
           {/* Breadcrumb */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-            <Link href="/ho-so" style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>Trang cá nhân</Link>
+            <Link href={isOwn ? "/ho-so" : `/kenh/${targetUserIdProp}`} style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>
+              {isOwn ? "Trang cá nhân" : displayName ?? "Trang cá nhân"}
+            </Link>
             <span>/</span>
             <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>Người theo dõi</span>
           </div>
@@ -81,10 +98,10 @@ export default function FollowersListPage() {
                 Người theo dõi
               </h1>
               <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-                {loading ? "Đang tải..." : `${followers.length} người đang theo dõi bạn`}
+                {loading ? "Đang tải..." : isOwn ? `${followers.length} người đang theo dõi bạn` : `${followers.length} người đang theo dõi ${displayName ?? "người này"}`}
               </p>
             </div>
-            <Link href="/ho-so/dang-theo-doi" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.875rem", textDecoration: "none" }}>
+            <Link href={isOwn ? "/ho-so/dang-theo-doi" : `/kenh/${targetUserIdProp}/dang-theo-doi`} style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.875rem", textDecoration: "none" }}>
               Đang theo dõi →
             </Link>
           </div>

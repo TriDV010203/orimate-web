@@ -401,33 +401,50 @@ export default function ProfilePage() {
               {/* ── Stats Row ── */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0", marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--color-border)" }}>
                 {[
-                  { label: "Bài viết", value: formatNumber(profile?.postCount ?? 0), icon: "📚", tab: "Bài hướng dẫn" as Tab | null },
-                  { label: "Người theo dõi", value: formatNumber(profile?.followerCount ?? 0), icon: "👥", tab: null },
-                  { label: "Đang theo dõi", value: formatNumber(profile?.followingCount ?? 0), icon: "➡️", tab: null },
-                  { label: "Thành tựu", value: formatNumber(profile?.achievementCount ?? 0), icon: "🏅", tab: "Thành tựu" as Tab | null },
-                ].map((s, i, arr) => (
-                  <div
-                    key={s.label}
-                    onClick={() => { if (s.tab) setActiveTab(s.tab); }}
-                    style={{
-                      textAlign: "center",
-                      padding: "0.5rem",
-                      borderRight: i < arr.length - 1 ? "1px solid var(--color-border)" : "none",
-                      cursor: s.tab ? "pointer" : "default",
-                      transition: "background var(--transition-fast)",
-                      borderRadius: "var(--radius-sm)",
-                    }}
-                    onMouseEnter={(e) => { if (s.tab) (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-2)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
-                  >
-                    <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "var(--color-primary)", lineHeight: 1 }}>
-                      {s.value}
+                  { label: "Bài viết", value: formatNumber(profile?.postCount ?? 0), icon: "📚", tab: "Bài hướng dẫn" as Tab | null, href: null },
+                  { label: "Người theo dõi", value: formatNumber(profile?.followerCount ?? 0), icon: "👥", tab: null, href: "/ho-so/nguoi-theo-doi" },
+                  { label: "Đang theo dõi", value: formatNumber(profile?.followingCount ?? 0), icon: "➡️", tab: null, href: "/ho-so/dang-theo-doi" },
+                  { label: "Thành tựu", value: formatNumber(profile?.achievementCount ?? 0), icon: "🏅", tab: "Thành tựu" as Tab | null, href: null },
+                ].map((s, i, arr) => {
+                  const cellStyle = {
+                    textAlign: "center" as const,
+                    padding: "0.5rem",
+                    borderRight: i < arr.length - 1 ? "1px solid var(--color-border)" : "none",
+                    cursor: s.tab || s.href ? "pointer" : "default",
+                    transition: "background var(--transition-fast)",
+                    borderRadius: "var(--radius-sm)",
+                    textDecoration: "none",
+                    display: "block",
+                  };
+                  const content = (
+                    <>
+                      <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "var(--color-primary)", lineHeight: 1 }}>
+                        {s.value}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
+                        {s.icon} {s.label}
+                      </div>
+                    </>
+                  );
+                  if (s.href) {
+                    return (
+                      <Link key={s.label} href={s.href} style={cellStyle}>
+                        {content}
+                      </Link>
+                    );
+                  }
+                  return (
+                    <div
+                      key={s.label}
+                      onClick={() => { if (s.tab) setActiveTab(s.tab); }}
+                      style={cellStyle}
+                      onMouseEnter={(e) => { if (s.tab) (e.currentTarget as HTMLDivElement).style.background = "var(--color-surface-2)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
+                    >
+                      {content}
                     </div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-                      {s.icon} {s.label}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

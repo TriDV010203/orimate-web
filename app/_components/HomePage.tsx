@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from "react";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
+import { TODAY_CHALLENGE, DIFFICULTY_COLOR, MOCK_SUBMISSIONS, Avatar, useCountdownToMidnight } from "./DailyChallengePage";
 
 const CREATORS = [
   { name: "Quang Minh", tutorials: 48, followers: "12.4K", color: "#2D6A4F", initial: "QM", tag: "Origami Nâng cao" },
@@ -65,6 +66,86 @@ function SkeletonCard() {
         <div style={{ height: "2rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-sm)", animation: "pulse 1.5s infinite" }} />
       </div>
     </article>
+  );
+}
+
+// ===== DAILY CHALLENGE TEASER — giới thiệu tính năng thử thách hàng ngày =====
+function ChallengeTeaser() {
+  const countdown = useCountdownToMidnight();
+  const diffStyle = DIFFICULTY_COLOR[TODAY_CHALLENGE.difficulty];
+
+  return (
+    <section style={{ padding: "3rem 0" }}>
+      <div className="container">
+        <div
+          className="challenge-teaser-grid"
+          style={{
+            display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "1.75rem", alignItems: "center",
+            background: "var(--gradient-hero)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-xl)",
+            padding: "2rem 2.25rem", boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          {/* Icon */}
+          <div style={{
+            width: "5rem", height: "5rem", borderRadius: "var(--radius-lg)", background: "var(--color-surface)",
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem",
+            boxShadow: "var(--shadow-md)", flexShrink: 0,
+          }}>
+            {TODAY_CHALLENGE.emoji}
+          </div>
+
+          {/* Info */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "white", background: "var(--gradient-accent)", padding: "0.2rem 0.625rem", borderRadius: "99px", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                🔥 Thử thách hàng ngày
+              </span>
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: diffStyle.fg, background: diffStyle.bg, border: `1px solid ${diffStyle.border}`, padding: "0.2rem 0.625rem", borderRadius: "99px" }}>
+                {TODAY_CHALLENGE.difficulty}
+              </span>
+            </div>
+            <h2 className="text-heading" style={{ fontSize: "1.375rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>
+              Hôm nay: {TODAY_CHALLENGE.title}
+            </h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: "0.9375rem", maxWidth: "480px", lineHeight: 1.6, marginBottom: "0.625rem" }}>
+              Mỗi ngày một mẫu gấp mới — cùng cả cộng đồng tham gia, giữ streak và leo bảng xếp hạng.
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ display: "flex" }}>
+                {MOCK_SUBMISSIONS.slice(0, 4).map((s, i) => (
+                  <div key={s.id} style={{ marginLeft: i === 0 ? 0 : "-0.625rem" }}>
+                    <Avatar name={s.name} size={1.75} />
+                  </div>
+                ))}
+              </div>
+              <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 600 }}>
+                {TODAY_CHALLENGE.participantsToday} người đang tham gia
+              </span>
+            </div>
+          </div>
+
+          {/* Countdown + CTA */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", minWidth: "180px" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 600, marginBottom: "0.25rem" }}>Kết thúc sau</div>
+              <div style={{ fontFamily: "monospace", fontSize: "1.375rem", fontWeight: 700, color: "var(--color-accent-dark)", letterSpacing: "0.05em" }}>
+                {countdown}
+              </div>
+            </div>
+            <Link id="btn-join-challenge-home" href="/thach-thuc" className="btn btn-accent" style={{ textDecoration: "none", width: "100%", justifyContent: "center" }}>
+              Tham gia ngay
+            </Link>
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @media (max-width: 900px) {
+          .challenge-teaser-grid { grid-template-columns: 1fr !important; text-align: center; }
+          .challenge-teaser-grid > div:first-child { margin: 0 auto; }
+          .challenge-teaser-grid > div:nth-child(2) > div:last-child { justify-content: center; }
+        }
+      `}</style>
+    </section>
   );
 }
 
@@ -218,7 +299,8 @@ export default function HomePage() {
           </div>
         </section>
 
-
+        {/* ===== DAILY CHALLENGE TEASER ===== */}
+        <ChallengeTeaser />
 
         {/* ===== TUTORIALS SECTION — nổi bật theo lượt like ===== */}
         <section style={{ padding: "4rem 0", background: "var(--color-bg)" }}>

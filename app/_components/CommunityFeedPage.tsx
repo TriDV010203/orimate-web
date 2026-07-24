@@ -188,13 +188,6 @@ function PostCard({
             </svg>
           </button>
         )}
-
-        <Link href={`/cong-dong/${post.id}`}
-          style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", textDecoration: "none", padding: "0.5rem 0.75rem", borderRadius: "var(--radius-md)" }}
-          onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
-          onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
-          Xem chi tiết →
-        </Link>
       </div>
 
       {/* Report Modal */}

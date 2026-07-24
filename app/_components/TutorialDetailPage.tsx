@@ -19,16 +19,16 @@ import { isValidImageUrl } from "@/lib/utils";
 function getDiffLabel(d?: string | null) {
   if (!d) return "Không xác định";
   const l = d.toLowerCase();
-  if (l === "easy") return "Dễ";
-  if (l === "medium") return "Trung bình";
-  if (l === "hard") return "Khó";
+  if (l === "beginner") return "Dễ";
+  if (l === "intermediate") return "Trung bình";
+  if (l === "advanced") return "Khó";
   return d;
 }
 function getDiffColor(d?: string | null) {
   const l = (d ?? "").toLowerCase();
-  if (l === "easy" || l === "dễ") return { bg: "#D1FAE5", text: "#065F46" };
-  if (l === "medium" || l === "trung bình") return { bg: "#FEF3C7", text: "#92400E" };
-  if (l === "hard" || l === "khó") return { bg: "#FEE2E2", text: "#991B1B" };
+  if (l === "beginner" || l === "dễ") return { bg: "#D1FAE5", text: "#065F46" };
+  if (l === "intermediate" || l === "trung bình") return { bg: "#FEF3C7", text: "#92400E" };
+  if (l === "advanced" || l === "khó") return { bg: "#FEE2E2", text: "#991B1B" };
   return { bg: "#F3F4F6", text: "#374151" };
 }
 
@@ -228,7 +228,7 @@ function StepItem({ step, isCompleted, isActive, onToggle, onClick }: StepItemPr
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: isCompleted ? "#065F46" : "var(--color-text-primary)", lineHeight: 1.3 }}>
-            Bước {step.stepOrder}{step.title ? `: ${step.title}` : ""}
+            Bước {step.stepOrder}
           </div>
         </div>
 
@@ -243,11 +243,10 @@ function StepItem({ step, isCompleted, isActive, onToggle, onClick }: StepItemPr
         <div style={{ padding: "0 1.25rem 1.25rem" }}>
           <div style={{ width: "100%", height: "1px", background: "var(--color-border)", marginBottom: "1rem" }} />
 
-          {/* Media — BE trả về mediaUrl hoặc imageUrl */}
-          {(step.mediaUrl) && (
+          {step.imageUrl && (
             <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: "1rem", aspectRatio: "16/9", background: "var(--color-surface-2)" }}>
               <Image
-                src={step.mediaUrl}
+                src={step.imageUrl}
                 alt={`Bước ${step.stepOrder}`}
                 fill
                 sizes="(max-width: 768px) 100vw, 60vw"
@@ -257,7 +256,7 @@ function StepItem({ step, isCompleted, isActive, onToggle, onClick }: StepItemPr
           )}
 
           <div style={{ fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
-            {step.content}
+            {step.description}
           </div>
 
           <button
@@ -815,7 +814,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                         lineHeight: 1.3,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
-                        {step.title ? `Bước ${step.stepOrder}: ${step.title}` : `Bước ${step.stepOrder}`}
+                        {`Bước ${step.stepOrder}`}
                       </span>
                     </button>
                   ))}

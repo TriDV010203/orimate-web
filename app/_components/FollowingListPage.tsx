@@ -11,33 +11,52 @@ import { getToken, getUser, isLoggedIn } from "@/lib/auth";
 const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#1098AD"];
 function avatarColor(id: string) { return AVATAR_COLORS[id.charCodeAt(0) % AVATAR_COLORS.length]; }
 
-export default function FollowingListPage() {
+interface Props {
+  /** Nếu truyền vào → xem danh sách đang theo dõi của user này (ví dụ từ trang kênh). Mặc định: chính mình. */
+  userId?: string;
+  /** Tên hiển thị của chủ tài khoản, dùng cho tiêu đề khi xem danh sách của người khác. */
+  displayName?: string;
+}
+
+export default function FollowingListPage({ userId: targetUserIdProp, displayName: displayNameProp }: Props = {}) {
   const router = useRouter();
+  const isOwn = !targetUserIdProp;
   const [following, setFollowing] = useState<FollowerUserDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [unfollowedIds, setUnfollowedIds] = useState<Set<string>>(new Set());
+  const [followingBackIds, setFollowingBackIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [fetchedDisplayName, setFetchedDisplayName] = useState<string | undefined>(undefined);
+  const displayName = displayNameProp ?? fetchedDisplayName;
 
   useEffect(() => {
-    if (!isLoggedIn()) { router.push("/dang-nhap"); return; }
-    const user = getUser();
-    const token = getToken();
-    if (!user || !token) return;
+    if (!targetUserIdProp || displayNameProp) return;
+    usersApi.getProfile(targetUserIdProp).then(p => setFetchedDisplayName(p.displayName)).catch(() => {});
+  }, [targetUserIdProp, displayNameProp]);
+
+  useEffect(() => {
+    if (isOwn && !isLoggedIn()) { router.push("/dang-nhap"); return; }
+    const token = getToken() ?? undefined;
+    const targetUserId = targetUserIdProp ?? getUser()?.userId;
+    if (!targetUserId) return;
 
     setLoading(true);
-    usersApi.getFollowing(user.userId, { pageSize: 100 }, token)
+    usersApi.getFollowing(targetUserId, { pageSize: 100 }, token)
       .then(result => {
-        setFollowing(result?.items ?? []);
+        const items = result?.items ?? [];
+        setFollowing(items);
+        setFollowingBackIds(new Set(items.filter(f => f.isFollowing).map(f => f.userId)));
       })
       .catch(err => {
         const e = err as { message?: string };
         setError(e?.message ?? "Không thể tải danh sách đang theo dõi.");
       })
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [router, isOwn, targetUserIdProp]);
 
+  // Bỏ theo dõi trong danh sách của chính mình → gỡ luôn khỏi danh sách
   const unfollow = useCallback(async (userId: string) => {
     const token = getToken();
     if (!token || togglingId) return;
@@ -45,6 +64,22 @@ export default function FollowingListPage() {
     try {
       await usersApi.toggleFollow(token, userId);
       setUnfollowedIds(prev => new Set([...prev, userId]));
+    } catch { /* silent */ }
+    finally { setTogglingId(null); }
+  }, [togglingId]);
+
+  // Theo dõi/bỏ theo dõi trong danh sách của người khác → chỉ đổi trạng thái, không gỡ khỏi danh sách
+  const toggleFollowBack = useCallback(async (userId: string) => {
+    const token = getToken();
+    if (!token || togglingId) return;
+    setTogglingId(userId);
+    try {
+      const res = await usersApi.toggleFollow(token, userId);
+      setFollowingBackIds(prev => {
+        const next = new Set(prev);
+        if (res.isFollowing) next.add(userId); else next.delete(userId);
+        return next;
+      });
     } catch { /* silent */ }
     finally { setTogglingId(null); }
   }, [togglingId]);
@@ -65,7 +100,9 @@ export default function FollowingListPage() {
 
           {/* Breadcrumb */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem", fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-            <Link href="/ho-so" style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>Trang cá nhân</Link>
+            <Link href={isOwn ? "/ho-so" : `/kenh/${targetUserIdProp}`} style={{ color: "var(--color-text-muted)", textDecoration: "none" }}>
+              {isOwn ? "Trang cá nhân" : displayName ?? "Trang cá nhân"}
+            </Link>
             <span>/</span>
             <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>Đang theo dõi</span>
           </div>
@@ -76,10 +113,10 @@ export default function FollowingListPage() {
                 Đang theo dõi
               </h1>
               <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-                {loading ? "Đang tải..." : `${filtered.length} người bạn đang theo dõi`}
+                {loading ? "Đang tải..." : isOwn ? `${filtered.length} người bạn đang theo dõi` : `${filtered.length} người ${displayName ?? "người này"} đang theo dõi`}
               </p>
             </div>
-            <Link href="/ho-so/nguoi-theo-doi" style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.875rem", textDecoration: "none" }}>
+            <Link href={isOwn ? "/ho-so/nguoi-theo-doi" : `/kenh/${targetUserIdProp}/nguoi-theo-doi`} style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.875rem", textDecoration: "none" }}>
               Xem người theo dõi →
             </Link>
           </div>
@@ -154,13 +191,24 @@ export default function FollowingListPage() {
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
                       <Link href={`/kenh/${user.userId}`} className="btn btn-outline" style={{ padding: "0.375rem 0.875rem", fontSize: "0.8125rem", textDecoration: "none" }}>Xem kênh</Link>
-                      <button
-                        onClick={() => unfollow(user.userId)}
-                        disabled={togglingId === user.userId}
-                        style={{ padding: "0.375rem 0.875rem", fontSize: "0.8125rem", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-full)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontWeight: 500, opacity: togglingId === user.userId ? 0.6 : 1 }}
-                      >
-                        {togglingId === user.userId ? "..." : "Bỏ theo dõi"}
-                      </button>
+                      {isOwn ? (
+                        <button
+                          onClick={() => unfollow(user.userId)}
+                          disabled={togglingId === user.userId}
+                          style={{ padding: "0.375rem 0.875rem", fontSize: "0.8125rem", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-full)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontWeight: 500, opacity: togglingId === user.userId ? 0.6 : 1 }}
+                        >
+                          {togglingId === user.userId ? "..." : "Bỏ theo dõi"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => toggleFollowBack(user.userId)}
+                          disabled={togglingId === user.userId}
+                          className={followingBackIds.has(user.userId) ? "btn btn-outline" : "btn btn-primary"}
+                          style={{ padding: "0.375rem 0.875rem", fontSize: "0.8125rem", opacity: togglingId === user.userId ? 0.6 : 1 }}
+                        >
+                          {togglingId === user.userId ? "..." : followingBackIds.has(user.userId) ? "✓ Theo dõi" : "+ Theo dõi"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

@@ -5,20 +5,25 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { tutorialsApi } from "@/lib/api/tutorials";
-import type { MyTutorialDto } from "@/lib/api/tutorials";
+import type { MyTutorialDto, TutorialStatusValue } from "@/lib/api/tutorials";
 import { getToken, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
-type TutorialStatus = "Draft" | "Pending" | "Published" | "Rejected";
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-  Draft:     { label: "Bản nháp",     color: "#555550", bg: "#F5F5F0", icon: "✏️" },
-  Pending:   { label: "Chờ duyệt",   color: "#D97706", bg: "#FEF3C7", icon: "⏳" },
-  Published: { label: "Đã xuất bản", color: "#059669", bg: "#D1FAE5", icon: "✅" },
-  Rejected:  { label: "Từ chối",     color: "#DC2626", bg: "#FEE2E2", icon: "❌" },
+// Trạng thái thật của BE (Domain.Enums.TutorialStatus)
+const STATUS_META: Record<TutorialStatusValue, { label: string; color: string; bg: string; icon: string }> = {
+  Draft:                { label: "Bản nháp",       color: "#555550", bg: "#F5F5F0", icon: "✏️" },
+  PendingManagerReview: { label: "Chờ duyệt",      color: "#D97706", bg: "#FEF3C7", icon: "⏳" },
+  RevisionRequired:     { label: "Cần chỉnh sửa",  color: "#DC2626", bg: "#FEE2E2", icon: "❌" },
+  Published:            { label: "Đã xuất bản",    color: "#059669", bg: "#D1FAE5", icon: "✅" },
+  Removed:              { label: "Đã gỡ",          color: "#6B7280", bg: "#F3F4F6", icon: "🚫" },
+  EditPendingReview:    { label: "Đang chờ áp dụng bản sửa", color: "#D97706", bg: "#FEF3C7", icon: "⏳" },
+  Merged:               { label: "Đã hợp nhất",    color: "#6B7280", bg: "#F3F4F6", icon: "✓" },
 };
 
-type Tab = "all" | TutorialStatus;
+// Trạng thái author có thể bấm "Sửa" trực tiếp (BR-TUT-01 — khớp điều kiện Submit ở BE)
+const EDITABLE_STATUSES: TutorialStatusValue[] = ["Draft", "RevisionRequired"];
+
+type Tab = "all" | TutorialStatusValue;
 
 export default function StudioPage() {
   const router = useRouter();
@@ -69,7 +74,6 @@ export default function StudioPage() {
     acc[t.status] = (acc[t.status] ?? 0) + 1;
     return acc;
   }, {});
-  const totalLikes = tutorials.reduce((s, t) => s + (t.likeCount ?? 0), 0);
 
   async function handleSubmit(tutorialId: string) {
     const token = getToken();
@@ -79,7 +83,7 @@ export default function StudioPage() {
     try {
       await tutorialsApi.submitTutorial(token, tutorialId);
       setTutorials(prev =>
-        prev.map(t => t.id === tutorialId ? { ...t, status: "Pending" } : t)
+        prev.map(t => t.id === tutorialId ? { ...t, status: "PendingManagerReview" as const } : t)
       );
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
@@ -91,10 +95,9 @@ export default function StudioPage() {
 
   const CHANNEL_STATS = [
     { label: "Đã xuất bản", value: statsByStatus["Published"] ?? 0, icon: "✅" },
-    { label: "Chờ duyệt",  value: statsByStatus["Pending"] ?? 0,   icon: "⏳" },
-    { label: "Bản nháp",   value: statsByStatus["Draft"] ?? 0,      icon: "✏️" },
-    { label: "Từ chối",    value: statsByStatus["Rejected"] ?? 0,   icon: "❌" },
-    { label: "Tổng lượt thích", value: totalLikes.toLocaleString(), icon: "❤️" },
+    { label: "Chờ duyệt",   value: statsByStatus["PendingManagerReview"] ?? 0, icon: "⏳" },
+    { label: "Bản nháp",    value: statsByStatus["Draft"] ?? 0, icon: "✏️" },
+    { label: "Cần sửa",     value: statsByStatus["RevisionRequired"] ?? 0, icon: "❌" },
   ];
 
   return (
@@ -144,9 +147,9 @@ export default function StudioPage() {
             {([
               ["all", "Tất cả"],
               ["Published", "Đã xuất bản"],
-              ["Pending", "Chờ duyệt"],
+              ["PendingManagerReview", "Chờ duyệt"],
               ["Draft", "Bản nháp"],
-              ["Rejected", "Từ chối"],
+              ["RevisionRequired", "Cần sửa"],
             ] as const).map(([key, label]) => {
               const count = key === "all" ? tutorials.length : tutorials.filter(t => t.status === key).length;
               return (
@@ -171,7 +174,7 @@ export default function StudioPage() {
           {loading && (
             <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", overflow: "hidden" }}>
               {[1, 2, 3, 4].map(i => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 120px 100px 100px", gap: "1rem", padding: "1rem 1.25rem", borderBottom: "1px solid var(--color-border)", alignItems: "center" }}>
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 120px 100px 140px", gap: "1rem", padding: "1rem 1.25rem", borderBottom: "1px solid var(--color-border)", alignItems: "center" }}>
                   <div style={{ display: "flex", gap: "0.875rem", alignItems: "center" }}>
                     <div style={{ width: "3rem", height: "3rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-2)" }} />
                     <div style={{ flex: 1 }}>
@@ -179,7 +182,7 @@ export default function StudioPage() {
                       <div style={{ height: "0.75rem", background: "var(--color-surface-2)", borderRadius: "4px", width: "40%" }} />
                     </div>
                   </div>
-                  {[1,2,3,4,5].map(j => <div key={j} style={{ height: "0.875rem", background: "var(--color-surface-2)", borderRadius: "4px" }} />)}
+                  {[1,2,3,4].map(j => <div key={j} style={{ height: "0.875rem", background: "var(--color-surface-2)", borderRadius: "4px" }} />)}
                 </div>
               ))}
             </div>
@@ -189,12 +192,11 @@ export default function StudioPage() {
           {!loading && !error && (
             <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
               {/* Table Header */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 120px 80px 120px", gap: "1rem", padding: "0.875rem 1.25rem", background: "var(--color-surface-2)", borderBottom: "1px solid var(--color-border)", fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 120px 100px 140px", gap: "1rem", padding: "0.875rem 1.25rem", background: "var(--color-surface-2)", borderBottom: "1px solid var(--color-border)", fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                 <span>Bài hướng dẫn</span>
-                <span>Danh mục</span>
                 <span>Loại</span>
                 <span>Trạng thái</span>
-                <span>Lượt thích</span>
+                <span>Ngày tạo</span>
                 <span>Hành động</span>
               </div>
 
@@ -207,8 +209,10 @@ export default function StudioPage() {
               ) : (
                 filtered.map((t, i) => {
                   const meta = STATUS_META[t.status] ?? STATUS_META["Draft"];
+                  const canEdit = EDITABLE_STATUSES.includes(t.status);
+                  const canSubmit = canEdit;
                   return (
-                    <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 120px 80px 120px", gap: "1rem", padding: "1rem 1.25rem", borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none", alignItems: "center" }}>
+                    <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 120px 100px 140px", gap: "1rem", padding: "1rem 1.25rem", borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none", alignItems: "center" }}>
                       {/* Title */}
                       <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
                         {t.coverImageUrl ? (
@@ -219,15 +223,9 @@ export default function StudioPage() {
                         )}
                         <div style={{ minWidth: 0 }}>
                           <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
-                          <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước · Cập nhật {t.updatedAt ? new Date(t.updatedAt).toLocaleDateString("vi-VN") : "—"}</p>
-                          {t.status === "Rejected" && t.rejectionReason && (
-                            <p style={{ fontSize: "0.7rem", color: "#DC2626", marginTop: "0.125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>❌ {t.rejectionReason}</p>
-                          )}
+                          <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước</p>
                         </div>
                       </div>
-
-                      {/* Category */}
-                      <span style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>{t.categoryName}</span>
 
                       {/* Type */}
                       <span className={`badge ${t.type === "VIP" ? "badge-vip" : "badge-free"}`} style={{ width: "fit-content" }}>{t.type}</span>
@@ -237,24 +235,24 @@ export default function StudioPage() {
                         {meta.icon} {meta.label}
                       </span>
 
-                      {/* Likes */}
-                      <div>
-                        <p style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text-primary)" }}>
-                          {t.likeCount ? `❤️ ${t.likeCount.toLocaleString()}` : "—"}
-                        </p>
-                      </div>
+                      {/* Created date */}
+                      <span style={{ fontSize: "0.8125rem", color: "var(--color-text-secondary)" }}>
+                        {new Date(t.createdAt).toLocaleDateString("vi-VN")}
+                      </span>
 
                       {/* Actions */}
                       <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-                        <Link href={`/studio/${t.id}`}
-                          style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "0.75rem", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          Sửa
-                        </Link>
-                        {t.status === "Draft" && (
+                        {canEdit && (
+                          <Link href={`/studio/${t.id}`}
+                            style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "0.75rem", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                            Sửa
+                          </Link>
+                        )}
+                        {canSubmit && (
                           <button onClick={() => handleSubmit(t.id)} disabled={submittingId === t.id}
                             style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "transparent", color: "var(--color-primary)", fontSize: "0.75rem", fontWeight: 500, cursor: "pointer", opacity: submittingId === t.id ? 0.6 : 1 }}>
-                            {submittingId === t.id ? "…" : "Nộp"}
+                            {submittingId === t.id ? "…" : t.status === "RevisionRequired" ? "Nộp lại" : "Nộp"}
                           </button>
                         )}
                         {t.status === "Published" && (
@@ -262,12 +260,6 @@ export default function StudioPage() {
                             style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "transparent", color: "var(--color-primary)", fontSize: "0.75rem", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center" }}>
                             Xem
                           </Link>
-                        )}
-                        {t.status === "Rejected" && (
-                          <button onClick={() => handleSubmit(t.id)} disabled={submittingId === t.id}
-                            style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid #DC2626", background: "transparent", color: "#DC2626", fontSize: "0.75rem", fontWeight: 500, cursor: "pointer", opacity: submittingId === t.id ? 0.6 : 1 }}>
-                            Nộp lại
-                          </button>
                         )}
                       </div>
                     </div>
@@ -292,7 +284,7 @@ export default function StudioPage() {
 
       <style>{`
         @media (max-width: 900px) {
-          [style*="grid-template-columns: 2fr 1fr 1fr 120px 80px 120px"] {
+          [style*="grid-template-columns: 2fr 1fr 120px 100px 140px"] {
             grid-template-columns: 1fr 1fr !important;
           }
         }

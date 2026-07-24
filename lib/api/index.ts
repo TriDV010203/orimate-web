@@ -13,9 +13,13 @@ export type {
   TutorialDetailDto,
   PagedResult,
   MyTutorialDto,
+  TutorialStatusValue,
+  CategoryDto,
   CreateTutorialRequest,
   UpdateTutorialRequest,
   CreateTutorialStepRequest,
+  TutorialResponse,
+  TutorialAuthorDetailDto,
   TutorialProgressDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";

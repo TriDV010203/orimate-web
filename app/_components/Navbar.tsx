@@ -141,11 +141,15 @@ export default function Navbar() {
             {[
               { href: "/huong-dan", label: "Thư viện" },
               { href: "/cong-dong", label: "Cộng đồng" },
+              { href: "/thach-thuc", label: "Thử thách", badge: "Mới" },
             ].map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
                   padding: "0.5rem 0.875rem",
                   borderRadius: "var(--radius-full)",
                   textDecoration: "none",
@@ -155,19 +159,34 @@ export default function Navbar() {
                   transition: "all var(--transition-fast)",
                 }}
                 onMouseEnter={(e) => {
-                  (e.target as HTMLAnchorElement).style.background =
+                  (e.currentTarget as HTMLAnchorElement).style.background =
                     "var(--color-surface-2)";
-                  (e.target as HTMLAnchorElement).style.color =
+                  (e.currentTarget as HTMLAnchorElement).style.color =
                     "var(--color-text-primary)";
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLAnchorElement).style.background =
+                  (e.currentTarget as HTMLAnchorElement).style.background =
                     "transparent";
-                  (e.target as HTMLAnchorElement).style.color =
+                  (e.currentTarget as HTMLAnchorElement).style.color =
                     "var(--color-text-secondary)";
                 }}
               >
                 {link.label}
+                {link.badge && (
+                  <span
+                    style={{
+                      fontSize: "0.625rem",
+                      fontWeight: 700,
+                      color: "white",
+                      background: "var(--gradient-accent)",
+                      padding: "0.0625rem 0.375rem",
+                      borderRadius: "var(--radius-full)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {link.badge}
+                  </span>
+                )}
               </Link>
             ))}
           </div>

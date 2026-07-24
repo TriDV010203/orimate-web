@@ -182,16 +182,23 @@ export default function CreatorChannelPage({ userId }: Props) {
           {/* ── Stats ── */}
           <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap", marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: "1px solid var(--color-border)" }}>
             {[
-              { label: "Bài hướng dẫn", value: tutorials.length || profile.postCount },
-              { label: "Người theo dõi", value: formatNumber(profile.followerCount) },
-              { label: "Đang theo dõi", value: profile.followingCount },
-              { label: "Thành tựu", value: profile.achievementCount },
-            ].map((s) => (
-              <div key={s.label} style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
-              </div>
-            ))}
+              { label: "Bài hướng dẫn", value: tutorials.length || profile.postCount, href: null },
+              { label: "Người theo dõi", value: formatNumber(profile.followerCount), href: `/kenh/${userId}/nguoi-theo-doi` },
+              { label: "Đang theo dõi", value: profile.followingCount, href: `/kenh/${userId}/dang-theo-doi` },
+              { label: "Thành tựu", value: profile.achievementCount, href: null },
+            ].map((s) =>
+              s.href ? (
+                <Link key={s.label} href={s.href} style={{ textAlign: "center", textDecoration: "none" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
+                </Link>
+              ) : (
+                <div key={s.label} style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, fontSize: "1.375rem", color: "var(--color-primary)", lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>{s.label}</div>
+                </div>
+              )
+            )}
           </div>
 
           {/* ── Tabs ── */}

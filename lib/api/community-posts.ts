@@ -48,7 +48,7 @@ export interface ToggleLikeResponse {
 
 export interface CommentDto {
   id: string;
-  authorId: string;
+  userId: string;
   content: string;
   createdAt: string;
 }
