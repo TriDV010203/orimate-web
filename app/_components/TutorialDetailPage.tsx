@@ -411,6 +411,8 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
+    tutorialsApi
+      .getBySlug(slug, getToken() ?? undefined)
       .then((data) => {
         setTutorial(data);
         setIsLiked(data.isLikedByCurrentUser ?? false);

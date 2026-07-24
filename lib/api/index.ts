@@ -33,4 +33,51 @@ export type {
 export { achievementsApi } from "./achievements";
 
 export type {
+  MediaItemDto,
+  PostType,
+  CommunityPostDto,
+  CreateCommunityPostRequest,
+  ToggleLikeResponse,
+  CommentDto,
+  AddCommentRequest,
+} from "./community-posts";
+export { communityPostsApi } from "./community-posts";
 
+export type { NotificationDto, NotificationPagedResult } from "./notifications";
+export { notificationsApi } from "./notifications";
+
+export type { ReportTargetType, SubmitReportRequest } from "./reports";
+export { reportsApi } from "./reports";
+
+export type {
+  SubscriptionDto,
+  SubscriptionPagedResult,
+  VipTierDto,
+  CreatorRevenueDto,
+  RevenueMonthDto,
+} from "./subscriptions";
+export { subscriptionsApi } from "./subscriptions";
+
+export type { JournalDto, CreateJournalRequest, UpdateJournalRequest } from "./journals";
+export { journalsApi } from "./journals";
+
+export type {
+  CreatorProfileDto,
+  UpdateProfileRequest,
+  ToggleFollowResponse,
+  FollowerUserDto,
+  UserPagedResult,
+} from "./users";
+export { usersApi } from "./users";
+
+export type { WishlistToggleResponse, WishlistItemDto, WishlistPagedResult } from "./wishlists";
+export { wishlistsApi } from "./wishlists";
+
+export type {
+  BlockedWordResponse,
+  AdminUserResponse,
+  PendingReportDto,
+  ManagerQueueItemResponse,
+  CategoryResponse,
+} from "./admin";
+export { adminApi } from "./admin";

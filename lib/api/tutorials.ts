@@ -236,6 +236,21 @@ export const tutorialsApi = {
     });
   },
 
+  /**
+   * POST /api/tutorials/admin — Admin/Manager tự viết và đăng bài trực tiếp (Admin,Manager only).
+   * Luôn miễn phí, xuất bản ngay lập tức, không qua hàng chờ duyệt.
+   */
+  adminCreateTutorial(
+    token: string,
+    body: CreateTutorialRequest
+  ): Promise<TutorialResponse> {
+    return request<TutorialResponse>("/api/tutorials/admin", {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    });
+  },
+
   /** PUT /api/tutorials/{id} — Sửa bài khi chưa xuất bản (chỉ Draft/RevisionRequired) */
   updateTutorial(
     token: string,
@@ -303,8 +318,5 @@ export const tutorialsApi = {
       `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
       { method: "POST", token }
     );
-  },
-
-
   },
 };

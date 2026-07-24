@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, BookOpen, Flag, Settings } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, FolderCog, Flag, Settings } from "lucide-react";
 
 const navItems = [
   { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
   { name: "Người dùng", href: "/admin/users", icon: Users },
   { name: "Duyệt bài viết", href: "/admin/tutorials", icon: BookOpen },
+  { name: "Quản lý hướng dẫn", href: "/admin/tutorials/manage", icon: FolderCog },
   { name: "Báo cáo vi phạm", href: "/admin/reports", icon: Flag },
   { name: "Cấu hình hệ thống", href: "/admin/settings", icon: Settings },
 ];
@@ -16,58 +17,44 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
-      {/* Hiệu ứng Glow */}
-      <div className="sidebarGlow" />
-
-      {/* KHỐI LOGO (Viết thẳng inline) */}
-      <div className="logoContainer">
-        <Link
-          href="/admin"
-          className="logoLink"
+    <aside className="admin-sidebar">
+      <Link href="/admin" className="admin-sidebar-logo">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="logoIcon"
-          >
-            <path d="M2 20l10-16 10 16H2z" />
-            <path d="M12 4L6 14h12L12 4z" />
-          </svg>
-          <span className="logoText">
-            Ori<span className="logoAccent">Gami</span>
-          </span>
-        </Link>
-      </div>
+          <path d="M2 20l10-16 10 16H2z" />
+          <path d="M12 4L6 14h12L12 4z" />
+        </svg>
+        Ori<span>Gami</span>
+      </Link>
 
-      {/* KHỐI MENU */}
-      <nav className="navContainer">
-        <p className="navTitle">
-          Menu Quản trị
-        </p>
+      <nav>
+        <p className="admin-sidebar-nav-title">Menu Quản trị</p>
 
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/admin" && pathname.startsWith(item.href));
+          // Pick the most specific href match so overlapping routes (e.g. /admin/tutorials
+          // and /admin/tutorials/new) don't both light up at once.
+          const bestMatch = navItems
+            .filter((n) => pathname === n.href || (n.href !== "/admin" && pathname.startsWith(n.href + "/")))
+            .sort((a, b) => b.href.length - a.href.length)[0];
+          const isActive = bestMatch?.href === item.href;
 
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`navItem ${isActive ? "navItemActive" : "navItemInactive"}`}
+              className={`admin-nav-item ${isActive ? "admin-nav-item-active" : ""}`}
             >
-              <Icon
-                className={`navIcon ${isActive ? "navIconActive" : ""}`}
-              />
-              <span className="tracking-wide">{item.name}</span>
+              <Icon size={18} />
+              <span>{item.name}</span>
             </Link>
           );
         })}

@@ -1,12 +1,13 @@
 "use client";
 
 import AdminSidebar from "./_components/AdminSidebar";
-import { Bell, Search, UserCircle } from "lucide-react";
+import { Bell, Search, Sun, Moon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { Toaster } from "react-hot-toast";
 import { isLoggedIn, getUser } from "@/lib/auth";
-import "./css/style.css";
 
 export default function AdminLayout({
   children,
@@ -16,6 +17,8 @@ export default function AdminLayout({
   const [queryClient] = useState(() => new QueryClient());
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const { resolvedTheme, setTheme } = useTheme();
+  const user = getUser();
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -23,8 +26,11 @@ export default function AdminLayout({
       return;
     }
 
-    const user = getUser();
-    if (!user?.roles?.includes("Admin")) {
+    const currentUser = getUser();
+    const hasAccess =
+      currentUser?.roles?.includes("Admin") ||
+      currentUser?.roles?.includes("Manager");
+    if (!hasAccess) {
       router.push("/");
       return;
     }
@@ -35,58 +41,55 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="loadingContainer">
-        <div className="spinner"></div>
+      <div className="admin-loading-screen">
+        <div className="admin-spinner"></div>
       </div>
     );
   }
 
   return (
-    // 3. Bọc QueryClientProvider ngoài cùng của Layout này
     <QueryClientProvider client={queryClient}>
-      <div className="layoutContainer">
-        {/* Sidebar bên trái */}
+      <Toaster position="top-right" />
+      <div className="admin-shell">
         <AdminSidebar />
 
-        {/* Khu vực chính bên phải */}
-        <div className="mainContent">
-          {/* Header */}
-          <header className="header">
-            <div className="searchWrapper">
-              <Search className="searchIcon" />
+        <div className="admin-main">
+          <header className="admin-header">
+            <div className="admin-header-search input-with-icon">
+              <Search className="input-icon" size={16} />
               <input
                 type="text"
                 placeholder="Tìm kiếm..."
-                className="searchInput"
+                className="input-field"
               />
             </div>
 
-            <div className="actionsContainer">
-              <button className="notificationButton">
-                <Bell className="notificationIcon" />
-                <span className="notificationBadge"></span>
+            <div className="admin-header-actions">
+              <button
+                onClick={() =>
+                  setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                }
+                className="admin-icon-btn"
+                title="Đổi giao diện"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun size={18} />
+                ) : (
+                  <Moon size={18} />
+                )}
               </button>
 
-              <div className="profileContainer">
-                <div className="profileTextWrapper">
-                  <p className="profileName">
-                    Admin User
-                  </p>
-                  <p className="profileRole">
-                    Quản trị viên
-                  </p>
-                </div>
-                <UserCircle className="profileIcon" />
-              </div>
+              <button className="admin-icon-btn">
+                <Bell size={18} />
+              </button>
+
+              <button className="admin-avatar" title={user?.email}>
+                {(user?.email ?? "A").charAt(0).toUpperCase()}
+              </button>
             </div>
           </header>
 
-          {/* Nội dung trang */}
-          <main className="mainArea">
-            <div className="contentWrapper">
-              {children}
-            </div>
-          </main>
+          <main className="admin-content">{children}</main>
         </div>
       </div>
     </QueryClientProvider>

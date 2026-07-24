@@ -2,7 +2,7 @@
 
 import { request } from "./client";
 import { getToken } from "../auth";
-import type { PagedResult } from "./tutorials";
+import type { PagedResult, TutorialStepDto, UpdateTutorialRequest, TutorialResponse } from "./tutorials";
 
 export interface BlockedWordResponse {
   createdAt: string | number | Date;
@@ -30,19 +30,56 @@ export interface PendingReportDto {
   targetContent: string | null;
 }
 
-export interface TutorialReviewItemResponse {
+export interface ManagerQueueItemResponse {
   id: string;
   title: string;
   slug: string;
   authorName: string;
   stepCount: number;
   createdAt: string;
+  isEdit: boolean;
+  parentTutorialId: string | null;
 }
 
 export interface CategoryResponse {
   id: number;
   name: string;
   description?: string | null;
+}
+
+export interface AdminTutorialListItemResponse {
+  id: string;
+  title: string;
+  slug: string;
+  coverImageUrl?: string | null;
+  type: string;
+  difficulty: string;
+  status: string;
+  categoryId: number;
+  categoryName: string;
+  authorName: string;
+  isOfficial: boolean;
+  stepCount: number;
+  createdAt: string;
+  updatedAt?: string | null;
+  publishedAt?: string | null;
+}
+
+export interface AdminTutorialDetailResponse {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  coverImageUrl?: string | null;
+  type: string;
+  difficulty: string;
+  categoryId: number;
+  status: string;
+  authorName: string;
+  isOfficial: boolean;
+  steps: TutorialStepDto[];
+  createdAt: string;
+  updatedAt?: string | null;
 }
 
 export const adminApi = {
@@ -178,48 +215,25 @@ export const adminApi = {
     });
   },
 
-  // ── TUTORIAL WORKFLOW ────────────────────────────────────────────────
+  // ── TUTORIAL WORKFLOW (Manager review queue) ─────────────────────────
 
-  getContributorQueue(params?: {
+  getManagerQueue(params?: {
     page?: number;
     pageSize?: number;
-  }): Promise<PagedResult<TutorialReviewItemResponse>> {
+  }): Promise<PagedResult<ManagerQueueItemResponse>> {
     const q = new URLSearchParams();
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
-    return request<PagedResult<TutorialReviewItemResponse>>(
-      `/api/tutorials/contributor-queue${qs}`,
+    return request<PagedResult<ManagerQueueItemResponse>>(
+      `/api/tutorials/manager-queue${qs}`,
       {
         token: getToken() ?? undefined,
       },
     );
   },
 
-  contributorApprove(id: string): Promise<{ message: string }> {
-    return request<{ message: string }>(
-      `/api/tutorials/${id}/contributor-approve`,
-      {
-        method: "PUT",
-        token: getToken() ?? undefined,
-      },
-    );
-  },
-
-  contributorRequestRevision(
-    id: string,
-    reason: string,
-  ): Promise<{ message: string }> {
-    return request<{ message: string }>(
-      `/api/tutorials/${id}/contributor-request-revision`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ reason }),
-        token: getToken() ?? undefined,
-      },
-    );
-  },
-
+  // New-submission workflow (ParentTutorialId === null)
   publishTutorial(id: string): Promise<{ message: string }> {
     return request<{ message: string }>(`/api/tutorials/${id}/publish`, {
       method: "PUT",
@@ -239,6 +253,66 @@ export const adminApi = {
     return request<{ message: string }>(`/api/tutorials/${id}`, {
       method: "DELETE",
       body: reason ? JSON.stringify({ reason }) : undefined,
+      token: getToken() ?? undefined,
+    });
+  },
+
+  // Edit-submission workflow (ParentTutorialId set — working copy of a published tutorial)
+  approveEdit(workingCopyId: string): Promise<{ message: string }> {
+    return request<{ message: string }>(
+      `/api/tutorials/${workingCopyId}/approve-edit`,
+      {
+        method: "PUT",
+        token: getToken() ?? undefined,
+      },
+    );
+  },
+
+  rejectEdit(workingCopyId: string, reason: string): Promise<{ message: string }> {
+    return request<{ message: string }>(
+      `/api/tutorials/${workingCopyId}/reject-edit`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ reason }),
+        token: getToken() ?? undefined,
+      },
+    );
+  },
+
+  // ── TUTORIAL MANAGEMENT (edit any tutorial, any author/status) ──────────
+
+  getAllTutorials(params?: {
+    search?: string;
+    status?: string;
+    categoryId?: number;
+    isOfficial?: boolean;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PagedResult<AdminTutorialListItemResponse>> {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.status) q.set("status", params.status);
+    if (params?.categoryId) q.set("categoryId", String(params.categoryId));
+    if (params?.isOfficial !== undefined) q.set("isOfficial", String(params.isOfficial));
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<PagedResult<AdminTutorialListItemResponse>>(
+      `/api/tutorials/admin/all${qs}`,
+      { token: getToken() ?? undefined },
+    );
+  },
+
+  getTutorialForAdmin(id: string): Promise<AdminTutorialDetailResponse> {
+    return request<AdminTutorialDetailResponse>(`/api/tutorials/${id}/admin`, {
+      token: getToken() ?? undefined,
+    });
+  },
+
+  updateTutorialAdmin(id: string, body: UpdateTutorialRequest): Promise<TutorialResponse> {
+    return request<TutorialResponse>(`/api/tutorials/${id}/admin`, {
+      method: "PUT",
+      body: JSON.stringify(body),
       token: getToken() ?? undefined,
     });
   },
