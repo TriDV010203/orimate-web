@@ -312,14 +312,15 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
   const [loggedIn, setLoggedIn] = useState(false);
 
-  useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
+
 
   // Load tutorial (với token nếu đã đăng nhập để nhận isLiked/isSaved/isCompleted)
   useEffect(() => {
     if (!slug) return;
+    
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    const token = isLoggedIn() ? getToken() ?? undefined : undefined;
-    tutorialsApi.getBySlug(slug, token)
+
       .then((data) => {
         setTutorial(data);
         setIsLiked(data.isLikedByCurrentUser ?? false);

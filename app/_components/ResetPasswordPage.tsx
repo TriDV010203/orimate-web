@@ -57,24 +57,15 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [token, setToken] = useState("");
+  const initialToken = searchParams.get("token") || "";
+  const [token] = useState(initialToken);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [tokenMissing, setTokenMissing] = useState(false);
-
-  // Đọc token từ URL query ?token=xxx
-  useEffect(() => {
-    const t = searchParams.get("token");
-    if (t) {
-      setToken(t);
-    } else {
-      setTokenMissing(true);
-    }
-  }, [searchParams]);
+  const [tokenMissing] = useState(!initialToken);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

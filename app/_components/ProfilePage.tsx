@@ -140,7 +140,10 @@ export default function ProfilePage() {
     if (activeTab !== "Thành tựu") return;
     const tok = getToken();
     if (!tok) return;
+    
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAchievementsLoading(true);
+
     achievementsApi.getMine(tok, 1, 3)
       .then((r) => setAchievementsPreview(r.items))
       .catch(() => {})

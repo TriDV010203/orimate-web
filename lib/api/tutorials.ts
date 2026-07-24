@@ -305,15 +305,6 @@ export const tutorialsApi = {
     );
   },
 
-  /** DELETE /api/tutorials/{tutorialId}/steps/{stepId}/complete — Bỏ đánh dấu bước */
-  uncompleteStep(
-    token: string,
-    tutorialId: string,
-    stepId: string
-  ): Promise<TutorialProgressDto> {
-    return request<TutorialProgressDto>(
-      `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
-      { method: "DELETE", token }
-    );
+
   },
 };
