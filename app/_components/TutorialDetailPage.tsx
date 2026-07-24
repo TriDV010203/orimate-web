@@ -9,12 +9,13 @@ import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi,
+  tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi, learningPathsApi,
   type TutorialDetailDto, type TutorialStepDto, type AchievementDto, type ApiError,
+  type LearningPathContextDto,
 } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
-import { findLessonContext, getCompletedLessonIds, setCompletedLessonIds } from "./learningPathsData";
+import { getCompletedTutorialIds, setCompletedTutorialIds } from "@/lib/learningPathProgress";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getDiffLabel(d?: string | null) {
@@ -166,7 +167,7 @@ function AchievementModal({ tutorialId, tutorialTitle, onClose, onSuccess }: Ach
 interface SuccessModalProps {
   onClose: () => void;
   /** Có khi bài này thuộc 1 lộ trình — ưu tiên đưa người dùng quay lại đó. */
-  pathReturn?: { pathSlug: string; pathTitle: string; isLastLesson: boolean };
+  pathReturn?: { pathId: string; pathTitle: string; isLastLesson: boolean };
 }
 
 function SuccessModal({ onClose, pathReturn }: SuccessModalProps) {
@@ -184,7 +185,7 @@ function SuccessModal({ onClose, pathReturn }: SuccessModalProps) {
         </p>
         {pathReturn ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-            <Link href={`/lo-trinh/${pathReturn.pathSlug}`} className="btn btn-primary" style={{ justifyContent: "center" }}>
+            <Link href={`/lo-trinh/${pathReturn.pathId}`} className="btn btn-primary" style={{ justifyContent: "center" }}>
               🗺️ Quay lại lộ trình
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
@@ -461,19 +462,27 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       .catch(() => { /* silent */ });
   }, [tutorial?.id]);
 
-  // Bài này có thuộc 1 lộ trình học không? (tra theo slug, xem learningPathsData.ts)
-  const pathCtx = useMemo(() => (tutorial ? findLessonContext(tutorial.slug) : undefined), [tutorial]);
+  // Bài này có thuộc 1 lộ trình học đã xuất bản không? (GET /api/learning-paths/for-tutorial/{id})
+  const [pathCtx, setPathCtx] = useState<LearningPathContextDto | null>(null);
+  useEffect(() => {
+    if (!tutorial) return;
+    let cancelled = false;
+    learningPathsApi.getForTutorial(tutorial.id)
+      .then((res) => { if (!cancelled) setPathCtx(res); })
+      .catch(() => { if (!cancelled) setPathCtx(null); });
+    return () => { cancelled = true; };
+  }, [tutorial]);
 
   // Nếu bài này thuộc 1 lộ trình và đã có achievement từ trước (vd. hoàn thành trước khi
   // tính năng lộ trình tồn tại), đảm bảo lộ trình cũng ghi nhận bài này đã xong.
   useEffect(() => {
-    if (!pathCtx || !existingAchievement) return;
-    const done = getCompletedLessonIds(pathCtx.path.slug);
-    if (!done.has(pathCtx.lesson.id)) {
-      done.add(pathCtx.lesson.id);
-      setCompletedLessonIds(pathCtx.path.slug, done);
+    if (!pathCtx || !existingAchievement || !tutorial) return;
+    const done = getCompletedTutorialIds(pathCtx.pathId);
+    if (!done.has(tutorial.id)) {
+      done.add(tutorial.id);
+      setCompletedTutorialIds(pathCtx.pathId, done);
     }
-  }, [pathCtx, existingAchievement]);
+  }, [pathCtx, existingAchievement, tutorial]);
 
   const steps = useMemo(
     () => (tutorial ? [...tutorial.steps].sort((a, b) => a.stepOrder - b.stepOrder) : []),
@@ -579,14 +588,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     setShowSuccessModal(true);
 
     // Mở khoá bài tiếp theo trong lộ trình (nếu bài này thuộc 1 lộ trình)
-    if (pathCtx) {
-      const done = getCompletedLessonIds(pathCtx.path.slug);
-      done.add(pathCtx.lesson.id);
-      setCompletedLessonIds(pathCtx.path.slug, done);
+    if (pathCtx && tutorial) {
+      const done = getCompletedTutorialIds(pathCtx.pathId);
+      done.add(tutorial.id);
+      setCompletedTutorialIds(pathCtx.pathId, done);
     }
   };
-
-  const isLastLessonInPath = pathCtx ? pathCtx.index === pathCtx.path.lessons.length - 1 : false;
 
   const diffColor = getDiffColor(tutorial?.difficulty);
 
@@ -648,7 +655,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       {showSuccessModal && (
         <SuccessModal
           onClose={() => setShowSuccessModal(false)}
-          pathReturn={pathCtx ? { pathSlug: pathCtx.path.slug, pathTitle: pathCtx.path.title, isLastLesson: isLastLessonInPath } : undefined}
+          pathReturn={pathCtx ? { pathId: pathCtx.pathId, pathTitle: pathCtx.pathTitle, isLastLesson: pathCtx.isLastLesson } : undefined}
         />
       )}
       <ReportModal
@@ -689,7 +696,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
               {/* Banner "thuộc lộ trình" */}
               {pathCtx && (
                 <Link
-                  href={`/lo-trinh/${pathCtx.path.slug}`}
+                  href={`/lo-trinh/${pathCtx.pathId}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "0.5rem",
                     background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
@@ -698,7 +705,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                     color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
                   }}
                 >
-                  🗺️ Thuộc lộ trình: {pathCtx.path.title} · Bài {pathCtx.index + 1}/{pathCtx.path.lessons.length}
+                  🗺️ Thuộc lộ trình: {pathCtx.pathTitle} · Bài {pathCtx.lessonIndex + 1}/{pathCtx.totalLessons}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
                 </Link>
               )}

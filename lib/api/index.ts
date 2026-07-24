@@ -81,3 +81,14 @@ export type {
   CategoryResponse,
 } from "./admin";
 export { adminApi } from "./admin";
+
+export type {
+  LearningPathStatusValue,
+  LearningPathItemDto,
+  LearningPathDto,
+  LearningPathListItemDto,
+  LearningPathContextDto,
+  CreateLearningPathRequest,
+  UpdateLearningPathRequest,
+} from "./learning-paths";
+export { learningPathsApi } from "./learning-paths";
