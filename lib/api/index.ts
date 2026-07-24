@@ -12,6 +12,15 @@ export type {
   TutorialListItemDto,
   TutorialDetailDto,
   PagedResult,
+  MyTutorialDto,
+  TutorialStatusValue,
+  CategoryDto,
+  CreateTutorialRequest,
+  UpdateTutorialRequest,
+  CreateTutorialStepRequest,
+  TutorialResponse,
+  TutorialAuthorDetailDto,
+  TutorialProgressDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";
 
@@ -22,3 +31,58 @@ export type {
   PaginatedResult,
 } from "./achievements";
 export { achievementsApi } from "./achievements";
+
+export type {
+  CreatorProfileDto,
+  UpdateProfileRequest,
+  ToggleFollowResponse,
+  FollowerUserDto,
+  UserPagedResult,
+} from "./users";
+export { usersApi } from "./users";
+
+export type {
+  MediaItemDto,
+  CommunityPostDto,
+  CreateCommunityPostRequest,
+  ToggleLikeResponse,
+  CommentDto,
+  AddCommentRequest,
+} from "./community-posts";
+export { communityPostsApi } from "./community-posts";
+
+export type {
+  JournalDto,
+  CreateJournalRequest,
+  UpdateJournalRequest,
+} from "./journals";
+export { journalsApi } from "./journals";
+
+export type {
+  WishlistToggleResponse,
+  WishlistItemDto,
+  WishlistPagedResult,
+} from "./wishlists";
+export { wishlistsApi } from "./wishlists";
+
+export type {
+  NotificationDto,
+  NotificationPagedResult,
+} from "./notifications";
+export { notificationsApi } from "./notifications";
+
+export type {
+  SubscriptionDto,
+  SubscriptionPagedResult,
+  VipTierDto,
+  CreatorRevenueDto,
+  RevenueMonthDto,
+} from "./subscriptions";
+export { subscriptionsApi } from "./subscriptions";
+
+export type {
+  SubmitReportRequest,
+  ReportTargetType,
+} from "./reports";
+export { reportsApi } from "./reports";
+
