@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
@@ -378,6 +379,12 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
 interface TutorialDetailPageProps { slug: string; }
 
 export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
+  // Chỉ hiển thị UI "thuộc lộ trình" (banner + nút quay lại lộ trình) khi người dùng
+  // thực sự đến từ trang lộ trình (bấm "Học ngay" ở đó) — không hiển thị nếu vào thẳng
+  // bài hướng dẫn từ nơi khác, dù bài này có thuộc 1 lộ trình đã xuất bản hay không.
+  const searchParams = useSearchParams();
+  const fromPathId = searchParams.get("tuLoTrinh");
+
   const [tutorial, setTutorial] = useState<TutorialDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -403,12 +410,15 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
   const [loggedIn, setLoggedIn] = useState(false);
 
-
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoggedIn(isLoggedIn());
+  }, []);
 
   // Load tutorial (với token nếu đã đăng nhập để nhận isLiked/isSaved/isCompleted)
   useEffect(() => {
     if (!slug) return;
-    
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
@@ -431,14 +441,49 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  // Load step progress từ localStorage
+  // Tải tiến độ bước từ localStorage (hiển thị tức thời, kể cả khách chưa đăng nhập),
+  // rồi đồng bộ lên BE nếu đã đăng nhập — BE là nơi thật sự cộng Hạt Gấp khi hoàn thành
+  // toàn bộ tutorial, nên các bước từng tick offline nhưng chưa gửi lên BE cần được "bù" lại.
   useEffect(() => {
     if (!tutorial) return;
     const key = `origami_steps_${tutorial.id}`;
+    let localIds: string[] = [];
     try {
       const saved = localStorage.getItem(key);
-      if (saved) setCompletedSteps(new Set(JSON.parse(saved) as string[]));
+      if (saved) localIds = JSON.parse(saved) as string[];
     } catch { /* ignore */ }
+
+    if (localIds.length > 0) setCompletedSteps(new Set(localIds));
+
+    if (!isLoggedIn()) return;
+    const token = getToken();
+    if (!token) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const progress = await tutorialsApi.getProgress(token, tutorial.id);
+        const merged = new Set(progress.completedStepIds);
+        const toBackfill = localIds.filter((id) => !merged.has(id));
+
+        for (const stepId of toBackfill) {
+          try {
+            const updated = await tutorialsApi.completeStep(token, tutorial.id, stepId);
+            updated.completedStepIds.forEach((id) => merged.add(id));
+          } catch {
+            // bước không thuộc tutorial này hoặc lỗi mạng — bỏ qua, không chặn các bước còn lại
+          }
+        }
+
+        if (!cancelled && merged.size > 0) {
+          setCompletedSteps((prev) => new Set([...prev, ...merged]));
+        }
+      } catch {
+        /* BE không khả dụng — vẫn giữ tiến độ localStorage để hiển thị */
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [tutorial?.id]);
 
   // Lưu step progress vào localStorage mỗi khi thay đổi
@@ -473,6 +518,10 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     return () => { cancelled = true; };
   }, [tutorial]);
 
+  // true chỉ khi query param khớp đúng lộ trình mà bài này thuộc về — tức người dùng
+  // đến đây bằng cách bấm "Học ngay" từ trang lộ trình đó.
+  const cameFromPath = !!pathCtx && fromPathId === pathCtx.pathId;
+
   // Nếu bài này thuộc 1 lộ trình và đã có achievement từ trước (vd. hoàn thành trước khi
   // tính năng lộ trình tồn tại), đảm bảo lộ trình cũng ghi nhận bài này đã xong.
   useEffect(() => {
@@ -497,11 +546,23 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   const toggleStep = useCallback((stepId: string) => {
     setCompletedSteps((prev) => {
       const next = new Set(prev);
-      if (next.has(stepId)) next.delete(stepId);
-      else next.add(stepId);
+      if (next.has(stepId)) {
+        next.delete(stepId);
+      } else {
+        next.add(stepId);
+        // Ghi nhận lên BE để cộng Hạt Gấp khi đây là bước cuối cùng hoàn thành tutorial.
+        if (tutorial && isLoggedIn()) {
+          const token = getToken();
+          if (token) {
+            tutorialsApi.completeStep(token, tutorial.id, stepId).catch(() => {
+              // đã hoàn thành từ trước hoặc lỗi mạng — không ảnh hưởng checkbox cục bộ
+            });
+          }
+        }
+      }
       return next;
     });
-  }, []);
+  }, [tutorial]);
 
   const activeStepIndex = steps.findIndex((s) => s.id === activeStep);
   const hasPrevStep = activeStepIndex > 0;
@@ -655,7 +716,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       {showSuccessModal && (
         <SuccessModal
           onClose={() => setShowSuccessModal(false)}
-          pathReturn={pathCtx ? { pathId: pathCtx.pathId, pathTitle: pathCtx.pathTitle, isLastLesson: pathCtx.isLastLesson } : undefined}
+          pathReturn={cameFromPath && pathCtx ? { pathId: pathCtx.pathId, pathTitle: pathCtx.pathTitle, isLastLesson: pathCtx.isLastLesson } : undefined}
         />
       )}
       <ReportModal
@@ -671,7 +732,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
         <div
           style={{
             background: isValidImageUrl(tutorial.coverImageUrl)
-              ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.8) 100%)`
+              ? `linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.78) 100%)`
               : "var(--gradient-primary)",
             position: "relative",
             overflow: "hidden",
@@ -685,7 +746,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
           <div style={{ position: "relative", zIndex: 1, width: "100%", padding: "3rem 0 2rem" }}>
             <div className="container">
               {/* Breadcrumb */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <Link href="/" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Trang chủ</Link>
                 <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
                 <Link href="/huong-dan" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Hướng dẫn</Link>
@@ -693,8 +754,8 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 <span style={{ color: "rgba(255,255,255,0.9)" }}>{tutorial.title}</span>
               </div>
 
-              {/* Banner "thuộc lộ trình" */}
-              {pathCtx && (
+              {/* Banner "thuộc lộ trình" — chỉ hiện khi đến từ trang lộ trình */}
+              {cameFromPath && pathCtx && (
                 <Link
                   href={`/lo-trinh/${pathCtx.pathId}`}
                   style={{
@@ -731,12 +792,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
               <h1 style={{ color: "white", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.5rem)", marginBottom: "0.75rem", textShadow: "0 2px 8px rgba(0,0,0,0.3)", lineHeight: 1.2 }}>
                 {tutorial.title}
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem" }}>
+              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {tutorial.description}
               </p>
 
               {/* Meta row */}
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {/* Author */}
                 <AuthorLink authorId={tutorial.author.id} style={{ gap: "0.5rem" }}>
                   <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: "var(--gradient-primary)", border: "2px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.6875rem", color: "white", flexShrink: 0 }}>

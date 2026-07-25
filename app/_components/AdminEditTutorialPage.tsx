@@ -7,7 +7,7 @@ import { adminApi } from "@/lib/api/admin";
 import { tutorialsApi } from "@/lib/api/tutorials";
 import type { CategoryDto } from "@/lib/api/tutorials";
 import { getToken } from "@/lib/auth";
-import { isValidImageUrl } from "@/lib/utils";
+import ImageUploadField from "./ImageUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -206,18 +206,14 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
 
           <div className="card" style={{ padding: "1.25rem" }}>
             <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem" }}>Ảnh bìa</h3>
-            <div style={{ aspectRatio: "4/3", borderRadius: "var(--radius-lg)", border: "2px dashed var(--color-border)", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem", overflow: "hidden" }}>
-              {isValidImageUrl(coverImageUrl) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverImageUrl} alt="Ảnh bìa" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Chưa có ảnh bìa</span>
-              )}
-            </div>
-            <div className="input-group">
-              <label className="input-label">URL ảnh bìa</label>
-              <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} className="input-field" placeholder="https://..." />
-            </div>
+            <ImageUploadField
+              value={coverImageUrl}
+              onChange={setCoverImageUrl}
+              token={getToken() ?? ""}
+              folder="tutorials"
+              variant="cover"
+              disabled={saving}
+            />
           </div>
 
           <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -308,11 +304,15 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
                           rows={3} placeholder="Mô tả cách thực hiện bước này..."
                           style={{ width: "100%", padding: "0.625rem 0.75rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", fontSize: "0.875rem", fontFamily: "inherit", resize: "vertical", outline: "none", lineHeight: 1.6 }} />
                       </div>
-                      <div className="input-group">
-                        <label className="input-label">URL ảnh minh họa</label>
-                        <input value={step.imageUrl} onChange={(e) => updateStep(step.key, "imageUrl", e.target.value)}
-                          className="input-field" placeholder="https://..." />
-                      </div>
+                      <ImageUploadField
+                        value={step.imageUrl}
+                        onChange={(url) => updateStep(step.key, "imageUrl", url)}
+                        token={getToken() ?? ""}
+                        folder="tutorials"
+                        label="Ảnh minh họa"
+                        variant="compact"
+                        disabled={saving}
+                      />
                     </div>
                   )}
                 </div>

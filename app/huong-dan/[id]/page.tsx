@@ -3,6 +3,7 @@
 // Toàn bộ UI được tách sang _components/TutorialDetailPage.tsx
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import TutorialDetailPage from "../../_components/TutorialDetailPage";
 
 interface PageProps {
@@ -25,5 +26,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params;
-  return <TutorialDetailPage slug={id} />;
+  return (
+    <Suspense fallback={null}>
+      <TutorialDetailPage slug={id} />
+    </Suspense>
+  );
 }

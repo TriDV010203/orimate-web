@@ -92,3 +92,15 @@ export type {
   UpdateLearningPathRequest,
 } from "./learning-paths";
 export { learningPathsApi } from "./learning-paths";
+
+export type {
+  SkillLevelDto,
+  StreakDto,
+  QuestProgressDto,
+  HatGapBalanceDto,
+  HatGapLevelDto,
+} from "./gamification";
+export { gamificationApi } from "./gamification";
+
+export type { UploadFolder, UploadImageResponse } from "./uploads";
+export { uploadsApi } from "./uploads";

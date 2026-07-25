@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ImageUploadField from "./ImageUploadField";
 import { getToken } from "@/lib/auth";
 import { achievementsApi, AchievementDto, CreateAchievementRequest } from "@/lib/api/achievements";
 import { tutorialsApi, TutorialListItemDto } from "@/lib/api/tutorials";
@@ -1199,26 +1200,16 @@ function UploadAchievementModal({
             <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{note.length}/1000</span>
           </div>
 
-          {/* Photo URL */}
-          <div className="input-group">
-            <label className="input-label">URL ảnh tác phẩm</label>
-            <input
-              className="input-field"
-              type="url"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://... (tùy chọn)"
-            />
-            {photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={photoUrl}
-                alt="preview"
-                style={{ marginTop: "0.5rem", width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
-          </div>
+          {/* Photo */}
+          <ImageUploadField
+            value={photoUrl}
+            onChange={setPhotoUrl}
+            token={getToken() ?? ""}
+            folder="achievements"
+            label="Ảnh tác phẩm (tùy chọn)"
+            variant="cover"
+            disabled={submitting}
+          />
 
           {/* Privacy toggle */}
           <div

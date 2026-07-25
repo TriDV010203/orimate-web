@@ -111,18 +111,6 @@ export default function LearningPathDetailPage({ id }: Props) {
   const pct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
   const allDone = hydrated && total > 0 && completedCount === total;
 
-  function toggleItem(tutorialId: string, unlocked: boolean) {
-    if (!unlocked) return;
-    if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
-    setCompleted((prev) => {
-      const next = new Set(prev);
-      if (next.has(tutorialId)) next.delete(tutorialId);
-      else next.add(tutorialId);
-      setCompletedTutorialIds(path!.id, next);
-      return next;
-    });
-  }
-
   return (
     <>
       <Navbar />
@@ -217,21 +205,12 @@ export default function LearningPathDetailPage({ id }: Props) {
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
                         {unlocked ? (
-                          <Link href={`/huong-dan/${item.tutorialSlug}`} className="btn btn-primary btn-sm">
+                          <Link href={`/huong-dan/${item.tutorialSlug}?tuLoTrinh=${path.id}`} className="btn btn-primary btn-sm">
                             {isCompleted ? "Xem lại" : "Học ngay"}
                           </Link>
                         ) : (
                           <button className="btn btn-outline btn-sm" disabled style={{ cursor: "not-allowed" }}>
                             Đã khoá
-                          </button>
-                        )}
-                        {unlocked && (
-                          <button
-                            className="btn btn-sm"
-                            style={{ background: "none", border: "none", color: "var(--color-text-muted)", textDecoration: "underline", padding: 0 }}
-                            onClick={() => toggleItem(item.tutorialId, unlocked)}
-                          >
-                            {isCompleted ? "Bỏ đánh dấu" : "Đánh dấu xong"}
                           </button>
                         )}
                       </div>

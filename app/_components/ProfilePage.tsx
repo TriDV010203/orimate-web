@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
+import HatGapWalletCard from "./HatGapWalletCard";
 import { isLoggedIn, getToken, getUser } from "@/lib/auth";
 import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
 import { usersApi, CreatorProfileDto } from "@/lib/api/users";
@@ -452,6 +453,9 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* ── Hạt Gấp Wallet ── */}
+          <HatGapWalletCard />
 
           {/* ── Tabs ── */}
           <div style={{ display: "flex", gap: "0.25rem", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>

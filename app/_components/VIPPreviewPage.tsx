@@ -25,9 +25,8 @@ const TUTORIAL = {
   previewSteps: [
     { num: 1, title: "Chuẩn bị giấy", desc: "Sử dụng giấy origami 30×30cm màu đỏ cam. Đảm bảo giấy phẳng và không bị nhăn.", emoji: "📄" },
     { num: 2, title: "Gấp đường chéo cơ bản", desc: "Gấp giấy theo đường chéo từ góc trên trái xuống góc dưới phải. Nhấn mạnh đường gấp.", emoji: "✏️" },
-    { num: 3, title: "Tạo hình tam giác kép", desc: "Lật giấy và gấp tiếp đường chéo còn lại. Mở ra để có dấu gấp chữ X.", emoji: "🔸" },
   ],
-  lockedSteps: 27,
+  lockedSteps: 28,
   features: [
     "30 bước chi tiết với ảnh minh họa HD",
     "Video hướng dẫn từng bước",
@@ -132,7 +131,7 @@ export default function VIPPreviewPage() {
               <div style={{ position: "relative", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
                 {/* Blurred preview */}
                 <div style={{ filter: "blur(6px)", pointerEvents: "none", display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {[4, 5, 6].map((n) => (
+                  {[3, 4, 5].map((n) => (
                     <div key={n} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", display: "flex", gap: "1rem" }}>
                       <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: "var(--color-surface-2)" }} />
                       <div style={{ flex: 1 }}>

@@ -9,6 +9,7 @@ import { learningPathsApi } from "@/lib/api/learning-paths";
 import type { LearningPathStatusValue } from "@/lib/api/learning-paths";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
+import ImageUploadField from "./ImageUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2, Search, Rocket, Archive } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -281,18 +282,14 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
           <div className="card" style={{ padding: "1.25rem" }}>
             <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "1rem" }}>Ảnh bìa</h3>
-            <div style={{ aspectRatio: "4/3", borderRadius: "var(--radius-lg)", border: "2px dashed var(--color-border)", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem", overflow: "hidden" }}>
-              {isValidImageUrl(coverImageUrl) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={coverImageUrl} alt="Ảnh bìa" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <span style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Chưa có ảnh bìa</span>
-              )}
-            </div>
-            <div className="input-group">
-              <label className="input-label">URL ảnh bìa</label>
-              <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} className="input-field" placeholder="https://..." />
-            </div>
+            <ImageUploadField
+              value={coverImageUrl}
+              onChange={setCoverImageUrl}
+              token={getToken() ?? ""}
+              folder="learning-paths"
+              variant="cover"
+              disabled={saving}
+            />
           </div>
 
           <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
