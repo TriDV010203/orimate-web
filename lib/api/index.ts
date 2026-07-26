@@ -50,13 +50,17 @@ export type { ReportTargetType, SubmitReportRequest } from "./reports";
 export { reportsApi } from "./reports";
 
 export type {
-  SubscriptionDto,
-  SubscriptionPagedResult,
   VipTierDto,
+  TransactionDto,
+  AdminTransactionDto,
+  PlatformRevenueDto,
+  VipSubscriptionDto,
+  MySubscriptionDto,
+  CreatorSubscriberDto,
   CreatorRevenueDto,
-  RevenueMonthDto,
+  TransactionStatusFilter,
 } from "./subscriptions";
-export { subscriptionsApi } from "./subscriptions";
+export { subscriptionsApi, VIP_FIXED_PRICE_VND } from "./subscriptions";
 
 export type { JournalDto, CreateJournalRequest, UpdateJournalRequest } from "./journals";
 export { journalsApi } from "./journals";

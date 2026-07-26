@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, BookOpen, FolderCog, Map, Flag, Settings } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, FolderCog, Map, Flag, Settings, Wallet } from "lucide-react";
 
 const navItems = [
   { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
@@ -10,6 +10,7 @@ const navItems = [
   { name: "Duyệt bài viết", href: "/admin/tutorials", icon: BookOpen },
   { name: "Quản lý hướng dẫn", href: "/admin/tutorials/manage", icon: FolderCog },
   { name: "Lộ trình học", href: "/admin/learning-paths", icon: Map },
+  { name: "Doanh thu VIP", href: "/admin/revenue", icon: Wallet },
   { name: "Báo cáo vi phạm", href: "/admin/reports", icon: Flag },
   { name: "Cấu hình hệ thống", href: "/admin/settings", icon: Settings },
 ];

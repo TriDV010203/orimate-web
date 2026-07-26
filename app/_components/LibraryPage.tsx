@@ -335,7 +335,7 @@ export default function LibraryPage() {
 
                       {/* Xem */}
                       <Link
-                        href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                        href={`/huong-dan/${t.slug}`}
                         className="btn btn-primary"
                         style={{ flex: 1, justifyContent: "center", textDecoration: "none", padding: "0.4rem 0.5rem", fontSize: "0.875rem" }}
                       >

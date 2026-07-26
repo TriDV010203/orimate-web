@@ -220,6 +220,7 @@ interface StepViewerProps {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  tutorialSlug: string;
 }
 
 function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | "right"; onClick: () => void; disabled: boolean }) {
@@ -247,7 +248,7 @@ function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | 
   );
 }
 
-function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext }: StepViewerProps) {
+function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext, tutorialSlug }: StepViewerProps) {
   return (
     <div
       style={{
@@ -313,33 +314,56 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
         </div>
       </div>
 
-      {/* Image with side arrows */}
-      {isValidImageUrl(step.imageUrl) && (
-        <div style={{ position: "relative", marginBottom: "0.875rem" }}>
-          <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: "min(46vh, 360px)", background: "var(--color-surface-2)" }}>
-            <Image
-              src={step.imageUrl}
-              alt={`Bước ${step.stepOrder}`}
-              fill
-              sizes="(max-width: 768px) 100vw, 60vw"
-              style={{ objectFit: "contain" }}
-              priority={index === 0}
-            />
-          </div>
-          <NavArrowButton direction="left" onClick={onPrev} disabled={!hasPrev} />
-          <NavArrowButton direction="right" onClick={onNext} disabled={!hasNext} />
+      {step.isLocked ? (
+        /* Bước bị khoá VIP — không còn description/imageUrl để hiển thị (đã bị server ẩn) */
+        <div style={{
+          position: "relative", marginBottom: "0.875rem", borderRadius: "var(--radius-md)",
+          background: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+          border: "1.5px dashed #F59E0B",
+          padding: "2.5rem 1.5rem", textAlign: "center",
+        }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>🔒</div>
+          <p style={{ fontWeight: 700, color: "#92400E", fontSize: "1rem", marginBottom: "0.375rem" }}>
+            Bước này chỉ dành cho thành viên VIP
+          </p>
+          <p style={{ color: "#B45309", fontSize: "0.875rem", marginBottom: "1.25rem" }}>
+            Đăng ký VIP của tác giả để xem toàn bộ nội dung bài hướng dẫn.
+          </p>
+          <Link href={`/huong-dan/${tutorialSlug}/vip`} className="btn btn-accent" style={{ textDecoration: "none", display: "inline-flex" }}>
+            🔓 Mua VIP để xem tiếp
+          </Link>
         </div>
-      )}
+      ) : (
+        <>
+          {/* Image with side arrows */}
+          {isValidImageUrl(step.imageUrl) && (
+            <div style={{ position: "relative", marginBottom: "0.875rem" }}>
+              <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: "min(46vh, 360px)", background: "var(--color-surface-2)" }}>
+                <Image
+                  src={step.imageUrl}
+                  alt={`Bước ${step.stepOrder}`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 60vw"
+                  style={{ objectFit: "contain" }}
+                  priority={index === 0}
+                />
+              </div>
+              <NavArrowButton direction="left" onClick={onPrev} disabled={!hasPrev} />
+              <NavArrowButton direction="right" onClick={onNext} disabled={!hasNext} />
+            </div>
+          )}
 
-      {/* Description — cuộn riêng nếu quá dài, không kéo giãn cả trang */}
-      <div
-        style={{
-          fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
-          whiteSpace: "pre-wrap", maxHeight: "9.5rem", overflowY: "auto", paddingRight: "0.375rem",
-        }}
-      >
-        {step.description}
-      </div>
+          {/* Description — cuộn riêng nếu quá dài, không kéo giãn cả trang */}
+          <div
+            style={{
+              fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
+              whiteSpace: "pre-wrap", maxHeight: "9.5rem", overflowY: "auto", paddingRight: "0.375rem",
+            }}
+          >
+            {step.description}
+          </div>
+        </>
+      )}
 
       {/* Footer nav */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
@@ -898,6 +922,27 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 </span>
               </div>
 
+              {/* Paywall banner — chỉ hiện vài bước đầu, gợi ý mua VIP của tác giả */}
+              {tutorial.isVipLocked && (
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.875rem",
+                  background: "linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #D4713B 100%)",
+                  borderRadius: "var(--radius-xl)", padding: "1.25rem 1.5rem", marginBottom: "1.25rem",
+                }}>
+                  <div>
+                    <p style={{ color: "white", fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.25rem" }}>
+                      ⭐ Đây là bài hướng dẫn VIP của {tutorial.author.displayName}
+                    </p>
+                    <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.8125rem" }}>
+                      Bạn đang xem trước một vài bước đầu. Đăng ký VIP để mở khoá toàn bộ {totalSteps} bước.
+                    </p>
+                  </div>
+                  <Link href={`/huong-dan/${tutorial.slug}/vip`} className="btn btn-accent" style={{ textDecoration: "none", flexShrink: 0 }}>
+                    🔓 Mua VIP
+                  </Link>
+                </div>
+              )}
+
               {/* Dot indicators — bấm để nhảy nhanh tới bước bất kỳ */}
               {totalSteps > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "0.875rem" }}>
@@ -932,11 +977,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   onNext={goNextStep}
                   hasPrev={hasPrevStep}
                   hasNext={hasNextStep}
+                  tutorialSlug={tutorial.slug}
                 />
               )}
 
-              {/* Completion CTA — chưa có achievement */}
-              {allCompleted && !existingAchievement && (
+              {/* Completion CTA — chưa có achievement (ẩn nếu còn bước bị khoá VIP) */}
+              {allCompleted && !existingAchievement && !tutorial.isVipLocked && (
                 <div style={{
                   marginTop: "2rem",
                   background: "linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)",
@@ -1022,7 +1068,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   </div>
                 )}
 
-                {allCompleted && loggedIn && !existingAchievement && (
+                {allCompleted && loggedIn && !existingAchievement && !tutorial.isVipLocked && (
                   <button
                     id="sidebar-save-achievement"
                     onClick={handleCompleteAll}
@@ -1073,7 +1119,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                         lineHeight: 1.3,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
-                        {`Bước ${step.stepOrder}`}
+                        {`Bước ${step.stepOrder}`}{step.isLocked ? " 🔒" : ""}
                       </span>
                     </button>
                   ))}
