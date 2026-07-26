@@ -7,10 +7,10 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback } from "react";
-import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
+import { tutorialsApi, communityPostsApi, wishlistsApi, dailyChallengeApi, type TutorialListItemDto, type DailyChallengeDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
-import { TODAY_CHALLENGE, DIFFICULTY_COLOR, MOCK_SUBMISSIONS, Avatar, useCountdownToMidnight } from "./DailyChallengePage";
+import { DIFFICULTY_META, useCountdownToMidnightGmt7 } from "./DailyChallengePage";
 
 const CREATORS = [
   { name: "Quang Minh", tutorials: 48, followers: "12.4K", color: "#2D6A4F", initial: "QM", tag: "Origami Nâng cao" },
@@ -71,8 +71,21 @@ function SkeletonCard() {
 
 // ===== DAILY CHALLENGE TEASER — giới thiệu tính năng thử thách hàng ngày =====
 function ChallengeTeaser() {
-  const countdown = useCountdownToMidnight();
-  const diffStyle = DIFFICULTY_COLOR[TODAY_CHALLENGE.difficulty];
+  const countdown = useCountdownToMidnightGmt7();
+  const [challenge, setChallenge] = useState<DailyChallengeDto | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    dailyChallengeApi.getToday(getToken() ?? undefined)
+      .then(setChallenge)
+      .catch(() => setChallenge(null))
+      .finally(() => setLoaded(true));
+  }, []);
+
+  // Chưa tải xong, hoặc hôm nay không có thử thách nào → ẩn hẳn khối teaser
+  if (!loaded || !challenge) return null;
+
+  const diffStyle = DIFFICULTY_META[challenge.tutorialDifficulty] ?? DIFFICULTY_META.Beginner;
 
   return (
     <section style={{ padding: "3rem 0" }}>
@@ -91,7 +104,7 @@ function ChallengeTeaser() {
             display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem",
             boxShadow: "var(--shadow-md)", flexShrink: 0,
           }}>
-            {TODAY_CHALLENGE.emoji}
+            🦢
           </div>
 
           {/* Info */}
@@ -101,25 +114,18 @@ function ChallengeTeaser() {
                 🔥 Thử thách hàng ngày
               </span>
               <span style={{ fontSize: "0.75rem", fontWeight: 700, color: diffStyle.fg, background: diffStyle.bg, border: `1px solid ${diffStyle.border}`, padding: "0.2rem 0.625rem", borderRadius: "99px" }}>
-                {TODAY_CHALLENGE.difficulty}
+                {diffStyle.label}
               </span>
             </div>
             <h2 className="text-heading" style={{ fontSize: "1.375rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>
-              Hôm nay: {TODAY_CHALLENGE.title}
+              Hôm nay: {challenge.tutorialTitle}
             </h2>
             <p style={{ color: "var(--color-text-secondary)", fontSize: "0.9375rem", maxWidth: "480px", lineHeight: 1.6, marginBottom: "0.625rem" }}>
               Mỗi ngày một mẫu gấp mới — cùng cả cộng đồng tham gia, giữ streak và leo bảng xếp hạng.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <div style={{ display: "flex" }}>
-                {MOCK_SUBMISSIONS.slice(0, 4).map((s, i) => (
-                  <div key={s.id} style={{ marginLeft: i === 0 ? 0 : "-0.625rem" }}>
-                    <Avatar name={s.name} size={1.75} />
-                  </div>
-                ))}
-              </div>
               <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 600 }}>
-                {TODAY_CHALLENGE.participantsToday} người đang tham gia
+                {challenge.submissionCount} người đã tham gia
               </span>
             </div>
           </div>

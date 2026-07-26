@@ -108,3 +108,18 @@ export { gamificationApi } from "./gamification";
 
 export type { UploadFolder, UploadImageResponse } from "./uploads";
 export { uploadsApi } from "./uploads";
+
+export type {
+  DailyChallengeStatus,
+  DailyChallengeDto,
+  DailyChallengeSubmissionDto,
+  ChallengeLeaderboardEntryDto,
+  ChallengeSuggestionDto,
+  AdminChallengeCalendarItemDto,
+  SubmitDailyChallengeRequest,
+  ScheduleDailyChallengeRequest,
+} from "./daily-challenge";
+export { dailyChallengeApi } from "./daily-challenge";
+
+export type { BadgeCategory, BadgeDto, UserBadgeDto } from "./badges";
+export { badgesApi } from "./badges";
