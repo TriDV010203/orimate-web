@@ -123,3 +123,11 @@ export { dailyChallengeApi } from "./daily-challenge";
 
 export type { BadgeCategory, BadgeDto, UserBadgeDto } from "./badges";
 export { badgesApi } from "./badges";
+
+export type {
+  ShopLinkDto,
+  ShopLinkResponse,
+  CreateShopLinkRequest,
+  UpdateShopLinkRequest,
+} from "./shop";
+export { shopApi } from "./shop";

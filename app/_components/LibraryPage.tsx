@@ -5,11 +5,10 @@ import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
-import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto } from "@/lib/api";
+import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto, type CategoryDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
 
-const CATEGORIES = ["Tất cả", "Động vật", "Hoa & Thực vật", "Chim", "Origami 3D", "Modular", "Hình học", "Nhân vật", "Biển cả", "Thiên nhiên"];
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
 const TYPES = ["Tất cả", "Miễn phí", "VIP"];
 const SORTS = [{ label: "Mới nhất", value: "date" }, { label: "Phổ biến nhất", value: "likes" }];
@@ -18,6 +17,13 @@ const PAGE_SIZE = 12;
 function mapTypeToBe(type: string): string | undefined {
   if (type === "Miễn phí") return "Free";
   if (type === "VIP") return "VIP";
+  return undefined;
+}
+
+function mapDifficultyToBe(difficulty: string): string | undefined {
+  if (difficulty === "Dễ") return "Beginner";
+  if (difficulty === "Trung bình") return "Intermediate";
+  if (difficulty === "Khó") return "Advanced";
   return undefined;
 }
 
@@ -35,7 +41,8 @@ function getTypeLabel(t: string) { return t === "Free" ? "Miễn phí" : t; }
 interface CardState { isLiked: boolean; likeCount: number; isSaved: boolean; }
 
 export default function LibraryPage() {
-  const [category, setCategory] = useState("Tất cả");
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [difficulty, setDifficulty] = useState("Tất cả");
   const [type, setType] = useState("Tất cả");
   const [sort, setSort] = useState("date");
@@ -52,6 +59,10 @@ export default function LibraryPage() {
 
   useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
 
+  useEffect(() => {
+    tutorialsApi.getCategories().then(setCategories).catch(() => setCategories([]));
+  }, []);
+
   const fetchTutorials = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -59,7 +70,8 @@ export default function LibraryPage() {
       const token = isLoggedIn() ? getToken() ?? undefined : undefined;
       const result = await tutorialsApi.getList({
         search: search.trim() || undefined,
-        difficulty: difficulty !== "Tất cả" ? difficulty : undefined,
+        categoryId: categoryId ?? undefined,
+        difficulty: difficulty !== "Tất cả" ? mapDifficultyToBe(difficulty) : undefined,
         type: mapTypeToBe(type),
         sortBy: sort,
         page,
@@ -84,19 +96,14 @@ export default function LibraryPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, difficulty, type, sort, page]);
+  }, [search, categoryId, difficulty, type, sort, page]);
 
-  useEffect(() => { setPage(1); }, [search, difficulty, type, category, sort]);
+  useEffect(() => { setPage(1); }, [search, categoryId, difficulty, type, sort]);
 
   useEffect(() => {
     const timer = setTimeout(fetchTutorials, search ? 350 : 0);
     return () => clearTimeout(timer);
   }, [fetchTutorials]);
-
-  // Lọc client-side theo category (BE chưa có filter theo tên danh mục)
-  const filtered = category === "Tất cả"
-    ? tutorials
-    : tutorials.filter((t) => t.categoryName === category);
 
   const handleLike = useCallback(async (tutorialId: string) => {
     if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
@@ -174,10 +181,14 @@ export default function LibraryPage() {
             <div style={{ marginBottom: "1rem" }}>
               <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-text-muted)", marginRight: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Danh mục</span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem" }}>
-                {CATEGORIES.map((c) => (
-                  <button key={c} onClick={() => setCategory(c)}
-                    style={{ padding: "0.375rem 1rem", borderRadius: "var(--radius-full)", border: `1.5px solid ${category === c ? "var(--color-primary)" : "var(--color-border)"}`, background: category === c ? "var(--color-primary)" : "transparent", color: category === c ? "white" : "var(--color-text-secondary)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
-                    {c}
+                <button onClick={() => setCategoryId(null)}
+                  style={{ padding: "0.375rem 1rem", borderRadius: "var(--radius-full)", border: `1.5px solid ${categoryId === null ? "var(--color-primary)" : "var(--color-border)"}`, background: categoryId === null ? "var(--color-primary)" : "transparent", color: categoryId === null ? "white" : "var(--color-text-secondary)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
+                  Tất cả
+                </button>
+                {categories.map((c) => (
+                  <button key={c.id} onClick={() => setCategoryId(c.id)}
+                    style={{ padding: "0.375rem 1rem", borderRadius: "var(--radius-full)", border: `1.5px solid ${categoryId === c.id ? "var(--color-primary)" : "var(--color-border)"}`, background: categoryId === c.id ? "var(--color-primary)" : "transparent", color: categoryId === c.id ? "white" : "var(--color-text-secondary)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", transition: "var(--transition-fast)" }}>
+                    {c.name}
                   </button>
                 ))}
               </div>
@@ -257,9 +268,9 @@ export default function LibraryPage() {
           )}
 
           {/* ── Tutorial Grid ── */}
-          {!loading && !error && filtered.length > 0 && (
+          {!loading && !error && tutorials.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "2.5rem" }}>
-              {filtered.map((t) => {
+              {tutorials.map((t) => {
                 const cs = cardStates[t.id] ?? { isLiked: false, likeCount: 0, isSaved: false };
                 return (
                   <article key={t.id} className="card tutorial-card" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -349,12 +360,12 @@ export default function LibraryPage() {
           )}
 
           {/* ── Empty ── */}
-          {!loading && !error && filtered.length === 0 && (
+          {!loading && !error && tutorials.length === 0 && (
             <div style={{ textAlign: "center", padding: "4rem 1rem" }}>
               <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🔍</div>
               <h3 style={{ fontWeight: 700, fontSize: "1.25rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Không tìm thấy kết quả</h3>
               <p style={{ color: "var(--color-text-muted)", marginBottom: "1.5rem" }}>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
-              <button onClick={() => { setCategory("Tất cả"); setDifficulty("Tất cả"); setType("Tất cả"); setSearch(""); }} className="btn btn-outline">Xóa bộ lọc</button>
+              <button onClick={() => { setCategoryId(null); setDifficulty("Tất cả"); setType("Tất cả"); setSearch(""); }} className="btn btn-outline">Xóa bộ lọc</button>
             </div>
           )}
 

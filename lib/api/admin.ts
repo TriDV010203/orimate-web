@@ -44,7 +44,8 @@ export interface ManagerQueueItemResponse {
 export interface CategoryResponse {
   id: number;
   name: string;
-  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface AdminTutorialListItemResponse {
@@ -172,22 +173,28 @@ export const adminApi = {
     });
   },
 
-  createCategory(name: string, description: string): Promise<CategoryResponse> {
+  createCategory(name: string): Promise<CategoryResponse> {
     return request<CategoryResponse>("/api/admin/categories", {
       method: "POST",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name }),
       token: getToken() ?? undefined,
     });
   },
 
   updateCategory(
     id: number,
-    name: string,
-    description: string,
+    body: { name?: string; isActive?: boolean },
   ): Promise<CategoryResponse> {
     return request<CategoryResponse>(`/api/admin/categories/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify(body),
+      token: getToken() ?? undefined,
+    });
+  },
+
+  deleteCategory(id: number): Promise<{ message: string }> {
+    return request<{ message: string }>(`/api/admin/categories/${id}`, {
+      method: "DELETE",
       token: getToken() ?? undefined,
     });
   },

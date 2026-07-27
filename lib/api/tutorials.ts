@@ -215,8 +215,8 @@ export const tutorialsApi = {
     return request<PagedResult<MyTutorialDto>>(`/api/tutorials/my-tutorials${qs}`, { token });
   },
 
-  /** GET /api/tutorials/categories — Danh mục đang active, dùng cho dropdown khi tạo/sửa bài */
-  getCategories(token: string): Promise<CategoryDto[]> {
+  /** GET /api/tutorials/categories — Danh mục đang active; public, dùng cho dropdown tạo/sửa bài và bộ lọc thư viện */
+  getCategories(token?: string): Promise<CategoryDto[]> {
     return request<CategoryDto[]>("/api/tutorials/categories", { token });
   },
 

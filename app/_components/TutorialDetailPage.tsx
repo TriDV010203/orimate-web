@@ -249,13 +249,70 @@ function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | 
 }
 
 function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext, tutorialSlug }: StepViewerProps) {
-  return (
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Đóng chế độ toàn màn hình bằng phím Esc, khoá scroll nền trong lúc mở
+  useEffect(() => {
+    if (!fullscreen) return;
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setFullscreen(false);
+    }
+    window.addEventListener("keydown", handleEsc);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [fullscreen]);
+
+  // Ở chế độ toàn màn hình, ảnh và mô tả nằm cạnh nhau (ảnh chiếm phần lớn chiều rộng)
+  // để ảnh hiển thị to nhất có thể thay vì bị bó hẹp trong 1 khung nhỏ giữa màn hình.
+  const imageHeight = fullscreen ? "min(78vh, 800px)" : "min(34vh, 260px)";
+  const descHeight = fullscreen ? "min(78vh, 800px)" : "6rem";
+
+  const footerNav = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+      <button onClick={onPrev} disabled={!hasPrev} className="btn btn-outline btn-sm" style={{ opacity: hasPrev ? 1 : 0.5 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+        Bước trước
+      </button>
+
+      <button
+        id={`step-done-${step.id}`}
+        onClick={onToggle}
+        className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
+      >
+        {isCompleted ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            Bỏ đánh dấu
+          </>
+        ) : (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+            Đã hoàn thành
+          </>
+        )}
+      </button>
+
+      <button onClick={onNext} disabled={!hasNext} className="btn btn-outline btn-sm" style={{ opacity: hasNext ? 1 : 0.5 }}>
+        Bước sau
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+      </button>
+    </div>
+  );
+
+  const card = (
     <div
       style={{
         border: `2px solid ${isCompleted ? "#D1FAE5" : "var(--color-border)"}`,
         borderRadius: "var(--radius-lg)",
         background: isCompleted ? "#F0FDF4" : "var(--color-surface)",
         padding: "1.25rem",
+        ...(fullscreen
+          ? { width: "100%", maxWidth: "min(96vw, 1500px)", maxHeight: "92vh", overflowY: "auto", boxShadow: "var(--shadow-xl)" }
+          : {}),
       }}
     >
       {/* Header */}
@@ -285,6 +342,23 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
           </div>
         </div>
         <div style={{ display: "flex", gap: "0.375rem", flexShrink: 0 }}>
+          <button
+            onClick={() => setFullscreen((f) => !f)}
+            aria-label={fullscreen ? "Thu nhỏ" : "Xem toàn màn hình"}
+            title={fullscreen ? "Thu nhỏ" : "Xem toàn màn hình"}
+            style={{
+              width: "2rem", height: "2rem", borderRadius: "50%", border: "1.5px solid var(--color-border)",
+              background: "var(--color-surface)", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            {fullscreen ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m8-5h3a2 2 0 0 1 2 2v3" /></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+            )}
+          </button>
           <button
             onClick={onPrev}
             disabled={!hasPrev}
@@ -334,16 +408,32 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
           </Link>
         </div>
       ) : (
-        <>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: fullscreen ? "row" : "column",
+            alignItems: fullscreen ? "flex-start" : "stretch",
+            gap: fullscreen ? "1.5rem" : "0.875rem",
+            marginBottom: fullscreen ? 0 : undefined,
+          }}
+        >
           {/* Image with side arrows */}
           {isValidImageUrl(step.imageUrl) && (
-            <div style={{ position: "relative", marginBottom: "0.875rem" }}>
-              <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: "min(46vh, 360px)", background: "var(--color-surface-2)" }}>
+            <div
+              style={{
+                position: "relative",
+                flex: fullscreen ? "1 1 64%" : undefined,
+                minWidth: 0,
+                width: fullscreen ? undefined : "100%",
+                marginBottom: fullscreen ? 0 : "0.875rem",
+              }}
+            >
+              <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: imageHeight, background: "var(--color-surface-2)" }}>
                 <Image
                   src={step.imageUrl}
                   alt={`Bước ${step.stepOrder}`}
                   fill
-                  sizes="(max-width: 768px) 100vw, 60vw"
+                  sizes={fullscreen ? "64vw" : "(max-width: 768px) 100vw, 60vw"}
                   style={{ objectFit: "contain" }}
                   priority={index === 0}
                 />
@@ -353,48 +443,52 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
             </div>
           )}
 
-          {/* Description — cuộn riêng nếu quá dài, không kéo giãn cả trang */}
+          {/* Cột phải (fullscreen): mô tả co giãn + nút điều hướng luôn nằm ngay dưới, không cần cuộn cả khung mới thấy */}
           <div
             style={{
-              fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
-              whiteSpace: "pre-wrap", maxHeight: "9.5rem", overflowY: "auto", paddingRight: "0.375rem",
+              display: fullscreen ? "flex" : undefined,
+              flexDirection: fullscreen ? "column" : undefined,
+              height: fullscreen ? imageHeight : undefined,
+              flex: fullscreen ? "1 1 36%" : undefined,
+              minWidth: 0,
             }}
           >
-            {step.description}
+            {/* Description — chiều cao cố định (không co giãn theo độ dài), cuộn riêng nếu quá dài */}
+            <div
+              style={{
+                fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
+                whiteSpace: "pre-wrap", overflowY: "auto", paddingRight: "0.375rem",
+                height: fullscreen ? undefined : descHeight,
+                flex: fullscreen ? "1 1 auto" : undefined,
+                minHeight: 0,
+              }}
+            >
+              {step.description}
+            </div>
+
+            {fullscreen && <div style={{ flexShrink: 0, marginTop: "1rem" }}>{footerNav}</div>}
           </div>
-        </>
+        </div>
       )}
 
-      {/* Footer nav */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
-        <button onClick={onPrev} disabled={!hasPrev} className="btn btn-outline btn-sm" style={{ opacity: hasPrev ? 1 : 0.5 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-          Bước trước
-        </button>
+      {/* Footer nav (không toàn màn hình): 1 thanh full-width bên dưới ảnh + mô tả */}
+      {!fullscreen && <div style={{ marginTop: "1rem" }}>{footerNav}</div>}
+    </div>
+  );
 
-        <button
-          id={`step-done-${step.id}`}
-          onClick={onToggle}
-          className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
-        >
-          {isCompleted ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              Bỏ đánh dấu
-            </>
-          ) : (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
-              Đã hoàn thành
-            </>
-          )}
-        </button>
+  if (!fullscreen) return card;
 
-        <button onClick={onNext} disabled={!hasNext} className="btn btn-outline btn-sm" style={{ opacity: hasNext ? 1 : 0.5 }}>
-          Bước sau
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-      </div>
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1.5rem", animation: "fadeIn 0.2s ease",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) setFullscreen(false); }}
+    >
+      {card}
     </div>
   );
 }
