@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ImageUploadField from "./ImageUploadField";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { communityPostsApi } from "@/lib/api/community-posts";
 import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
@@ -93,7 +94,7 @@ export default function CreatePostPage() {
     if (type === "achievement" && !selectedAch) { setError("Vui lòng chọn một thành tựu."); return; }
     if (type === "tutorial" && !selectedTut) { setError("Vui lòng chọn hướng dẫn muốn chia sẻ."); return; }
     const validUrls = imageUrls.filter(u => u.trim());
-    if (type === "photo" && validUrls.length === 0) { setError("Vui lòng nhập ít nhất 1 URL ảnh."); return; }
+    if (type === "photo" && validUrls.length === 0) { setError("Vui lòng tải lên ít nhất 1 ảnh."); return; }
 
     setSubmitting(true);
     try {
@@ -193,23 +194,25 @@ export default function CreatePostPage() {
                 </div>
               </div>
 
-              {/* ── Photo type: image URLs ── */}
+              {/* ── Photo type: ảnh từ thiết bị ── */}
               {type === "photo" && (
                 <div style={{ marginBottom: "1.25rem" }}>
                   <label className="input-label" style={{ marginBottom: "0.75rem", display: "block" }}>
-                    URL ảnh <span style={{ color: "var(--color-error)" }}>*</span>
+                    Ảnh <span style={{ color: "var(--color-error)" }}>*</span>
                     <span style={{ fontWeight: 400, color: "var(--color-text-muted)", marginLeft: "0.5rem" }}>(tối đa 10 ảnh)</span>
                   </label>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                     {imageUrls.map((url, i) => (
                       <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <input id={`image-url-${i}`} type="url" value={url} onChange={e => updateImage(i, e.target.value)}
-                          placeholder={`https://example.com/anh-${i + 1}.jpg`}
-                          className="input-field" style={{ flex: 1 }} />
-                        {url && (
-                          <img src={url} alt="" style={{ width: "3rem", height: "3rem", objectFit: "cover", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)", flexShrink: 0 }}
-                            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        )}
+                        <div style={{ flex: 1 }}>
+                          <ImageUploadField
+                            value={url}
+                            onChange={(u) => updateImage(i, u)}
+                            token={token ?? ""}
+                            folder="community-posts"
+                            variant="compact"
+                          />
+                        </div>
                         {imageUrls.length > 1 && (
                           <button type="button" onClick={() => removeImage(i)} style={{ background: "rgba(192,57,43,0.1)", border: "none", borderRadius: "var(--radius-sm)", width: "2rem", height: "2rem", cursor: "pointer", color: "var(--color-error)", flexShrink: 0, fontSize: "1rem" }}>×</button>
                         )}

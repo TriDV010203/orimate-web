@@ -51,6 +51,7 @@ export interface TutorialDetailDto {
   author: AuthorDto;
   steps: TutorialStepDto[];
   publishedAt: string;
+  isVipLocked?: boolean;
   likeCount?: number;
   wishlistCount?: number;
   isLikedByCurrentUser?: boolean | null;
@@ -214,8 +215,8 @@ export const tutorialsApi = {
     return request<PagedResult<MyTutorialDto>>(`/api/tutorials/my-tutorials${qs}`, { token });
   },
 
-  /** GET /api/tutorials/categories — Danh mục đang active, dùng cho dropdown khi tạo/sửa bài */
-  getCategories(token: string): Promise<CategoryDto[]> {
+  /** GET /api/tutorials/categories — Danh mục đang active; public, dùng cho dropdown tạo/sửa bài và bộ lọc thư viện */
+  getCategories(token?: string): Promise<CategoryDto[]> {
     return request<CategoryDto[]>("/api/tutorials/categories", { token });
   },
 
@@ -230,6 +231,21 @@ export const tutorialsApi = {
     body: CreateTutorialRequest
   ): Promise<TutorialResponse> {
     return request<TutorialResponse>("/api/tutorials", {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    });
+  },
+
+  /**
+   * POST /api/tutorials/admin — Admin/Manager tự viết và đăng bài trực tiếp (Admin,Manager only).
+   * Luôn miễn phí, xuất bản ngay lập tức, không qua hàng chờ duyệt.
+   */
+  adminCreateTutorial(
+    token: string,
+    body: CreateTutorialRequest
+  ): Promise<TutorialResponse> {
+    return request<TutorialResponse>("/api/tutorials/admin", {
       method: "POST",
       body: JSON.stringify(body),
       token,
@@ -302,18 +318,6 @@ export const tutorialsApi = {
     return request<TutorialProgressDto>(
       `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
       { method: "POST", token }
-    );
-  },
-
-  /** DELETE /api/tutorials/{tutorialId}/steps/{stepId}/complete — Bỏ đánh dấu bước */
-  uncompleteStep(
-    token: string,
-    tutorialId: string,
-    stepId: string
-  ): Promise<TutorialProgressDto> {
-    return request<TutorialProgressDto>(
-      `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
-      { method: "DELETE", token }
     );
   },
 };

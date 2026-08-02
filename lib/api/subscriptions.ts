@@ -1,63 +1,131 @@
 // lib/api/subscriptions.ts — Subscription (VIP) API endpoints
 
 import { request } from "./client";
+import type { PagedResult } from "./tutorials";
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
-export interface SubscriptionDto {
-  id: string;
-  subscriberId: string;
-  creatorId: string;
-  creatorName?: string;
-  creatorAvatarUrl?: string | null;
-  status: string;         // "Pending" | "Active" | "Expired" | "Rejected"
-  referenceCode?: string | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  createdAt: string;
-  price?: number | null;
-}
-
-export interface SubscriptionPagedResult {
-  items: SubscriptionDto[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
+/** VIP subscription price (VND) is platform-fixed — mirrors backend VipConstants.FixedPriceVnd. */
+export const VIP_FIXED_PRICE_VND = 50000;
 
 export interface VipTierDto {
+  id: string;
   creatorId: string;
   price: number;
   isActive: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface TransactionDto {
+  id: string;
+  userId: string;
+  creatorId?: string | null;
+  transactionType: string;
+  amount: number;
+  platformFeeAmount: number;
+  creatorNetAmount: number;
+  status: string;          // "PendingConfirmation" | "Confirmed" | "Rejected"
+  referenceCode?: string | null;
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+  adminNote?: string | null;
+  createdAt: string;
+}
+
+/** Enriched transaction shape for the admin ledger / pending-confirmation queue. */
+export interface AdminTransactionDto {
+  id: string;
+  userId: string;
+  subscriberDisplayName: string;
+  subscriberAvatarUrl?: string | null;
+  creatorId?: string | null;
+  creatorDisplayName?: string | null;
+  creatorAvatarUrl?: string | null;
+  transactionType: string;
+  amount: number;
+  platformFeeAmount: number;
+  creatorNetAmount: number;
+  status: string;
+  referenceCode?: string | null;
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+  adminNote?: string | null;
+  createdAt: string;
+}
+
+export interface PlatformRevenueDto {
+  totalGrossRevenue: number;
+  totalCommissionCollected: number;
+  totalNetPaidToCreators: number;
+  confirmedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  activeSubscriptionCount: number;
+}
+
+/** A VIP subscription as returned right after admin confirm/reject — no creator display info. */
+export interface VipSubscriptionDto {
+  id: string;
+  subscriberId: string;
+  creatorId: string;
+  transactionId: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  createdAt: string;
+}
+
+/** Enriched subscription shape for the buyer's own "VIP của tôi" list. */
+export interface MySubscriptionDto {
+  id: string;
+  subscriberId: string;
+  creatorId: string;
+  creatorDisplayName: string;
+  creatorAvatarUrl?: string | null;
+  transactionId: string;
+  price: number;
+  startDate: string;
+  endDate: string;
+  daysRemaining: number;
+  status: string;          // "Active" | "Expired"
+  createdAt: string;
+}
+
+export interface CreatorSubscriberDto {
+  subscriberId: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  startDate: string;
+  endDate: string;
+  daysRemaining: number;
 }
 
 export interface CreatorRevenueDto {
   creatorId: string;
-  totalRevenue: number;
-  activeSubscribers: number;
-  pendingSubscribers: number;
-  monthlyData?: RevenueMonthDto[];
+  activeSubscriberCount: number;
+  pendingCount: number;
+  netRevenueThisMonth: number;
+  netRevenueAllTime: number;
+  periodStart: string;
+  periodEndExclusive: string;
+  subscribers: CreatorSubscriberDto[];
 }
 
-export interface RevenueMonthDto {
-  month: string;   // "2026-06"
-  revenue: number;
-  newSubscribers: number;
-}
+export type TransactionStatusFilter = "PendingConfirmation" | "Confirmed" | "Rejected";
 
 // ── Subscriptions API ──────────────────────────────────────────────────────────
 
 export const subscriptionsApi = {
   /**
-   * POST /api/subscriptions — Đăng ký VIP cho một creator
+   * POST /api/subscriptions — Đăng ký VIP cho một creator (giá cố định 50.000đ)
    */
   subscribe(
     token: string,
     creatorId: string,
     referenceCode: string
-  ): Promise<SubscriptionDto> {
-    return request<SubscriptionDto>("/api/subscriptions", {
+  ): Promise<TransactionDto> {
+    return request<TransactionDto>("/api/subscriptions", {
       method: "POST",
       body: JSON.stringify({ creatorId, referenceCode }),
       token,
@@ -65,41 +133,90 @@ export const subscriptionsApi = {
   },
 
   /**
-   * PUT /api/subscriptions/vip-tier — Creator cấu hình giá VIP
+   * GET /api/subscriptions/vip-tier — Trạng thái bán VIP hiện tại của chính mình
    */
-  configureVipTier(
-    token: string,
-    price: number,
-    isActive: boolean
-  ): Promise<VipTierDto> {
+  getMyVipTier(token: string): Promise<VipTierDto> {
+    return request<VipTierDto>("/api/subscriptions/vip-tier", { token });
+  },
+
+  /**
+   * PUT /api/subscriptions/vip-tier — Creator bật/tắt bán VIP (giá luôn cố định 50.000đ)
+   */
+  configureVipTier(token: string, isActive: boolean): Promise<VipTierDto> {
     return request<VipTierDto>("/api/subscriptions/vip-tier", {
       method: "PUT",
-      body: JSON.stringify({ price, isActive }),
+      body: JSON.stringify({ isActive }),
       token,
     });
   },
 
   /**
-   * GET /api/subscriptions/me — Lịch sử đăng ký của chính mình
+   * GET /api/subscriptions/me — Lịch sử đăng ký VIP của chính mình (với tư cách người mua)
    */
   getMySubscriptions(
     token: string,
     params?: { page?: number; pageSize?: number }
-  ): Promise<SubscriptionPagedResult> {
+  ): Promise<PagedResult<MySubscriptionDto>> {
     const q = new URLSearchParams();
     if (params?.page)     q.set("page",     String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
-    return request<SubscriptionPagedResult>(`/api/subscriptions/me${qs}`, { token });
+    return request<PagedResult<MySubscriptionDto>>(`/api/subscriptions/me${qs}`, { token });
   },
 
   /**
-   * GET /api/subscriptions/creators/{id}/revenue — Doanh thu của creator
+   * GET /api/subscriptions/creators/{id}/revenue — Doanh thu + danh sách người đăng ký VIP của creator
    */
   getCreatorRevenue(token: string, creatorId: string): Promise<CreatorRevenueDto> {
     return request<CreatorRevenueDto>(
       `/api/subscriptions/creators/${creatorId}/revenue`,
       { token }
     );
+  },
+
+  /**
+   * POST /api/subscriptions/transactions/{id}/confirm — Admin xác nhận thanh toán
+   */
+  confirmPayment(token: string, transactionId: string): Promise<VipSubscriptionDto> {
+    return request<VipSubscriptionDto>(
+      `/api/subscriptions/transactions/${transactionId}/confirm`,
+      { method: "POST", token }
+    );
+  },
+
+  /**
+   * POST /api/subscriptions/transactions/{id}/reject — Admin từ chối thanh toán
+   */
+  rejectPayment(token: string, transactionId: string, adminNote: string): Promise<TransactionDto> {
+    return request<TransactionDto>(
+      `/api/subscriptions/transactions/${transactionId}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ adminNote }),
+        token,
+      }
+    );
+  },
+
+  /**
+   * GET /api/subscriptions/transactions — Admin: toàn bộ giao dịch VIP (lọc theo trạng thái)
+   */
+  getAllTransactions(
+    token: string,
+    params?: { status?: TransactionStatusFilter; page?: number; pageSize?: number }
+  ): Promise<PagedResult<AdminTransactionDto>> {
+    const q = new URLSearchParams();
+    if (params?.status)   q.set("status",   params.status);
+    if (params?.page)     q.set("page",     String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<PagedResult<AdminTransactionDto>>(`/api/subscriptions/transactions${qs}`, { token });
+  },
+
+  /**
+   * GET /api/subscriptions/admin/revenue — Admin: tổng quan doanh thu + hoa hồng toàn nền tảng
+   */
+  getPlatformRevenue(token: string): Promise<PlatformRevenueDto> {
+    return request<PlatformRevenueDto>("/api/subscriptions/admin/revenue", { token });
   },
 };

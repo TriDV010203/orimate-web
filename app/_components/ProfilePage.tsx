@@ -5,10 +5,13 @@ import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
+import HatGapWalletCard from "./HatGapWalletCard";
 import { isLoggedIn, getToken, getUser } from "@/lib/auth";
 import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
 import { usersApi, CreatorProfileDto } from "@/lib/api/users";
 import { wishlistsApi } from "@/lib/api/wishlists";
+import { subscriptionsApi } from "@/lib/api/subscriptions";
+import type { MySubscriptionDto } from "@/lib/api/subscriptions";
 import { tutorialsApi } from "@/lib/api/tutorials";
 import type { TutorialListItemDto } from "@/lib/api/tutorials";
 import type { ApiError } from "@/lib/api/client";
@@ -21,7 +24,7 @@ const AVATAR_COLORS = [
   "#1098AD", "#74C0FC", "#A9E34B", "#FF6B6B",
 ];
 
-const TABS = ["Bài hướng dẫn", "Thành tựu", "Wishlist"] as const;
+const TABS = ["Bài hướng dẫn", "Thành tựu", "Wishlist", "VIP của tôi"] as const;
 type Tab = (typeof TABS)[number];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -80,6 +83,10 @@ export default function ProfilePage() {
   const [wishlistSavedAt, setWishlistSavedAt] = useState<Record<string, string>>({});
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [wishlistTotal, setWishlistTotal] = useState(0);
+
+  // VIP subscriptions (các creator mình đã mua VIP)
+  const [vipSubscriptions, setVipSubscriptions] = useState<MySubscriptionDto[]>([]);
+  const [vipLoading, setVipLoading] = useState(false);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +148,10 @@ export default function ProfilePage() {
     if (activeTab !== "Thành tựu") return;
     const tok = getToken();
     if (!tok) return;
+    
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAchievementsLoading(true);
+
     achievementsApi.getMine(tok, 1, 3)
       .then((r) => setAchievementsPreview(r.items))
       .catch(() => {})
@@ -170,6 +180,19 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => setWishlistLoading(false));
+  }, [activeTab]);
+
+  // ── Load VIP subscriptions when tab active ─────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== "VIP của tôi") return;
+    const tok = getToken();
+    if (!tok) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVipLoading(true);
+    subscriptionsApi.getMySubscriptions(tok, { pageSize: 50 })
+      .then((r) => setVipSubscriptions(r.items))
+      .catch(() => {})
+      .finally(() => setVipLoading(false));
   }, [activeTab]);
 
   // ── Close modal on Escape ─────────────────────────────────────────────────
@@ -450,6 +473,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {/* ── Hạt Gấp Wallet ── */}
+          <HatGapWalletCard />
+
           {/* ── Tabs ── */}
           <div style={{ display: "flex", gap: "0.25rem", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
             {TABS.map((tab) => (
@@ -473,6 +499,7 @@ export default function ProfilePage() {
                 {tab === "Bài hướng dẫn" && "📚 "}
                 {tab === "Thành tựu" && "🏅 "}
                 {tab === "Wishlist" && "🔖 "}
+                {tab === "VIP của tôi" && "⭐ "}
                 {tab}
               </button>
             ))}
@@ -525,7 +552,7 @@ export default function ProfilePage() {
                     {tutorials.map((t) => (
                       <Link
                         key={t.id}
-                        href={t.type?.toLowerCase() === "vip" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                        href={`/huong-dan/${t.slug}`}
                         style={{ textDecoration: "none", display: "block" }}
                       >
                         <div
@@ -671,7 +698,7 @@ export default function ProfilePage() {
                       return (
                         <Link
                           key={t.id}
-                          href={t.type?.toLowerCase() === "vip" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                          href={`/huong-dan/${t.slug}`}
                           style={{ textDecoration: "none", display: "block" }}
                         >
                           <div
@@ -718,6 +745,80 @@ export default function ProfilePage() {
                     <Link href="/danh-sach-yeu-thich" className="btn btn-outline">
                       Xem thêm {wishlistTotal - 6} bài khác
                     </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* VIP của tôi Tab */}
+            {activeTab === "VIP của tôi" && (
+              <div className="animate-fade-in">
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>
+                    ⭐ VIP của tôi
+                  </h2>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+                    Các creator bạn đã đăng ký VIP và thời gian còn lại.
+                  </p>
+                </div>
+
+                {/* Loading */}
+                {vipLoading && (
+                  <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
+                    <div style={{ display: "inline-block", width: "2rem", height: "2rem", border: "3px solid var(--color-border)", borderTopColor: "var(--color-primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                  </div>
+                )}
+
+                {/* Empty */}
+                {!vipLoading && vipSubscriptions.length === 0 && (
+                  <div style={{ textAlign: "center", padding: "4rem 2rem", color: "var(--color-text-muted)", background: "var(--color-surface-2)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--color-border)" }}>
+                    <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⭐</div>
+                    <p style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "0.5rem" }}>Bạn chưa đăng ký VIP của creator nào</p>
+                    <p style={{ fontSize: "0.875rem", marginBottom: "1.25rem" }}>Đăng ký VIP để mở khoá toàn bộ nội dung của các creator yêu thích.</p>
+                    <Link href="/huong-dan" className="btn btn-primary" style={{ textDecoration: "none" }}>Khám phá thư viện</Link>
+                  </div>
+                )}
+
+                {/* List */}
+                {!vipLoading && vipSubscriptions.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {vipSubscriptions.map((sub) => {
+                      const isActive = sub.status === "Active";
+                      return (
+                        <div
+                          key={sub.id}
+                          className="card"
+                          style={{ display: "flex", alignItems: "center", gap: "1rem", padding: "1rem 1.25rem" }}
+                        >
+                          <Link href={`/kenh/${sub.creatorId}`} style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: 0, textDecoration: "none" }}>
+                            {sub.creatorAvatarUrl ? (
+                              <img src={sub.creatorAvatarUrl} alt={sub.creatorDisplayName}
+                                style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, flexShrink: 0 }}>
+                                {sub.creatorDisplayName.charAt(0)}
+                              </div>
+                            )}
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {sub.creatorDisplayName}
+                              </p>
+                              <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+                                Hết hạn {formatDate(sub.endDate)}
+                              </p>
+                            </div>
+                          </Link>
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", padding: "0.3rem 0.875rem",
+                            borderRadius: "var(--radius-full)", fontSize: "0.8125rem", fontWeight: 600, flexShrink: 0,
+                            background: isActive ? (sub.daysRemaining <= 3 ? "#FEF3C7" : "#D1FAE5") : "#F3F4F6",
+                            color: isActive ? (sub.daysRemaining <= 3 ? "#92400E" : "#065F46") : "#6B7280",
+                          }}>
+                            {isActive ? `Còn ${sub.daysRemaining} ngày` : "Đã hết hạn"}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

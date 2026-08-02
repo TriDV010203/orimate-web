@@ -3,18 +3,20 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi,
+  tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi, learningPathsApi,
   type TutorialDetailDto, type TutorialStepDto, type AchievementDto, type ApiError,
+  type LearningPathContextDto,
 } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
-import { findLessonContext, getCompletedLessonIds, setCompletedLessonIds } from "./learningPathsData";
+import { getCompletedTutorialIds, setCompletedTutorialIds } from "@/lib/learningPathProgress";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function getDiffLabel(d?: string | null) {
@@ -166,7 +168,7 @@ function AchievementModal({ tutorialId, tutorialTitle, onClose, onSuccess }: Ach
 interface SuccessModalProps {
   onClose: () => void;
   /** Có khi bài này thuộc 1 lộ trình — ưu tiên đưa người dùng quay lại đó. */
-  pathReturn?: { pathSlug: string; pathTitle: string; isLastLesson: boolean };
+  pathReturn?: { pathId: string; pathTitle: string; isLastLesson: boolean };
 }
 
 function SuccessModal({ onClose, pathReturn }: SuccessModalProps) {
@@ -184,7 +186,7 @@ function SuccessModal({ onClose, pathReturn }: SuccessModalProps) {
         </p>
         {pathReturn ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-            <Link href={`/lo-trinh/${pathReturn.pathSlug}`} className="btn btn-primary" style={{ justifyContent: "center" }}>
+            <Link href={`/lo-trinh/${pathReturn.pathId}`} className="btn btn-primary" style={{ justifyContent: "center" }}>
               🗺️ Quay lại lộ trình
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
@@ -218,6 +220,7 @@ interface StepViewerProps {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  tutorialSlug: string;
 }
 
 function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | "right"; onClick: () => void; disabled: boolean }) {
@@ -245,14 +248,71 @@ function NavArrowButton({ direction, onClick, disabled }: { direction: "left" | 
   );
 }
 
-function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext }: StepViewerProps) {
-  return (
+function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext, hasPrev, hasNext, tutorialSlug }: StepViewerProps) {
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Đóng chế độ toàn màn hình bằng phím Esc, khoá scroll nền trong lúc mở
+  useEffect(() => {
+    if (!fullscreen) return;
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setFullscreen(false);
+    }
+    window.addEventListener("keydown", handleEsc);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [fullscreen]);
+
+  // Ở chế độ toàn màn hình, ảnh và mô tả nằm cạnh nhau (ảnh chiếm phần lớn chiều rộng)
+  // để ảnh hiển thị to nhất có thể thay vì bị bó hẹp trong 1 khung nhỏ giữa màn hình.
+  const imageHeight = fullscreen ? "min(78vh, 800px)" : "min(34vh, 260px)";
+  const descHeight = fullscreen ? "min(78vh, 800px)" : "6rem";
+
+  const footerNav = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+      <button onClick={onPrev} disabled={!hasPrev} className="btn btn-outline btn-sm" style={{ opacity: hasPrev ? 1 : 0.5 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+        Bước trước
+      </button>
+
+      <button
+        id={`step-done-${step.id}`}
+        onClick={onToggle}
+        className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
+      >
+        {isCompleted ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            Bỏ đánh dấu
+          </>
+        ) : (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+            Đã hoàn thành
+          </>
+        )}
+      </button>
+
+      <button onClick={onNext} disabled={!hasNext} className="btn btn-outline btn-sm" style={{ opacity: hasNext ? 1 : 0.5 }}>
+        Bước sau
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
+      </button>
+    </div>
+  );
+
+  const card = (
     <div
       style={{
         border: `2px solid ${isCompleted ? "#D1FAE5" : "var(--color-border)"}`,
         borderRadius: "var(--radius-lg)",
         background: isCompleted ? "#F0FDF4" : "var(--color-surface)",
         padding: "1.25rem",
+        ...(fullscreen
+          ? { width: "100%", maxWidth: "min(96vw, 1500px)", maxHeight: "92vh", overflowY: "auto", boxShadow: "var(--shadow-xl)" }
+          : {}),
       }}
     >
       {/* Header */}
@@ -283,6 +343,23 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
         </div>
         <div style={{ display: "flex", gap: "0.375rem", flexShrink: 0 }}>
           <button
+            onClick={() => setFullscreen((f) => !f)}
+            aria-label={fullscreen ? "Thu nhỏ" : "Xem toàn màn hình"}
+            title={fullscreen ? "Thu nhỏ" : "Xem toàn màn hình"}
+            style={{
+              width: "2rem", height: "2rem", borderRadius: "50%", border: "1.5px solid var(--color-border)",
+              background: "var(--color-surface)", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            {fullscreen ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3m8-5h3a2 2 0 0 1 2 2v3" /></svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" /></svg>
+            )}
+          </button>
+          <button
             onClick={onPrev}
             disabled={!hasPrev}
             aria-label="Bước trước"
@@ -311,64 +388,107 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
         </div>
       </div>
 
-      {/* Image with side arrows */}
-      {isValidImageUrl(step.imageUrl) && (
-        <div style={{ position: "relative", marginBottom: "0.875rem" }}>
-          <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: "min(46vh, 360px)", background: "var(--color-surface-2)" }}>
-            <Image
-              src={step.imageUrl}
-              alt={`Bước ${step.stepOrder}`}
-              fill
-              sizes="(max-width: 768px) 100vw, 60vw"
-              style={{ objectFit: "contain" }}
-              priority={index === 0}
-            />
+      {step.isLocked ? (
+        /* Bước bị khoá VIP — không còn description/imageUrl để hiển thị (đã bị server ẩn) */
+        <div style={{
+          position: "relative", marginBottom: "0.875rem", borderRadius: "var(--radius-md)",
+          background: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)",
+          border: "1.5px dashed #F59E0B",
+          padding: "2.5rem 1.5rem", textAlign: "center",
+        }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>🔒</div>
+          <p style={{ fontWeight: 700, color: "#92400E", fontSize: "1rem", marginBottom: "0.375rem" }}>
+            Bước này chỉ dành cho thành viên VIP
+          </p>
+          <p style={{ color: "#B45309", fontSize: "0.875rem", marginBottom: "1.25rem" }}>
+            Đăng ký VIP của tác giả để xem toàn bộ nội dung bài hướng dẫn.
+          </p>
+          <Link href={`/huong-dan/${tutorialSlug}/vip`} className="btn btn-accent" style={{ textDecoration: "none", display: "inline-flex" }}>
+            🔓 Mua VIP để xem tiếp
+          </Link>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: fullscreen ? "row" : "column",
+            alignItems: fullscreen ? "flex-start" : "stretch",
+            gap: fullscreen ? "1.5rem" : "0.875rem",
+            marginBottom: fullscreen ? 0 : undefined,
+          }}
+        >
+          {/* Image with side arrows */}
+          {isValidImageUrl(step.imageUrl) && (
+            <div
+              style={{
+                position: "relative",
+                flex: fullscreen ? "1 1 64%" : undefined,
+                minWidth: 0,
+                width: fullscreen ? undefined : "100%",
+                marginBottom: fullscreen ? 0 : "0.875rem",
+              }}
+            >
+              <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", height: imageHeight, background: "var(--color-surface-2)" }}>
+                <Image
+                  src={step.imageUrl}
+                  alt={`Bước ${step.stepOrder}`}
+                  fill
+                  sizes={fullscreen ? "64vw" : "(max-width: 768px) 100vw, 60vw"}
+                  style={{ objectFit: "contain" }}
+                  priority={index === 0}
+                />
+              </div>
+              <NavArrowButton direction="left" onClick={onPrev} disabled={!hasPrev} />
+              <NavArrowButton direction="right" onClick={onNext} disabled={!hasNext} />
+            </div>
+          )}
+
+          {/* Cột phải (fullscreen): mô tả co giãn + nút điều hướng luôn nằm ngay dưới, không cần cuộn cả khung mới thấy */}
+          <div
+            style={{
+              display: fullscreen ? "flex" : undefined,
+              flexDirection: fullscreen ? "column" : undefined,
+              height: fullscreen ? imageHeight : undefined,
+              flex: fullscreen ? "1 1 36%" : undefined,
+              minWidth: 0,
+            }}
+          >
+            {/* Description — chiều cao cố định (không co giãn theo độ dài), cuộn riêng nếu quá dài */}
+            <div
+              style={{
+                fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
+                whiteSpace: "pre-wrap", overflowY: "auto", paddingRight: "0.375rem",
+                height: fullscreen ? undefined : descHeight,
+                flex: fullscreen ? "1 1 auto" : undefined,
+                minHeight: 0,
+              }}
+            >
+              {step.description}
+            </div>
+
+            {fullscreen && <div style={{ flexShrink: 0, marginTop: "1rem" }}>{footerNav}</div>}
           </div>
-          <NavArrowButton direction="left" onClick={onPrev} disabled={!hasPrev} />
-          <NavArrowButton direction="right" onClick={onNext} disabled={!hasNext} />
         </div>
       )}
 
-      {/* Description — cuộn riêng nếu quá dài, không kéo giãn cả trang */}
-      <div
-        style={{
-          fontSize: "0.9375rem", color: "var(--color-text-secondary)", lineHeight: 1.7,
-          whiteSpace: "pre-wrap", maxHeight: "9.5rem", overflowY: "auto", paddingRight: "0.375rem",
-        }}
-      >
-        {step.description}
-      </div>
+      {/* Footer nav (không toàn màn hình): 1 thanh full-width bên dưới ảnh + mô tả */}
+      {!fullscreen && <div style={{ marginTop: "1rem" }}>{footerNav}</div>}
+    </div>
+  );
 
-      {/* Footer nav */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
-        <button onClick={onPrev} disabled={!hasPrev} className="btn btn-outline btn-sm" style={{ opacity: hasPrev ? 1 : 0.5 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-          Bước trước
-        </button>
+  if (!fullscreen) return card;
 
-        <button
-          id={`step-done-${step.id}`}
-          onClick={onToggle}
-          className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
-        >
-          {isCompleted ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              Bỏ đánh dấu
-            </>
-          ) : (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
-              Đã hoàn thành
-            </>
-          )}
-        </button>
-
-        <button onClick={onNext} disabled={!hasNext} className="btn btn-outline btn-sm" style={{ opacity: hasNext ? 1 : 0.5 }}>
-          Bước sau
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6" /></svg>
-        </button>
-      </div>
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1.5rem", animation: "fadeIn 0.2s ease",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) setFullscreen(false); }}
+    >
+      {card}
     </div>
   );
 }
@@ -377,6 +497,12 @@ function StepViewer({ step, index, total, isCompleted, onToggle, onPrev, onNext,
 interface TutorialDetailPageProps { slug: string; }
 
 export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
+  // Chỉ hiển thị UI "thuộc lộ trình" (banner + nút quay lại lộ trình) khi người dùng
+  // thực sự đến từ trang lộ trình (bấm "Học ngay" ở đó) — không hiển thị nếu vào thẳng
+  // bài hướng dẫn từ nơi khác, dù bài này có thuộc 1 lộ trình đã xuất bản hay không.
+  const searchParams = useSearchParams();
+  const fromPathId = searchParams.get("tuLoTrinh");
+
   const [tutorial, setTutorial] = useState<TutorialDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -402,14 +528,20 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
   const [loggedIn, setLoggedIn] = useState(false);
 
-  useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoggedIn(isLoggedIn());
+  }, []);
 
   // Load tutorial (với token nếu đã đăng nhập để nhận isLiked/isSaved/isCompleted)
   useEffect(() => {
     if (!slug) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    const token = isLoggedIn() ? getToken() ?? undefined : undefined;
-    tutorialsApi.getBySlug(slug, token)
+
+    tutorialsApi
+      .getBySlug(slug, getToken() ?? undefined)
       .then((data) => {
         setTutorial(data);
         setIsLiked(data.isLikedByCurrentUser ?? false);
@@ -427,14 +559,49 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  // Load step progress từ localStorage
+  // Tải tiến độ bước từ localStorage (hiển thị tức thời, kể cả khách chưa đăng nhập),
+  // rồi đồng bộ lên BE nếu đã đăng nhập — BE là nơi thật sự cộng Hạt Gấp khi hoàn thành
+  // toàn bộ tutorial, nên các bước từng tick offline nhưng chưa gửi lên BE cần được "bù" lại.
   useEffect(() => {
     if (!tutorial) return;
     const key = `origami_steps_${tutorial.id}`;
+    let localIds: string[] = [];
     try {
       const saved = localStorage.getItem(key);
-      if (saved) setCompletedSteps(new Set(JSON.parse(saved) as string[]));
+      if (saved) localIds = JSON.parse(saved) as string[];
     } catch { /* ignore */ }
+
+    if (localIds.length > 0) setCompletedSteps(new Set(localIds));
+
+    if (!isLoggedIn()) return;
+    const token = getToken();
+    if (!token) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const progress = await tutorialsApi.getProgress(token, tutorial.id);
+        const merged = new Set(progress.completedStepIds);
+        const toBackfill = localIds.filter((id) => !merged.has(id));
+
+        for (const stepId of toBackfill) {
+          try {
+            const updated = await tutorialsApi.completeStep(token, tutorial.id, stepId);
+            updated.completedStepIds.forEach((id) => merged.add(id));
+          } catch {
+            // bước không thuộc tutorial này hoặc lỗi mạng — bỏ qua, không chặn các bước còn lại
+          }
+        }
+
+        if (!cancelled && merged.size > 0) {
+          setCompletedSteps((prev) => new Set([...prev, ...merged]));
+        }
+      } catch {
+        /* BE không khả dụng — vẫn giữ tiến độ localStorage để hiển thị */
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, [tutorial?.id]);
 
   // Lưu step progress vào localStorage mỗi khi thay đổi
@@ -458,19 +625,31 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       .catch(() => { /* silent */ });
   }, [tutorial?.id]);
 
-  // Bài này có thuộc 1 lộ trình học không? (tra theo slug, xem learningPathsData.ts)
-  const pathCtx = useMemo(() => (tutorial ? findLessonContext(tutorial.slug) : undefined), [tutorial]);
+  // Bài này có thuộc 1 lộ trình học đã xuất bản không? (GET /api/learning-paths/for-tutorial/{id})
+  const [pathCtx, setPathCtx] = useState<LearningPathContextDto | null>(null);
+  useEffect(() => {
+    if (!tutorial) return;
+    let cancelled = false;
+    learningPathsApi.getForTutorial(tutorial.id)
+      .then((res) => { if (!cancelled) setPathCtx(res); })
+      .catch(() => { if (!cancelled) setPathCtx(null); });
+    return () => { cancelled = true; };
+  }, [tutorial]);
+
+  // true chỉ khi query param khớp đúng lộ trình mà bài này thuộc về — tức người dùng
+  // đến đây bằng cách bấm "Học ngay" từ trang lộ trình đó.
+  const cameFromPath = !!pathCtx && fromPathId === pathCtx.pathId;
 
   // Nếu bài này thuộc 1 lộ trình và đã có achievement từ trước (vd. hoàn thành trước khi
   // tính năng lộ trình tồn tại), đảm bảo lộ trình cũng ghi nhận bài này đã xong.
   useEffect(() => {
-    if (!pathCtx || !existingAchievement) return;
-    const done = getCompletedLessonIds(pathCtx.path.slug);
-    if (!done.has(pathCtx.lesson.id)) {
-      done.add(pathCtx.lesson.id);
-      setCompletedLessonIds(pathCtx.path.slug, done);
+    if (!pathCtx || !existingAchievement || !tutorial) return;
+    const done = getCompletedTutorialIds(pathCtx.pathId);
+    if (!done.has(tutorial.id)) {
+      done.add(tutorial.id);
+      setCompletedTutorialIds(pathCtx.pathId, done);
     }
-  }, [pathCtx, existingAchievement]);
+  }, [pathCtx, existingAchievement, tutorial]);
 
   const steps = useMemo(
     () => (tutorial ? [...tutorial.steps].sort((a, b) => a.stepOrder - b.stepOrder) : []),
@@ -485,11 +664,23 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   const toggleStep = useCallback((stepId: string) => {
     setCompletedSteps((prev) => {
       const next = new Set(prev);
-      if (next.has(stepId)) next.delete(stepId);
-      else next.add(stepId);
+      if (next.has(stepId)) {
+        next.delete(stepId);
+      } else {
+        next.add(stepId);
+        // Ghi nhận lên BE để cộng Hạt Gấp khi đây là bước cuối cùng hoàn thành tutorial.
+        if (tutorial && isLoggedIn()) {
+          const token = getToken();
+          if (token) {
+            tutorialsApi.completeStep(token, tutorial.id, stepId).catch(() => {
+              // đã hoàn thành từ trước hoặc lỗi mạng — không ảnh hưởng checkbox cục bộ
+            });
+          }
+        }
+      }
       return next;
     });
-  }, []);
+  }, [tutorial]);
 
   const activeStepIndex = steps.findIndex((s) => s.id === activeStep);
   const hasPrevStep = activeStepIndex > 0;
@@ -576,14 +767,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
     setShowSuccessModal(true);
 
     // Mở khoá bài tiếp theo trong lộ trình (nếu bài này thuộc 1 lộ trình)
-    if (pathCtx) {
-      const done = getCompletedLessonIds(pathCtx.path.slug);
-      done.add(pathCtx.lesson.id);
-      setCompletedLessonIds(pathCtx.path.slug, done);
+    if (pathCtx && tutorial) {
+      const done = getCompletedTutorialIds(pathCtx.pathId);
+      done.add(tutorial.id);
+      setCompletedTutorialIds(pathCtx.pathId, done);
     }
   };
-
-  const isLastLessonInPath = pathCtx ? pathCtx.index === pathCtx.path.lessons.length - 1 : false;
 
   const diffColor = getDiffColor(tutorial?.difficulty);
 
@@ -645,7 +834,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
       {showSuccessModal && (
         <SuccessModal
           onClose={() => setShowSuccessModal(false)}
-          pathReturn={pathCtx ? { pathSlug: pathCtx.path.slug, pathTitle: pathCtx.path.title, isLastLesson: isLastLessonInPath } : undefined}
+          pathReturn={cameFromPath && pathCtx ? { pathId: pathCtx.pathId, pathTitle: pathCtx.pathTitle, isLastLesson: pathCtx.isLastLesson } : undefined}
         />
       )}
       <ReportModal
@@ -661,7 +850,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
         <div
           style={{
             background: isValidImageUrl(tutorial.coverImageUrl)
-              ? `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.8) 100%)`
+              ? `linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.78) 100%)`
               : "var(--gradient-primary)",
             position: "relative",
             overflow: "hidden",
@@ -675,7 +864,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
           <div style={{ position: "relative", zIndex: 1, width: "100%", padding: "3rem 0 2rem" }}>
             <div className="container">
               {/* Breadcrumb */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 <Link href="/" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Trang chủ</Link>
                 <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
                 <Link href="/huong-dan" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Hướng dẫn</Link>
@@ -683,10 +872,10 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 <span style={{ color: "rgba(255,255,255,0.9)" }}>{tutorial.title}</span>
               </div>
 
-              {/* Banner "thuộc lộ trình" */}
-              {pathCtx && (
+              {/* Banner "thuộc lộ trình" — chỉ hiện khi đến từ trang lộ trình */}
+              {cameFromPath && pathCtx && (
                 <Link
-                  href={`/lo-trinh/${pathCtx.path.slug}`}
+                  href={`/lo-trinh/${pathCtx.pathId}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "0.5rem",
                     background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
@@ -695,7 +884,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                     color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
                   }}
                 >
-                  🗺️ Thuộc lộ trình: {pathCtx.path.title} · Bài {pathCtx.index + 1}/{pathCtx.path.lessons.length}
+                  🗺️ Thuộc lộ trình: {pathCtx.pathTitle} · Bài {pathCtx.lessonIndex + 1}/{pathCtx.totalLessons}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
                 </Link>
               )}
@@ -721,12 +910,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
               <h1 style={{ color: "white", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.5rem)", marginBottom: "0.75rem", textShadow: "0 2px 8px rgba(0,0,0,0.3)", lineHeight: 1.2 }}>
                 {tutorial.title}
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem" }}>
+              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {tutorial.description}
               </p>
 
               {/* Meta row */}
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
                 {/* Author */}
                 <AuthorLink authorId={tutorial.author.id} style={{ gap: "0.5rem" }}>
                   <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: "var(--gradient-primary)", border: "2px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.6875rem", color: "white", flexShrink: 0 }}>
@@ -827,6 +1016,27 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 </span>
               </div>
 
+              {/* Paywall banner — chỉ hiện vài bước đầu, gợi ý mua VIP của tác giả */}
+              {tutorial.isVipLocked && (
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.875rem",
+                  background: "linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #D4713B 100%)",
+                  borderRadius: "var(--radius-xl)", padding: "1.25rem 1.5rem", marginBottom: "1.25rem",
+                }}>
+                  <div>
+                    <p style={{ color: "white", fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.25rem" }}>
+                      ⭐ Đây là bài hướng dẫn VIP của {tutorial.author.displayName}
+                    </p>
+                    <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "0.8125rem" }}>
+                      Bạn đang xem trước một vài bước đầu. Đăng ký VIP để mở khoá toàn bộ {totalSteps} bước.
+                    </p>
+                  </div>
+                  <Link href={`/huong-dan/${tutorial.slug}/vip`} className="btn btn-accent" style={{ textDecoration: "none", flexShrink: 0 }}>
+                    🔓 Mua VIP
+                  </Link>
+                </div>
+              )}
+
               {/* Dot indicators — bấm để nhảy nhanh tới bước bất kỳ */}
               {totalSteps > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginBottom: "0.875rem" }}>
@@ -861,11 +1071,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   onNext={goNextStep}
                   hasPrev={hasPrevStep}
                   hasNext={hasNextStep}
+                  tutorialSlug={tutorial.slug}
                 />
               )}
 
-              {/* Completion CTA — chưa có achievement */}
-              {allCompleted && !existingAchievement && (
+              {/* Completion CTA — chưa có achievement (ẩn nếu còn bước bị khoá VIP) */}
+              {allCompleted && !existingAchievement && !tutorial.isVipLocked && (
                 <div style={{
                   marginTop: "2rem",
                   background: "linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)",
@@ -951,7 +1162,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   </div>
                 )}
 
-                {allCompleted && loggedIn && !existingAchievement && (
+                {allCompleted && loggedIn && !existingAchievement && !tutorial.isVipLocked && (
                   <button
                     id="sidebar-save-achievement"
                     onClick={handleCompleteAll}
@@ -1002,7 +1213,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                         lineHeight: 1.3,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
-                        {`Bước ${step.stepOrder}`}
+                        {`Bước ${step.stepOrder}`}{step.isLocked ? " 🔒" : ""}
                       </span>
                     </button>
                   ))}

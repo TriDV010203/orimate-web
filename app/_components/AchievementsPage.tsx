@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import ImageUploadField from "./ImageUploadField";
 import { getToken } from "@/lib/auth";
 import { achievementsApi, AchievementDto, CreateAchievementRequest } from "@/lib/api/achievements";
 import { tutorialsApi, TutorialListItemDto } from "@/lib/api/tutorials";
+import { badgesApi, type BadgeDto, type UserBadgeDto } from "@/lib/api/badges";
 
 // ── Helper functions ─────────────────────────────────────────────────────────
 const BG_COLORS = ["#F0F0FF", "#FFF5F0", "#E8F5E8", "#FFF0F5", "#FFFBF0", "#F5FFF5", "#F0F8FF", "#FFF8F0"];
@@ -67,18 +69,6 @@ function mapDto(dto: AchievementDto): Achievement {
   };
 }
 
-// ── Static gamification badges ───────────────────────────────────────────────
-const ACHIEVEMENT_BADGES = [
-  { icon: "🏆", title: "Creator Top 10", desc: "Nằm trong top 10 nhà sáng tạo", earned: false },
-  { icon: "🔥", title: "Streak 30 ngày", desc: "Hoạt động liên tục 30 ngày", earned: false },
-  { icon: "⭐", title: "1000 Followers", desc: "Đạt 1000 người theo dõi", earned: false },
-  { icon: "📚", title: "50 Bài hướng dẫn", desc: "Đăng 50 bài hướng dẫn", earned: false },
-  { icon: "💎", title: "VIP Creator", desc: "Tài khoản VIP đang hoạt động", earned: false },
-  { icon: "🎯", title: "Perfectionist", desc: "10 bài hướng dẫn được like 500+", earned: false },
-  { icon: "🦢", title: "Senbazuru", desc: "Hoàn thành 1000 con hạc", earned: false },
-  { icon: "🌟", title: "Community Star", desc: "Được cộng đồng đánh giá 5 sao", earned: false },
-];
-
 const FILTER_OPTIONS = ["Tất cả", "Công khai", "Riêng tư"] as const;
 type FilterOption = (typeof FILTER_OPTIONS)[number];
 
@@ -90,6 +80,8 @@ export default function AchievementsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+  const [badges, setBadges] = useState<BadgeDto[]>([]);
+  const [myBadges, setMyBadges] = useState<UserBadgeDto[]>([]);
 
   async function loadAchievements() {
     setLoading(true);
@@ -110,9 +102,18 @@ export default function AchievementsPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAchievements();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const tok = getToken();
+    badgesApi.getCatalog().then(setBadges).catch(() => {});
+    if (tok) badgesApi.getMyBadges(tok).then(setMyBadges).catch(() => {});
+  }, []);
+
+  const myBadgeMap = new Map(myBadges.map((b) => [b.code, b]));
 
   const filtered = achievements.filter((a) => {
     if (activeFilter === "Công khai") return a.isPublic;
@@ -295,53 +296,60 @@ export default function AchievementsPage() {
                 <div className="section-tag" style={{ marginBottom: "0.5rem" }}>
                   <span>🎖️</span> Huy hiệu
                 </div>
-                <h2 className="section-title">Huy hiệu thành tích</h2>
+                <h2 className="section-title">Danh hiệu ({myBadges.length}/{badges.length})</h2>
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "0.875rem" }}>
-              {ACHIEVEMENT_BADGES.map((b) => (
-                <div
-                  key={b.title}
-                  title={b.desc}
-                  style={{
-                    background: b.earned ? "var(--color-surface)" : "var(--color-surface-2)",
-                    border: `1px solid ${b.earned ? "rgba(45,106,79,0.2)" : "var(--color-border)"}`,
-                    borderRadius: "var(--radius-lg)",
-                    padding: "1rem 0.5rem",
-                    textAlign: "center",
-                    opacity: b.earned ? 1 : 0.45,
-                    cursor: "pointer",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                  className={b.earned ? "card" : ""}
-                >
-                  {b.earned && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "0.375rem",
-                        right: "0.375rem",
-                        width: "0.875rem",
-                        height: "0.875rem",
-                        background: "var(--color-primary)",
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "0.5rem",
-                        color: "white",
-                      }}
-                    >
-                      ✓
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "0.875rem" }}>
+              {badges.map((b) => {
+                const earned = myBadgeMap.get(b.code);
+                const isEarned = !!earned;
+                const tooltip = isEarned
+                  ? `${b.description} — Đạt ngày ${formatDate(earned.earnedAt)}`
+                  : b.description;
+                return (
+                  <div
+                    key={b.id}
+                    title={tooltip}
+                    style={{
+                      background: isEarned ? "var(--color-surface)" : "var(--color-surface-2)",
+                      border: `1px solid ${isEarned ? "rgba(45,106,79,0.2)" : "var(--color-border)"}`,
+                      borderRadius: "var(--radius-lg)",
+                      padding: "1rem 0.5rem",
+                      textAlign: "center",
+                      opacity: isEarned ? 1 : 0.45,
+                      cursor: "pointer",
+                      position: "relative",
+                      overflow: "hidden",
+                    }}
+                    className={isEarned ? "card" : ""}
+                  >
+                    {isEarned && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "0.375rem",
+                          right: "0.375rem",
+                          width: "0.875rem",
+                          height: "0.875rem",
+                          background: "var(--color-primary)",
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.5rem",
+                          color: "white",
+                        }}
+                      >
+                        ✓
+                      </div>
+                    )}
+                    <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>{b.iconEmoji}</div>
+                    <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: isEarned ? "var(--color-text-primary)" : "var(--color-text-muted)", lineHeight: 1.3 }}>
+                      {b.name}
                     </div>
-                  )}
-                  <div style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>{b.icon}</div>
-                  <div style={{ fontSize: "0.6875rem", fontWeight: 700, color: b.earned ? "var(--color-text-primary)" : "var(--color-text-muted)", lineHeight: 1.3 }}>
-                    {b.title}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
@@ -1198,26 +1206,16 @@ function UploadAchievementModal({
             <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{note.length}/1000</span>
           </div>
 
-          {/* Photo URL */}
-          <div className="input-group">
-            <label className="input-label">URL ảnh tác phẩm</label>
-            <input
-              className="input-field"
-              type="url"
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://... (tùy chọn)"
-            />
-            {photoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={photoUrl}
-                alt="preview"
-                style={{ marginTop: "0.5rem", width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-              />
-            )}
-          </div>
+          {/* Photo */}
+          <ImageUploadField
+            value={photoUrl}
+            onChange={setPhotoUrl}
+            token={getToken() ?? ""}
+            folder="achievements"
+            label="Ảnh tác phẩm (tùy chọn)"
+            variant="cover"
+            disabled={submitting}
+          />
 
           {/* Privacy toggle */}
           <div

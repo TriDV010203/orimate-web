@@ -24,6 +24,7 @@ export default function Navbar() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshAuth();
     window.addEventListener("storage", refreshAuth);
     window.addEventListener("authChange", refreshAuth);
@@ -143,6 +144,7 @@ export default function Navbar() {
               { href: "/lo-trinh", label: "Lộ trình", badge: "Mới" },
               { href: "/cong-dong", label: "Cộng đồng" },
               { href: "/thach-thuc", label: "Thử thách", badge: "Mới" },
+              { href: "/cua-hang", label: "Cửa hàng" },
             ].map((link) => (
               <Link
                 key={link.href}

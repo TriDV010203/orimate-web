@@ -4,29 +4,24 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { subscriptionsApi } from "@/lib/api/subscriptions";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND } from "@/lib/api/subscriptions";
 import { usersApi } from "@/lib/api/users";
 import type { CreatorProfileDto } from "@/lib/api/users";
+import { tutorialsApi } from "@/lib/api/tutorials";
+import type { TutorialDetailDto } from "@/lib/api/tutorials";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 interface VIPSubscribePageProps {
   tutorialSlug: string;
-  tutorialTitle: string;
-  tutorialCover?: string | null;
-  authorId: string;
-  authorName: string;
 }
 
-export default function VIPSubscribePage({
-  tutorialSlug,
-  tutorialTitle,
-  tutorialCover,
-  authorId,
-  authorName,
-}: VIPSubscribePageProps) {
+export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps) {
   const router = useRouter();
   const [loggedIn] = useState(() => isLoggedIn());
+  const [tutorial, setTutorial] = useState<TutorialDetailDto | null>(null);
+  const [loadingTutorial, setLoadingTutorial] = useState(true);
+  const [tutorialError, setTutorialError] = useState<string | null>(null);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfileDto | null>(null);
   const [mySubscriptions, setMySubscriptions] = useState<string[]>([]); // creatorIds I already subscribe to
   const [referenceCode, setReferenceCode] = useState("");
@@ -37,10 +32,11 @@ export default function VIPSubscribePage({
 
   useEffect(() => {
     const token = getToken();
-    usersApi.getProfile(authorId, token ?? undefined)
-      .then(p => setCreatorProfile(p))
-      .catch(() => {})
-      .finally(() => setLoadingProfile(false));
+
+    tutorialsApi.getBySlug(tutorialSlug, token ?? undefined)
+      .then(t => setTutorial(t))
+      .catch(() => setTutorialError("Không tìm thấy bài hướng dẫn."))
+      .finally(() => setLoadingTutorial(false));
 
     if (token) {
       subscriptionsApi.getMySubscriptions(token)
@@ -52,6 +48,20 @@ export default function VIPSubscribePage({
         })
         .catch(() => {});
     }
+  }, [tutorialSlug]);
+
+  const authorId = tutorial?.author.id ?? "";
+  const authorName = tutorial?.author.displayName ?? "";
+
+  useEffect(() => {
+    if (!authorId) return;
+    const token = getToken();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoadingProfile(true);
+    usersApi.getProfile(authorId, token ?? undefined)
+      .then(p => setCreatorProfile(p))
+      .catch(() => {})
+      .finally(() => setLoadingProfile(false));
   }, [authorId]);
 
   const alreadySubscribed = mySubscriptions.includes(authorId);
@@ -79,7 +89,35 @@ export default function VIPSubscribePage({
     }
   }
 
-  const price = 50000; // VND — will come from creator's VIP tier config
+  const price = VIP_FIXED_PRICE_VND;
+
+  if (loadingTutorial) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--color-text-muted)" }}>Đang tải…</p>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  if (tutorialError || !tutorial) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ minHeight: "100vh", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ color: "var(--color-text-muted)" }}>{tutorialError ?? "Không tìm thấy bài hướng dẫn."}</p>
+          <Link href="/huong-dan" className="btn btn-primary" style={{ textDecoration: "none" }}>← Về thư viện</Link>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  const tutorialTitle = tutorial.title;
+  const tutorialCover = tutorial.coverImageUrl;
 
   return (
     <>

@@ -16,8 +16,11 @@ export async function request<T>(
 ): Promise<T> {
   const { token, ...fetchOptions } = options ?? {};
 
+  // FormData tự set Content-Type kèm boundary — không được set tay, browser lo việc đó
+  const isFormData = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(fetchOptions.headers as Record<string, string> ?? {}),
   };
 

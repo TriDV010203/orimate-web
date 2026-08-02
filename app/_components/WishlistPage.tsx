@@ -178,7 +178,7 @@ export default function WishlistPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
               {filtered.map((t) => (
                 <article key={t.id} className="card" style={{ overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
-                  <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                  <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                     <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
                       {isValidImageUrl(t.coverImageUrl)
                         ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
@@ -216,7 +216,7 @@ export default function WishlistPage() {
                   {/* Action row */}
                   <div style={{ padding: "0.5rem 1rem 1rem", marginTop: "auto", display: "flex", gap: "0.5rem" }}>
                     <Link
-                      href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`}
+                      href={`/huong-dan/${t.slug}`}
                       className="btn btn-primary"
                       style={{ flex: 1, justifyContent: "center", textDecoration: "none", padding: "0.5rem", fontSize: "0.875rem" }}
                     >

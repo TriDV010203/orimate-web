@@ -1,14 +1,11 @@
-import React from "react";
-import KpiGrid from "./_components/kpi-grid";
-import MockChart from "./_components/mock-chart";
+import type { Metadata } from "next";
+import AdminDashboardPage from "../../_components/AdminDashboardPage";
 
-export default function AdminDashboard() {
-  return (
-    <div className="w-full p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto flex flex-col gap-8">
-        <KpiGrid />
-        <MockChart />
-      </div>
-    </div>
-  );
+export const metadata: Metadata = {
+  title: "Tổng quan quản trị — OriGami",
+  description: "Bảng điều khiển quản trị hệ thống OriGami.",
+};
+
+export default function Page() {
+  return <AdminDashboardPage />;
 }

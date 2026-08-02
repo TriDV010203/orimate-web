@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { usersApi, tutorialsApi, type CreatorProfileDto, type TutorialListItemDto } from "@/lib/api";
 import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND, type MySubscriptionDto } from "@/lib/api/subscriptions";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+}
 
 function formatAchievementDate(dateStr: string): string {
   const d = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
@@ -34,8 +40,17 @@ interface Props {
 }
 
 export default function CreatorChannelPage({ userId }: Props) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"tutorials" | "about" | "vip" | "achievements">("tutorials");
   const [filterType, setFilterType] = useState<"all" | "free" | "vip">("all");
+
+  // VIP subscribe widget
+  const [mySubscription, setMySubscription] = useState<MySubscriptionDto | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [referenceCode, setReferenceCode] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState<string | null>(null);
+  const [subscribeSuccess, setSubscribeSuccess] = useState(false);
 
   const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
   const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
@@ -102,6 +117,39 @@ export default function CreatorChannelPage({ userId }: Props) {
     }
     loadAchievements();
   }, [userId]);
+
+  useEffect(() => {
+    const token = getToken();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!token) { setLoadingSubscription(false); return; }
+    subscriptionsApi.getMySubscriptions(token, { pageSize: 50 })
+      .then(result => {
+        const active = result.items.find(s => s.creatorId === userId && s.status === "Active");
+        setMySubscription(active ?? null);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSubscription(false));
+  }, [userId]);
+
+  async function handleSubscribe() {
+    const token = getToken();
+    if (!token) { router.push("/dang-nhap"); return; }
+    if (!referenceCode.trim()) {
+      setSubscribeError("Vui lòng nhập mã chuyển khoản (Reference Code) để xác nhận thanh toán.");
+      return;
+    }
+    setSubscribing(true);
+    setSubscribeError(null);
+    try {
+      await subscriptionsApi.subscribe(token, userId, referenceCode.trim());
+      setSubscribeSuccess(true);
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string };
+      setSubscribeError(apiErr.message ?? "Không thể đăng ký VIP. Vui lòng thử lại.");
+    } finally {
+      setSubscribing(false);
+    }
+  }
 
   async function handleFollow() {
     const token = getToken();
@@ -232,7 +280,15 @@ export default function CreatorChannelPage({ userId }: Props) {
 
           {/* ── Tabs ── */}
           <div style={{ display: "flex", gap: "0", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
-            {([["tutorials", "📚 Bài hướng dẫn"], ["achievements", "🏅 Thành tựu"], ["about", "👤 Giới thiệu"]] as const).map(([key, label]) => (
+            {(
+              [
+                ["tutorials", "📚 Bài hướng dẫn"] as [typeof activeTab, string],
+                ["achievements", "🏅 Thành tựu"] as [typeof activeTab, string],
+                ...(vipCount > 0 ? [["vip", "⭐ VIP"] as [typeof activeTab, string]] : []),
+                ["about", "👤 Giới thiệu"] as [typeof activeTab, string],
+              ]
+            )
+              .map(([key, label]) => (
               <button key={key} onClick={() => setActiveTab(key)}
                 style={{ padding: "0.875rem 1.5rem", border: "none", background: "none", borderBottom: `2.5px solid ${activeTab === key ? "var(--color-primary)" : "transparent"}`, marginBottom: "-2px", color: activeTab === key ? "var(--color-primary)" : "var(--color-text-muted)", fontWeight: activeTab === key ? 700 : 500, fontSize: "0.9375rem", cursor: "pointer" }}>
                 {label}
@@ -274,7 +330,7 @@ export default function CreatorChannelPage({ userId }: Props) {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "3rem" }}>
                   {filtered.map((t) => (
                     <article key={t.id} className="card" style={{ overflow: "hidden" }}>
-                      <Link href={t.type === "VIP" ? `/huong-dan/${t.slug}/vip` : `/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+                      <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                         <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem", position: "relative", overflow: "hidden" }}>
                           {isValidImageUrl(t.coverImageUrl)
                             ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
@@ -350,6 +406,80 @@ export default function CreatorChannelPage({ userId }: Props) {
                       </div>
                     </article>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── VIP tab ── */}
+          {activeTab === "vip" && (
+            <div style={{ maxWidth: "480px", marginBottom: "3rem" }}>
+              {loadingSubscription ? (
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "2rem", textAlign: "center", color: "var(--color-text-muted)" }}>
+                  Đang tải…
+                </div>
+              ) : mySubscription ? (
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "2px solid #059669", padding: "1.75rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>✅</div>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.125rem", color: "#059669", marginBottom: "0.5rem" }}>
+                    Bạn là VIP của {profile.displayName}
+                  </h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
+                    Còn <strong>{mySubscription.daysRemaining} ngày</strong> · Hết hạn {new Date(mySubscription.endDate).toLocaleDateString("vi-VN")}
+                  </p>
+                </div>
+              ) : subscribeSuccess ? (
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1.5px solid var(--color-border)", padding: "1.75rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>📨</div>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Đã gửi yêu cầu đăng ký!</h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.6 }}>
+                    Yêu cầu đăng ký VIP của bạn đang chờ admin xác nhận.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "2px solid var(--color-accent)", padding: "1.75rem" }}>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.75rem" }}>
+                    ⭐ Đăng ký VIP của {profile.displayName}
+                  </h3>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)", marginBottom: "1.25rem" }}>
+                    Mở khoá toàn bộ {vipCount} bài hướng dẫn VIP của creator này trong 30 ngày.
+                  </p>
+
+                  <div style={{ background: "rgba(212,113,59,0.06)", borderRadius: "var(--radius-lg)", padding: "1.25rem", marginBottom: "1.25rem", textAlign: "center", border: "1.5px solid rgba(212,113,59,0.2)" }}>
+                    <p style={{ fontSize: "2rem", fontWeight: 900, color: "var(--color-accent)" }}>{formatCurrency(VIP_FIXED_PRICE_VND)}</p>
+                    <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>/ 30 ngày</p>
+                  </div>
+
+                  <div style={{ background: "#F0F9FF", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.25rem", border: "1.5px solid #BAE6FD" }}>
+                    <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0369A1", marginBottom: "0.5rem" }}>💳 Hướng dẫn thanh toán:</p>
+                    <ol style={{ margin: 0, padding: "0 0 0 1.25rem", fontSize: "0.8125rem", color: "#0C4A6E", lineHeight: 1.7 }}>
+                      <li>Chuyển khoản đến tài khoản: <strong>MB Bank - 1234567890</strong></li>
+                      <li>Nội dung: <strong>VIP {userId.slice(0, 8).toUpperCase()}</strong></li>
+                      <li>Nhập mã giao dịch vào ô bên dưới</li>
+                    </ol>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>
+                      Mã giao dịch (Reference Code) *
+                    </label>
+                    <input
+                      type="text"
+                      value={referenceCode}
+                      onChange={e => setReferenceCode(e.target.value)}
+                      placeholder="Nhập mã giao dịch ngân hàng..."
+                      style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-primary)", fontSize: "0.9rem", boxSizing: "border-box", outline: "none", fontFamily: "monospace" }}
+                    />
+                  </div>
+
+                  {subscribeError && (
+                    <p style={{ fontSize: "0.875rem", color: "#DC2626", background: "#FEE2E2", padding: "0.625rem 1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem" }}>{subscribeError}</p>
+                  )}
+
+                  <button onClick={handleSubscribe} disabled={subscribing} className="btn btn-accent"
+                    style={{ width: "100%", justifyContent: "center", padding: "0.875rem", fontSize: "1rem", opacity: subscribing ? 0.7 : 1 }}>
+                    {subscribing ? "Đang gửi…" : "🔓 Gửi yêu cầu đăng ký VIP"}
+                  </button>
                 </div>
               )}
             </div>

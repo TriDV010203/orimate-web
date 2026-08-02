@@ -1,67 +1,96 @@
 "use client";
 // _components/LearningPathDetailPage.tsx — Trang chi tiết 1 "Lộ trình học"
 //
-// BẢN THIẾT KẾ TĨNH (mock data only) — chưa nối API.
-// Mô phỏng cơ chế mở khoá tuần tự: phải hoàn thành bài trước mới học được bài sau.
-// Tiến trình lưu localStorage chỉ để demo cảm giác tương tác, không phải dữ liệu thật.
+// Nối API thật: GET /api/learning-paths/{id}. Mô phỏng mở khoá tuần tự (phải hoàn thành
+// bài trước mới học được bài sau); tiến trình lưu localStorage (lib/learningPathProgress.ts),
+// đối chiếu với Achievement thật khi user đã đăng nhập.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { achievementsApi } from "@/lib/api";
+import { learningPathsApi, achievementsApi, type LearningPathDto, type ApiError } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
-import {
-  getPathBySlug,
-  getCompletedLessonIds,
-  setCompletedLessonIds,
-  type PathLesson,
-} from "./learningPathsData";
+import { isValidImageUrl } from "@/lib/utils";
+import { getCompletedTutorialIds, setCompletedTutorialIds } from "@/lib/learningPathProgress";
+import { Loader2 } from "lucide-react";
 
-function diffColor(d: PathLesson["difficulty"]) {
-  if (d === "Dễ") return { bg: "#D1FAE5", text: "#065F46" };
-  if (d === "Trung bình") return { bg: "#FEF3C7", text: "#92400E" };
-  return { bg: "#FEE2E2", text: "#991B1B" };
+function diffColor(d: string) {
+  const l = d.toLowerCase();
+  if (l === "beginner") return { bg: "#D1FAE5", text: "#065F46", label: "Dễ" };
+  if (l === "intermediate") return { bg: "#FEF3C7", text: "#92400E", label: "Trung bình" };
+  return { bg: "#FEE2E2", text: "#991B1B", label: "Khó" };
 }
 
-interface Props { slug: string; }
+interface Props { id: string; }
 
-export default function LearningPathDetailPage({ slug }: Props) {
-  const path = getPathBySlug(slug);
+export default function LearningPathDetailPage({ id }: Props) {
+  const [path, setPath] = useState<LearningPathDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setNotFound(false);
+      try {
+        const res = await learningPathsApi.getById(id);
+        if (cancelled) return;
+        setPath(res);
+      } catch (err) {
+        if (cancelled) return;
+        if ((err as ApiError).status === 404) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  useEffect(() => {
     if (!path) return;
-    // Baseline: tiến trình lưu local (đủ cho các bài chưa có tutorial thật để đối chiếu).
-    setCompleted(getCompletedLessonIds(path.slug));
+    setCompleted(getCompletedTutorialIds(path.id));
     setHydrated(true);
 
-    // Đối chiếu với thành tựu thật trên server cho các bài đã có tutorial thật —
-    // để dù người dùng hoàn thành bài đó từ trước (qua Thư viện) và chưa từng mở
-    // lại trang tutorial kể từ đó, lộ trình vẫn nhận ra là đã xong, không cần làm lại.
+    // Đối chiếu với thành tựu thật trên server cho các bài đã có achievement từ trước
+    // (vd. hoàn thành qua Thư viện trước khi ghé lại trang lộ trình).
     if (!isLoggedIn()) return;
     const token = getToken()!;
     achievementsApi.getMine(token, 1, 100)
       .then((res) => {
-        const achievedSlugs = new Set(res.items.map((a) => a.tutorialSlug));
+        const achievedTutorialIds = new Set(res.items.map((a) => a.tutorialId));
         setCompleted((prev) => {
           const next = new Set(prev);
           let changed = false;
-          for (const lesson of path.lessons) {
-            if (lesson.tutorialSlug && achievedSlugs.has(lesson.tutorialSlug) && !next.has(lesson.id)) {
-              next.add(lesson.id);
+          for (const item of path.items) {
+            if (achievedTutorialIds.has(item.tutorialId) && !next.has(item.tutorialId)) {
+              next.add(item.tutorialId);
               changed = true;
             }
           }
-          if (changed) setCompletedLessonIds(path.slug, next);
+          if (changed) setCompletedTutorialIds(path.id, next);
           return next;
         });
       })
       .catch(() => { /* silent — vẫn còn baseline local để hiển thị */ });
   }, [path]);
 
-  if (!path) {
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <main style={{ minHeight: "70vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Loader2 className="animate-spin" size={32} />
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  if (notFound || !path) {
     return (
       <>
         <Navbar />
@@ -77,28 +106,22 @@ export default function LearningPathDetailPage({ slug }: Props) {
     );
   }
 
-  const total = path.lessons.length;
-  const completedCount = path.lessons.filter((l) => completed.has(l.id)).length;
-  const pct = Math.round((completedCount / total) * 100);
-  const allDone = completedCount === total;
-
-  function toggleLesson(lessonId: string, unlocked: boolean) {
-    if (!unlocked) return;
-    setCompleted((prev) => {
-      const next = new Set(prev);
-      if (next.has(lessonId)) next.delete(lessonId);
-      else next.add(lessonId);
-      setCompletedLessonIds(path!.slug, next);
-      return next;
-    });
-  }
+  const total = path.items.length;
+  const completedCount = path.items.filter((i) => completed.has(i.tutorialId)).length;
+  const pct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+  const allDone = hydrated && total > 0 && completedCount === total;
 
   return (
     <>
       <Navbar />
       <main style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
-        <div style={{ background: path.coverGradient, padding: "2.5rem 0" }}>
+        <div style={{
+          background: isValidImageUrl(path.coverImageUrl)
+            ? `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${path.coverImageUrl}) center/cover`
+            : "var(--gradient-primary)",
+          padding: "2.5rem 0",
+        }}>
           <div className="container">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem" }}>
               <Link href="/lo-trinh" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Lộ trình học</Link>
@@ -106,24 +129,16 @@ export default function LearningPathDetailPage({ slug }: Props) {
               <span style={{ color: "rgba(255,255,255,0.9)" }}>{path.title}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "3rem" }}>{path.coverEmoji}</span>
-              <div>
-                <span style={{ background: "rgba(255,255,255,0.9)", color: path.accentColor, fontSize: "0.75rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: "var(--radius-full)" }}>
-                  {path.level}
-                </span>
-                <h1 style={{ color: "white", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.25rem)", marginTop: "0.5rem" }}>
-                  {path.title}
-                </h1>
-              </div>
+              <span style={{ fontSize: "3rem" }}>🗺️</span>
+              <h1 style={{ color: "white", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.25rem)" }}>
+                {path.title}
+              </h1>
             </div>
             <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginTop: "1rem" }}>
-              {path.tagline}
+              {path.description}
             </p>
             <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginTop: "1.25rem", color: "rgba(255,255,255,0.85)", fontSize: "0.875rem" }}>
               <span>📋 {total} bài</span>
-              <span>⏱ {path.estimatedTime}</span>
-              <span>⭐ {path.rating.toFixed(1)}</span>
-              <span>👥 {path.learnerCount.toLocaleString("vi-VN")} người học</span>
             </div>
           </div>
         </div>
@@ -133,15 +148,17 @@ export default function LearningPathDetailPage({ slug }: Props) {
             {/* ── LEFT: Trail (path) ───────────────────────────────────────── */}
             <div style={{ position: "relative", paddingLeft: "2rem" }}>
               {/* Connecting line */}
-              <div style={{ position: "absolute", left: "1.6875rem", top: "1.75rem", bottom: "1.75rem", width: "3px", background: "var(--color-border)", zIndex: 0 }} />
+              {total > 0 && (
+                <div style={{ position: "absolute", left: "1.6875rem", top: "1.75rem", bottom: "1.75rem", width: "3px", background: "var(--color-border)", zIndex: 0 }} />
+              )}
 
-              {path.lessons.map((lesson, i) => {
-                const isCompleted = completed.has(lesson.id);
-                const unlocked = i === 0 || completed.has(path.lessons[i - 1].id);
-                const dc = diffColor(lesson.difficulty);
+              {path.items.map((item, i) => {
+                const isCompleted = completed.has(item.tutorialId);
+                const unlocked = i === 0 || completed.has(path.items[i - 1].tutorialId);
+                const dc = diffColor(item.tutorialDifficulty);
 
                 return (
-                  <div key={lesson.id} style={{ position: "relative", zIndex: 1, marginBottom: "1.25rem" }}>
+                  <div key={item.tutorialId} style={{ position: "relative", zIndex: 1, marginBottom: "1.25rem" }}>
                     <div
                       style={{
                         display: "flex", gap: "1rem", alignItems: "flex-start",
@@ -167,33 +184,33 @@ export default function LearningPathDetailPage({ slug }: Props) {
                         {isCompleted ? "✓" : unlocked ? i + 1 : "🔒"}
                       </div>
 
-                      <span style={{ fontSize: "1.75rem", flexShrink: 0 }}>{lesson.emoji}</span>
+                      <div style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", background: "var(--color-surface-2)", flexShrink: 0, overflow: "hidden" }}>
+                        {isValidImageUrl(item.tutorialCoverImageUrl) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.tutorialCoverImageUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        )}
+                      </div>
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>
-                          Bài {i + 1}: {lesson.title}
+                          Bài {i + 1}: {item.tutorialTitle}
                         </div>
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                           <span style={{ background: dc.bg, color: dc.text, fontSize: "0.6875rem", fontWeight: 700, padding: "0.125rem 0.625rem", borderRadius: "var(--radius-full)" }}>
-                            {lesson.difficulty}
+                            {dc.label}
                           </span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>⏱ {lesson.minutes} phút</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{item.categoryName}</span>
                         </div>
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", alignItems: "flex-end", flexShrink: 0 }}>
-                        {lesson.tutorialSlug && unlocked ? (
-                          <Link href={`/huong-dan/${lesson.tutorialSlug}`} className="btn btn-primary btn-sm">
+                        {unlocked ? (
+                          <Link href={`/huong-dan/${item.tutorialSlug}?tuLoTrinh=${path.id}`} className="btn btn-primary btn-sm">
                             {isCompleted ? "Xem lại" : "Học ngay"}
                           </Link>
                         ) : (
-                          <button
-                            className={isCompleted ? "btn btn-outline btn-sm" : "btn btn-primary btn-sm"}
-                            disabled={!unlocked}
-                            onClick={() => toggleLesson(lesson.id, unlocked)}
-                            style={!unlocked ? { cursor: "not-allowed" } : undefined}
-                          >
-                            {!unlocked ? "Đã khoá" : isCompleted ? "Đã hoàn thành" : "Đánh dấu xong"}
+                          <button className="btn btn-outline btn-sm" disabled style={{ cursor: "not-allowed" }}>
+                            Đã khoá
                           </button>
                         )}
                       </div>
@@ -202,8 +219,12 @@ export default function LearningPathDetailPage({ slug }: Props) {
                 );
               })}
 
+              {total === 0 && (
+                <p style={{ color: "var(--color-text-muted)", padding: "1rem 0" }}>Lộ trình này chưa có bài nào.</p>
+              )}
+
               {/* Completion banner */}
-              {hydrated && allDone && (
+              {allDone && (
                 <div style={{
                   marginTop: "1.5rem",
                   background: "linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)",
@@ -212,12 +233,12 @@ export default function LearningPathDetailPage({ slug }: Props) {
                   padding: "1.75rem",
                   textAlign: "center",
                 }}>
-                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>{path.rewardBadge.icon}</div>
+                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>🏆</div>
                   <h3 style={{ fontWeight: 800, fontSize: "1.125rem", color: "#92400E", marginBottom: "0.5rem" }}>
                     Chúc mừng! Bạn đã hoàn thành lộ trình
                   </h3>
                   <p style={{ color: "#B45309", fontSize: "0.875rem" }}>
-                    Huy hiệu <strong>{path.rewardBadge.title}</strong> đã được ghi nhận vào trang cá nhân của bạn.
+                    Bạn đã học hết {total} bài trong lộ trình &quot;{path.title}&quot;.
                   </p>
                 </div>
               )}
