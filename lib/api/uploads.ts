@@ -2,7 +2,13 @@
 
 import { request } from "./client";
 
-export type UploadFolder = "tutorials" | "achievements" | "learning-paths" | "community-posts" | "daily-challenge";
+export type UploadFolder =
+  | "tutorials"
+  | "achievements"
+  | "learning-paths"
+  | "community-posts"
+  | "daily-challenge"
+  | "mode-tests";
 
 export interface UploadImageResponse {
   url: string;
