@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type ApiError } from "@/lib/api";
-import { Check, X, ExternalLink, Loader2, PartyPopper } from "lucide-react";
+import { Check, X, Eye, Loader2, PartyPopper } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
@@ -108,10 +109,9 @@ export default function AdminTutorialsPage() {
                 </span>
               </div>
               <h3 className="admin-queue-item-title">
-                {item.title}
-                <a href={`/huong-dan/${item.slug}?preview=true`} target="_blank" rel="noreferrer" title="Xem trước">
-                  <ExternalLink size={14} />
-                </a>
+                <Link href={`/admin/tutorials/${item.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                  {item.title}
+                </Link>
               </h3>
               <p className="admin-queue-item-desc">
                 Tác giả: <strong>{item.authorName}</strong> · Quy mô: <strong>{item.stepCount} bước</strong>
@@ -119,6 +119,9 @@ export default function AdminTutorialsPage() {
             </div>
 
             <div className="admin-queue-item-actions">
+              <Link href={`/admin/tutorials/${item.id}`} className="btn btn-outline btn-sm">
+                <Eye size={16} /> Xem chi tiết
+              </Link>
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => handleReject(item.id, item.isEdit)}

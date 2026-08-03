@@ -6,8 +6,11 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { subscriptionsApi } from "@/lib/api/subscriptions";
 import type { CreatorRevenueDto, VipTierDto } from "@/lib/api/subscriptions";
+import { tutorialsApi } from "@/lib/api/tutorials";
 import { getToken, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+
+const MIN_PUBLISHED_TUTORIALS_FOR_VIP = 5;
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
@@ -17,6 +20,7 @@ export default function RevenueStudioPage() {
   const router = useRouter();
   const [revenue, setRevenue] = useState<CreatorRevenueDto | null>(null);
   const [vipTier, setVipTier] = useState<VipTierDto | null>(null);
+  const [publishedCount, setPublishedCount] = useState(0);
   const [togglingVip, setTogglingVip] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,12 +33,14 @@ export default function RevenueStudioPage() {
     (async () => {
       try {
         setLoading(true);
-        const [rev, tier] = await Promise.all([
+        const [rev, tier, myTutorials] = await Promise.all([
           subscriptionsApi.getCreatorRevenue(token, user.userId),
           subscriptionsApi.getMyVipTier(token),
+          tutorialsApi.getMyTutorials(token, { page: 1, pageSize: 100 }),
         ]);
         setRevenue(rev);
         setVipTier(tier);
+        setPublishedCount(myTutorials.items.filter(t => t.status === "Published").length);
       } catch (err: unknown) {
         const apiErr = err as { message?: string };
         setError(apiErr.message ?? "Không thể tải dữ liệu doanh thu.");
@@ -44,9 +50,12 @@ export default function RevenueStudioPage() {
     })();
   }, [router]);
 
+  const canEnableVip = publishedCount >= MIN_PUBLISHED_TUTORIALS_FOR_VIP;
+
   async function handleToggleVip() {
     const token = getToken();
     if (!token || !vipTier) return;
+    if (!vipTier.isActive && !canEnableVip) return;
     setTogglingVip(true);
     try {
       const updated = await subscriptionsApi.configureVipTier(token, !vipTier.isActive);
@@ -110,12 +119,18 @@ export default function RevenueStudioPage() {
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
                     Nền tảng giữ lại hoa hồng 10% trên mỗi giao dịch VIP được xác nhận.
                   </p>
+                  {!vipTier.isActive && !canEnableVip && (
+                    <p style={{ fontSize: "0.8125rem", color: "var(--color-warning, #B45309)", marginTop: "0.5rem", fontWeight: 600 }}>
+                      ⚠️ Cần có ít nhất {MIN_PUBLISHED_TUTORIALS_FOR_VIP} bài hướng dẫn đã xuất bản để bật bán VIP (hiện có {publishedCount}).
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleToggleVip}
-                  disabled={togglingVip}
+                  disabled={togglingVip || (!vipTier.isActive && !canEnableVip)}
                   className={vipTier.isActive ? "btn btn-primary" : "btn btn-outline"}
-                  style={{ flexShrink: 0, opacity: togglingVip ? 0.7 : 1 }}
+                  title={!vipTier.isActive && !canEnableVip ? `Cần ít nhất ${MIN_PUBLISHED_TUTORIALS_FOR_VIP} bài hướng dẫn đã xuất bản` : undefined}
+                  style={{ flexShrink: 0, opacity: togglingVip || (!vipTier.isActive && !canEnableVip) ? 0.5 : 1, cursor: !vipTier.isActive && !canEnableVip ? "not-allowed" : "pointer" }}
                 >
                   {vipTier.isActive ? "✓ Đang bật bán VIP" : "Bật bán VIP"}
                 </button>
