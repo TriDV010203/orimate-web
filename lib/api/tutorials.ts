@@ -44,6 +44,8 @@ export interface TutorialDetailDto {
   slug: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty?: string | null;
   categoryId: number;
@@ -108,6 +110,8 @@ export interface CreateTutorialRequest {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;         // "Free" | "VIP"
   difficulty: string;   // "Beginner" | "Intermediate" | "Advanced"
   categoryId: number;
@@ -118,6 +122,8 @@ export interface UpdateTutorialRequest {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
@@ -131,6 +137,8 @@ export interface TutorialResponse {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
@@ -146,6 +154,8 @@ export interface TutorialAuthorDetailDto {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;

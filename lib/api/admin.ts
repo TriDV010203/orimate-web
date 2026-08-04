@@ -72,6 +72,8 @@ export interface AdminTutorialDetailResponse {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
