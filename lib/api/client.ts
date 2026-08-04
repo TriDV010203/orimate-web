@@ -12,9 +12,9 @@ export interface ApiError {
 
 export async function request<T>(
   path: string,
-  options?: RequestInit & { token?: string }
+  options?: RequestInit & { token?: string; expectedErrorStatuses?: number[] }
 ): Promise<T> {
-  const { token, ...fetchOptions } = options ?? {};
+  const { token, expectedErrorStatuses = [], ...fetchOptions } = options ?? {};
 
   // FormData tự set Content-Type kèm boundary — không được set tay, browser lo việc đó
   const isFormData = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
@@ -53,7 +53,9 @@ export async function request<T>(
       // ignore parse error
     }
     const err: ApiError = { message, status: res.status };
-    console.error("[api] Error response:", res.status, message);
+    if (!expectedErrorStatuses.includes(res.status)) {
+      console.error("[api] Error response:", res.status, message);
+    }
     throw err;
   }
 

@@ -94,7 +94,10 @@ export interface ToggleLikeResponse {
 export const dailyChallengeApi = {
   /** GET /api/daily-challenge/today — public, cá nhân hoá nếu có token */
   getToday(token?: string): Promise<DailyChallengeDto> {
-    return request<DailyChallengeDto>("/api/daily-challenge/today", { token });
+    return request<DailyChallengeDto>("/api/daily-challenge/today", {
+      token,
+      expectedErrorStatuses: [404],
+    });
   },
 
   /** GET /api/daily-challenge/today/submissions — sắp xếp theo lượt thích */
