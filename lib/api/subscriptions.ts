@@ -26,14 +26,14 @@ export interface TransactionDto {
   platformFeeAmount: number;
   creatorNetAmount: number;
   status: string;          // "PendingConfirmation" | "Confirmed" | "Rejected"
-  referenceCode?: string | null;
+  paymentCode: string;
   confirmedBy?: string | null;
   confirmedAt?: string | null;
   adminNote?: string | null;
   createdAt: string;
 }
 
-/** Enriched transaction shape for the admin ledger / pending-confirmation queue. */
+/** Enriched transaction shape for the admin ledger. */
 export interface AdminTransactionDto {
   id: string;
   userId: string;
@@ -47,11 +47,27 @@ export interface AdminTransactionDto {
   platformFeeAmount: number;
   creatorNetAmount: number;
   status: string;
-  referenceCode?: string | null;
+  paymentCode: string;
   confirmedBy?: string | null;
   confirmedAt?: string | null;
   adminNote?: string | null;
   createdAt: string;
+}
+
+/** Bank transfer instructions returned right after Subscribe — SePay auto-matches by paymentCode in the transfer content. */
+export interface PaymentInstructionDto {
+  bankAccountNumber: string;
+  bankName: string;
+  bankBin: string;
+  accountHolderName: string;
+  paymentCode: string;
+  amount: number;
+  qrCodeUrl: string;
+}
+
+export interface SubscribeResultDto {
+  transaction: TransactionDto;
+  paymentInstruction: PaymentInstructionDto;
 }
 
 export interface PlatformRevenueDto {
@@ -118,18 +134,24 @@ export type TransactionStatusFilter = "PendingConfirmation" | "Confirmed" | "Rej
 
 export const subscriptionsApi = {
   /**
-   * POST /api/subscriptions — Đăng ký VIP cho một creator (giá cố định 50.000đ)
+   * POST /api/subscriptions — Đăng ký VIP cho một creator (giá cố định 50.000đ).
+   * Tạo Transaction PendingConfirmation + trả hướng dẫn chuyển khoản (QR/mã thanh toán) —
+   * giao dịch được SePay tự động xác nhận qua webhook, không cần nhập mã tay.
    */
-  subscribe(
-    token: string,
-    creatorId: string,
-    referenceCode: string
-  ): Promise<TransactionDto> {
-    return request<TransactionDto>("/api/subscriptions", {
+  subscribe(token: string, creatorId: string): Promise<SubscribeResultDto> {
+    return request<SubscribeResultDto>("/api/subscriptions", {
       method: "POST",
-      body: JSON.stringify({ creatorId, referenceCode }),
+      body: JSON.stringify({ creatorId }),
       token,
     });
+  },
+
+  /**
+   * GET /api/subscriptions/transactions/{id} — Poll trạng thái giao dịch của chính mình
+   * trong lúc chờ webhook SePay tự động xác nhận.
+   */
+  getTransaction(token: string, transactionId: string): Promise<TransactionDto> {
+    return request<TransactionDto>(`/api/subscriptions/transactions/${transactionId}`, { token });
   },
 
   /**
@@ -171,30 +193,6 @@ export const subscriptionsApi = {
     return request<CreatorRevenueDto>(
       `/api/subscriptions/creators/${creatorId}/revenue`,
       { token }
-    );
-  },
-
-  /**
-   * POST /api/subscriptions/transactions/{id}/confirm — Admin xác nhận thanh toán
-   */
-  confirmPayment(token: string, transactionId: string): Promise<VipSubscriptionDto> {
-    return request<VipSubscriptionDto>(
-      `/api/subscriptions/transactions/${transactionId}/confirm`,
-      { method: "POST", token }
-    );
-  },
-
-  /**
-   * POST /api/subscriptions/transactions/{id}/reject — Admin từ chối thanh toán
-   */
-  rejectPayment(token: string, transactionId: string, adminNote: string): Promise<TransactionDto> {
-    return request<TransactionDto>(
-      `/api/subscriptions/transactions/${transactionId}/reject`,
-      {
-        method: "POST",
-        body: JSON.stringify({ adminNote }),
-        token,
-      }
     );
   },
 
