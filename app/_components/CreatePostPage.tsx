@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "./Navbar";
@@ -9,9 +9,8 @@ import ImageUploadField from "./ImageUploadField";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { communityPostsApi } from "@/lib/api/community-posts";
 import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
-import { tutorialsApi, type TutorialListItemDto } from "@/lib/api/tutorials";
 
-type PostType = "photo" | "achievement" | "tutorial";
+type PostType = "photo" | "achievement";
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 function Spinner() {
@@ -22,7 +21,8 @@ function Spinner() {
 export default function CreatePostPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialType = (searchParams.get("type") as PostType | null) ?? "photo";
+  const typeParam = searchParams.get("type");
+  const initialType: PostType = typeParam === "achievement" ? "achievement" : "photo";
 
   const [token, setToken] = useState<string | null>(null);
   const [type, setType] = useState<PostType>(initialType);
@@ -36,12 +36,6 @@ export default function CreatePostPage() {
   const [achievements, setAchievements] = useState<AchievementDto[]>([]);
   const [loadingAch, setLoadingAch] = useState(false);
   const [selectedAch, setSelectedAch] = useState<AchievementDto | null>(null);
-
-  // tutorial state
-  const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
-  const [loadingTut, setLoadingTut] = useState(false);
-  const [selectedTut, setSelectedTut] = useState<TutorialListItemDto | null>(null);
-  const [tutSearch, setTutSearch] = useState("");
 
   useEffect(() => {
     if (!isLoggedIn()) { router.replace("/dang-nhap"); return; }
@@ -58,27 +52,6 @@ export default function CreatePostPage() {
       .finally(() => setLoadingAch(false));
   }, [type, token]);
 
-  // load tutorials when tab = tutorial
-  const loadTutorials = useCallback(async (search?: string) => {
-    setLoadingTut(true);
-    try {
-      const r = await tutorialsApi.getList({ search, pageSize: 20 });
-      setTutorials(r.items);
-    } catch { /**/ }
-    finally { setLoadingTut(false); }
-  }, []);
-
-  useEffect(() => {
-    if (type === "tutorial") loadTutorials();
-  }, [type, loadTutorials]);
-
-  // debounce tutorial search
-  useEffect(() => {
-    if (type !== "tutorial") return;
-    const t = setTimeout(() => loadTutorials(tutSearch || undefined), 400);
-    return () => clearTimeout(t);
-  }, [tutSearch, type, loadTutorials]);
-
   function addImageField() { setImageUrls(p => [...p, ""]); }
   function removeImage(i: number) { setImageUrls(p => p.filter((_, j) => j !== i)); }
   function updateImage(i: number, v: string) { setImageUrls(p => p.map((u, j) => j === i ? v : u)); }
@@ -92,7 +65,6 @@ export default function CreatePostPage() {
     if (!content.trim()) { setError("Vui lòng nhập nội dung bài viết."); return; }
     if (content.length > 1000) { setError("Nội dung tối đa 1000 ký tự."); return; }
     if (type === "achievement" && !selectedAch) { setError("Vui lòng chọn một thành tựu."); return; }
-    if (type === "tutorial" && !selectedTut) { setError("Vui lòng chọn hướng dẫn muốn chia sẻ."); return; }
     const validUrls = imageUrls.filter(u => u.trim());
     if (type === "photo" && validUrls.length === 0) { setError("Vui lòng tải lên ít nhất 1 ảnh."); return; }
 
@@ -104,9 +76,7 @@ export default function CreatePostPage() {
           ? [{ mediaUrl: selectedAch.photoUrl, mediaType: "Image" as const }]
           : undefined;
 
-      const tutorialId = type === "tutorial" ? selectedTut?.id
-        : type === "achievement" ? selectedAch?.tutorialId
-        : undefined;
+      const tutorialId = type === "achievement" ? selectedAch?.tutorialId : undefined;
 
       const body = { content: content.trim(), tutorialId: tutorialId ?? null, mediaItems: mediaItems ?? null };
       await communityPostsApi.createPost(token, body);
@@ -136,7 +106,6 @@ export default function CreatePostPage() {
   const TAB_TYPES: { key: PostType; label: string; icon: string }[] = [
     { key: "photo", label: "Đăng ảnh", icon: "📸" },
     { key: "achievement", label: "Thành tựu", icon: "🏅" },
-    { key: "tutorial", label: "Hướng dẫn", icon: "📚" },
   ];
 
   return (
@@ -173,7 +142,6 @@ export default function CreatePostPage() {
               <div style={{ background: "rgba(45,106,79,0.06)", border: "1px solid rgba(45,106,79,0.15)", borderRadius: "var(--radius-md)", padding: "0.75rem 1rem", marginBottom: "1.5rem", fontSize: "0.875rem", color: "var(--color-primary)", fontWeight: 500 }}>
                 {type === "photo" && "📸 Chia sẻ ảnh tác phẩm Origami kèm lời viết."}
                 {type === "achievement" && "🏅 Chọn một thành tựu đã đạt được để chia sẻ với cộng đồng."}
-                {type === "tutorial" && "📚 Giới thiệu một hướng dẫn Origami mà bạn yêu thích hoặc do bạn tạo."}
               </div>
 
               {/* Content textarea */}
@@ -184,8 +152,7 @@ export default function CreatePostPage() {
                 <textarea id="post-content" value={content} onChange={e => setContent(e.target.value)}
                   placeholder={
                     type === "photo" ? "Chia sẻ cảm nhận về tác phẩm này..." :
-                    type === "achievement" ? "Chia sẻ trải nghiệm khi hoàn thành hướng dẫn này..." :
-                    "Giới thiệu về hướng dẫn này, tại sao bạn thích nó..."
+                    "Chia sẻ trải nghiệm khi hoàn thành hướng dẫn này..."
                   }
                   rows={4} maxLength={1000} style={{ resize: "vertical", lineHeight: 1.65, fontFamily: "inherit" }}
                   className="input-field" />
@@ -256,55 +223,6 @@ export default function CreatePostPage() {
                       ))}
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* ── Tutorial type: search & pick ── */}
-              {type === "tutorial" && (
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <label className="input-label" style={{ marginBottom: "0.75rem", display: "block" }}>
-                    Chọn hướng dẫn <span style={{ color: "var(--color-error)" }}>*</span>
-                  </label>
-                  <div style={{ position: "relative", marginBottom: "0.75rem" }}>
-                    <input id="tutorial-search" type="text" value={tutSearch} onChange={e => setTutSearch(e.target.value)}
-                      placeholder="Tìm kiếm hướng dẫn..." className="input-field"
-                      style={{ paddingLeft: "2.75rem" }} />
-                    <svg style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                    </svg>
-                  </div>
-                  {loadingTut ? (
-                    <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>Đang tải...</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", maxHeight: "320px", overflowY: "auto" }}>
-                      {tutorials.map(t => (
-                        <div key={t.id} id={`tut-${t.id}`} onClick={() => setSelectedTut(t)}
-                          style={{ display: "flex", gap: "0.875rem", alignItems: "flex-start", padding: "0.875rem", borderRadius: "var(--radius-md)", border: `2px solid ${selectedTut?.id === t.id ? "var(--color-primary)" : "var(--color-border)"}`, background: selectedTut?.id === t.id ? "rgba(45,106,79,0.06)" : "var(--color-surface)", cursor: "pointer", transition: "all var(--transition-fast)" }}>
-                          {t.coverImageUrl && <img src={t.coverImageUrl} alt={t.title} style={{ width: "4rem", height: "4rem", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0 }} />}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>{t.title}</div>
-                            <div style={{ fontSize: "0.775rem", color: "var(--color-text-muted)" }}>{t.author.displayName} · {t.categoryName}</div>
-                            {selectedTut?.id === t.id && <div style={{ fontSize: "0.75rem", color: "var(--color-primary)", fontWeight: 700, marginTop: "0.25rem" }}>✓ Đã chọn</div>}
-                          </div>
-                        </div>
-                      ))}
-                      {tutorials.length === 0 && !loadingTut && (
-                        <div style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>Không tìm thấy hướng dẫn nào.</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Selected preview */}
-              {type === "tutorial" && selectedTut && (
-                <div style={{ background: "rgba(45,106,79,0.06)", border: "1px solid rgba(45,106,79,0.2)", borderRadius: "var(--radius-md)", padding: "0.875rem 1rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <span style={{ fontSize: "1.25rem" }}>📚</span>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-primary)" }}>{selectedTut.title}</div>
-                    <div style={{ fontSize: "0.775rem", color: "var(--color-text-muted)" }}>Người đọc sẽ được dẫn đến trang hướng dẫn này</div>
-                  </div>
-                  <button type="button" onClick={() => setSelectedTut(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "1rem" }}>×</button>
                 </div>
               )}
 

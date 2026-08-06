@@ -2,25 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
 
+import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Medal, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
+import { getUser } from "@/lib/auth";
+
+// roles: undefined = mọi vai trò trong panel admin đều thấy mục này.
+// Chỉ "Người dùng" bị giới hạn — Manager không được quản lý người dùng.
 const navItems = [
   { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
-  { name: "Người dùng", href: "/admin/users", icon: Users },
+  { name: "Người dùng", href: "/admin/users", icon: Users, roles: ["Admin"] },
   { name: "Duyệt bài viết", href: "/admin/tutorials", icon: BookOpen },
   { name: "Quản lý hướng dẫn", href: "/admin/tutorials/manage", icon: FolderCog },
   { name: "Danh mục", href: "/admin/categories", icon: FolderOpen },
   { name: "Lộ trình học", href: "/admin/learning-paths", icon: Map },
   { name: "Chế độ lộ trình", href: "/admin/learning-path-modes", icon: Layers },
   { name: "Thử thách ngày", href: "/admin/daily-challenges", icon: Trophy },
+  { name: "Thử thách tuần", href: "/admin/weekly-challenges", icon: Medal },
   { name: "Cửa hàng", href: "/admin/shop", icon: ShoppingBag },
   { name: "Doanh thu VIP", href: "/admin/revenue", icon: Wallet },
   { name: "Báo cáo vi phạm", href: "/admin/reports", icon: Flag },
-  { name: "Cấu hình hệ thống", href: "/admin/settings", icon: Settings },
+  { name: "Cấu hình hệ thống", href: "/admin/settings", icon: Settings, roles: ["Admin"] },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const user = getUser();
+  const visibleItems = navItems.filter(
+    (item) => !item.roles || item.roles.some((r) => user?.roles?.includes(r))
+  );
 
   return (
     <aside className="admin-sidebar">
@@ -44,7 +53,7 @@ export default function AdminSidebar() {
       <nav>
         <p className="admin-sidebar-nav-title">Menu Quản trị</p>
 
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           // Pick the most specific href match so overlapping routes (e.g. /admin/tutorials
           // and /admin/tutorials/new) don't both light up at once.

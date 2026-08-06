@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { adminApi } from "@/lib/api/admin";
+import { getUser } from "@/lib/auth";
 
 type ChangeType = "positive" | "warning" | "danger" | "neutral";
 
@@ -21,33 +22,34 @@ interface StatItem {
   changeType: ChangeType;
   icon: LucideIcon;
   link: string;
+  bg: string;
+  color: string;
 }
 
 const INITIAL_STATS: StatItem[] = [
-  { label: "Tổng người dùng", value: "...", change: "Đang tải", changeType: "neutral", icon: Users, link: "/admin/users" },
-  { label: "Bài chờ duyệt", value: "...", change: "Đang tải", changeType: "neutral", icon: BookOpen, link: "/admin/tutorials" },
-  { label: "Báo cáo vi phạm", value: "...", change: "Đang tải", changeType: "neutral", icon: Flag, link: "/admin/reports" },
-  { label: "Từ khóa cấm", value: "...", change: "Đang tải", changeType: "neutral", icon: ShieldAlert, link: "/admin/settings" },
+  { label: "Tổng người dùng", value: "...", change: "Đang tải", changeType: "neutral", icon: Users, link: "/admin/users", bg: "#10b98122", color: "#10b981" },
+  { label: "Bài chờ duyệt", value: "...", change: "Đang tải", changeType: "neutral", icon: BookOpen, link: "/admin/tutorials", bg: "#0ea5e922", color: "#0ea5e9" },
+  { label: "Báo cáo vi phạm", value: "...", change: "Đang tải", changeType: "neutral", icon: Flag, link: "/admin/reports", bg: "#3b82f622", color: "#3b82f6" },
+  { label: "Từ khóa cấm", value: "...", change: "Đang tải", changeType: "neutral", icon: ShieldAlert, link: "/admin/settings", bg: "#f59e0b22", color: "#f59e0b" },
 ];
 
-const STAT_COLORS: Record<number, { bg: string; color: string }> = {
-  0: { bg: "#10b98122", color: "#10b981" },
-  1: { bg: "#0ea5e922", color: "#0ea5e9" },
-  2: { bg: "#3b82f622", color: "#3b82f6" },
-  3: { bg: "#f59e0b22", color: "#f59e0b" },
-};
+// Manager không có quyền quản lý người dùng / cấu hình hệ thống nên 2 chỉ số này luôn lỗi tải với vai trò đó — ẩn đi thay vì hiển thị lỗi.
+const ADMIN_ONLY_STATS = ["Tổng người dùng", "Từ khóa cấm"];
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<StatItem[]>(INITIAL_STATS);
+  const isAdmin = getUser()?.roles?.includes("Admin") ?? false;
+  const [stats, setStats] = useState<StatItem[]>(
+    isAdmin ? INITIAL_STATS : INITIAL_STATS.filter((s) => !ADMIN_ONLY_STATS.includes(s.label))
+  );
 
   useEffect(() => {
     async function fetchStats() {
       const [usersResult, queueResult, reportsResult, keywordsResult] =
         await Promise.allSettled([
-          adminApi.getUsers({ page: 1, pageSize: 1 }),
+          isAdmin ? adminApi.getUsers({ page: 1, pageSize: 1 }) : Promise.resolve(null),
           adminApi.getManagerQueue({ page: 1, pageSize: 1 }),
           adminApi.getPendingReports(),
-          adminApi.getBlockedWords(),
+          isAdmin ? adminApi.getBlockedWords() : Promise.resolve(null),
         ]);
 
       const usersRes = usersResult.status === "fulfilled" ? usersResult.value : null;
@@ -55,7 +57,7 @@ export default function AdminDashboardPage() {
       const reportsRes = reportsResult.status === "fulfilled" ? reportsResult.value : null;
       const keywordsRes = keywordsResult.status === "fulfilled" ? keywordsResult.value : null;
 
-      setStats([
+      const nextStats: StatItem[] = [
         {
           label: "Tổng người dùng",
           value: usersRes?.totalCount?.toLocaleString() ?? "0",
@@ -63,6 +65,8 @@ export default function AdminDashboardPage() {
           changeType: usersResult.status === "fulfilled" ? "positive" : "danger",
           icon: Users,
           link: "/admin/users",
+          bg: "#10b98122",
+          color: "#10b981",
         },
         {
           label: "Bài chờ duyệt",
@@ -81,6 +85,8 @@ export default function AdminDashboardPage() {
                 : "positive",
           icon: BookOpen,
           link: "/admin/tutorials",
+          bg: "#0ea5e922",
+          color: "#0ea5e9",
         },
         {
           label: "Báo cáo vi phạm",
@@ -99,6 +105,8 @@ export default function AdminDashboardPage() {
                 : "positive",
           icon: Flag,
           link: "/admin/reports",
+          bg: "#3b82f622",
+          color: "#3b82f6",
         },
         {
           label: "Từ khóa cấm",
@@ -107,12 +115,16 @@ export default function AdminDashboardPage() {
           changeType: keywordsResult.status === "rejected" ? "danger" : "neutral",
           icon: ShieldAlert,
           link: "/admin/settings",
+          bg: "#f59e0b22",
+          color: "#f59e0b",
         },
-      ]);
+      ];
+
+      setStats(isAdmin ? nextStats : nextStats.filter((s) => !ADMIN_ONLY_STATS.includes(s.label)));
     }
 
     fetchStats();
-  }, []);
+  }, [isAdmin]);
 
   return (
     <div>
@@ -124,9 +136,8 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="admin-stats-grid">
-        {stats.map((stat, idx) => {
+        {stats.map((stat) => {
           const Icon = stat.icon;
-          const colors = STAT_COLORS[idx];
           const badgeVariant =
             stat.changeType === "positive"
               ? "badge-success"
@@ -142,7 +153,7 @@ export default function AdminDashboardPage() {
                 <span className="admin-stat-label">{stat.label}</span>
                 <div
                   className="admin-stat-icon"
-                  style={{ background: colors.bg, color: colors.color }}
+                  style={{ background: stat.bg, color: stat.color }}
                 >
                   <Icon size={18} strokeWidth={2} />
                 </div>
@@ -163,7 +174,7 @@ export default function AdminDashboardPage() {
         {[
           { href: "/admin/tutorials", text: "Duyệt bài viết mới", icon: BookOpen },
           { href: "/admin/reports", text: "Xử lý khiếu nại", icon: Flag },
-          { href: "/admin/settings", text: "Từ khóa vi phạm", icon: ShieldAlert },
+          ...(isAdmin ? [{ href: "/admin/settings", text: "Từ khóa vi phạm", icon: ShieldAlert }] : []),
         ].map((link) => (
           <Link key={link.href} href={link.href} className="admin-shortcut-item">
             <link.icon size={18} />

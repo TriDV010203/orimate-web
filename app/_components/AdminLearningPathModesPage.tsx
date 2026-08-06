@@ -14,7 +14,7 @@ import { adminApi } from "@/lib/api/admin";
 import type { AdminTutorialListItemResponse } from "@/lib/api/admin";
 import type { ApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { isValidImageUrl } from "@/lib/utils";
+import { isValidImageUrl, diffLabel, DIFFICULTY_OPTIONS } from "@/lib/utils";
 
 interface ModeFormState {
   id: string | null; // null = tạo mới
@@ -96,6 +96,7 @@ export default function AdminLearningPathModesPage() {
   const [testInstructions, setTestInstructions] = useState("");
   const [pickerSearchText, setPickerSearchText] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerDifficulty, setPickerDifficulty] = useState("");
   const [pickerResults, setPickerResults] = useState<AdminTutorialListItemResponse[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
@@ -105,6 +106,7 @@ export default function AdminLearningPathModesPage() {
     setTestTutorialTitle(m.unlockTestTutorialTitle ?? "");
     setTestInstructions(m.unlockTestInstructions ?? "");
     setPickerSearchText("");
+    setPickerDifficulty("");
     setPickerResults([]);
   }
 
@@ -123,6 +125,7 @@ export default function AdminLearningPathModesPage() {
           search: pickerSearch || undefined,
           status: "Published",
           isOfficial: true,
+          difficulty: pickerDifficulty || undefined,
           page: 1,
           pageSize: 20,
         });
@@ -134,7 +137,7 @@ export default function AdminLearningPathModesPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [testConfigModeId, pickerSearch]);
+  }, [testConfigModeId, pickerSearch, pickerDifficulty]);
 
   const upsertTestMut = useMutation({
     mutationFn: (vars: { modeId: string; tutorialId: string; instructions: string | null }) =>
@@ -353,15 +356,25 @@ export default function AdminLearningPathModesPage() {
               </div>
             )}
 
-            <div className="input-with-icon" style={{ marginBottom: "0.75rem" }}>
-              <Search className="input-icon" size={16} />
-              <input
-                type="text"
-                value={pickerSearchText}
-                onChange={(e) => setPickerSearchText(e.target.value)}
-                placeholder="Tìm hướng dẫn official đã xuất bản..."
-                className="input-field"
-              />
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              <div className="input-with-icon" style={{ flex: 1 }}>
+                <Search className="input-icon" size={16} />
+                <input
+                  type="text"
+                  value={pickerSearchText}
+                  onChange={(e) => setPickerSearchText(e.target.value)}
+                  placeholder="Tìm hướng dẫn official đã xuất bản..."
+                  className="input-field"
+                />
+              </div>
+              <select
+                value={pickerDifficulty}
+                onChange={(e) => setPickerDifficulty(e.target.value)}
+                style={{ padding: "0.625rem 0.75rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", fontSize: "0.875rem", background: "var(--color-surface)", cursor: "pointer" }}
+              >
+                <option value="">Mọi độ khó</option>
+                {DIFFICULTY_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 220, overflowY: "auto", marginBottom: "1rem" }}>
@@ -383,6 +396,7 @@ export default function AdminLearningPathModesPage() {
                       }}
                     >
                       <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                      <span className="badge badge-neutral" style={{ flexShrink: 0, fontSize: "0.75rem" }}>{diffLabel(t.difficulty)}</span>
                       {selected && <Check size={16} style={{ color: "var(--color-primary)", flexShrink: 0 }} />}
                     </button>
                   );

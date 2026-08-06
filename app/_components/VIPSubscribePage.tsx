@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { subscriptionsApi, VIP_FIXED_PRICE_VND } from "@/lib/api/subscriptions";
+import type { PaymentInstructionDto } from "@/lib/api/subscriptions";
 import { usersApi } from "@/lib/api/users";
 import type { CreatorProfileDto } from "@/lib/api/users";
 import { tutorialsApi } from "@/lib/api/tutorials";
@@ -24,11 +25,13 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
   const [tutorialError, setTutorialError] = useState<string | null>(null);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfileDto | null>(null);
   const [mySubscriptions, setMySubscriptions] = useState<string[]>([]); // creatorIds I already subscribe to
-  const [referenceCode, setReferenceCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [pendingTransactionId, setPendingTransactionId] = useState<string | null>(null);
+  const [paymentInstruction, setPaymentInstruction] = useState<PaymentInstructionDto | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const token = getToken();
@@ -71,16 +74,13 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
       router.push("/dang-nhap");
       return;
     }
-    if (!referenceCode.trim()) {
-      setError("Vui lòng nhập mã chuyển khoản (Reference Code) để xác nhận thanh toán.");
-      return;
-    }
     const token = getToken()!;
     setSubmitting(true);
     setError(null);
     try {
-      await subscriptionsApi.subscribe(token, authorId, referenceCode.trim());
-      setSuccess(true);
+      const result = await subscriptionsApi.subscribe(token, authorId);
+      setPendingTransactionId(result.transaction.id);
+      setPaymentInstruction(result.paymentInstruction);
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       setError(apiErr.message ?? "Không thể đăng ký VIP. Vui lòng thử lại.");
@@ -88,6 +88,30 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
       setSubmitting(false);
     }
   }
+
+  // Poll transaction status while waiting for SePay to auto-confirm the transfer via webhook.
+  useEffect(() => {
+    if (!pendingTransactionId) return;
+    const token = getToken();
+    if (!token) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const tx = await subscriptionsApi.getTransaction(token, pendingTransactionId);
+        if (tx.status === "Confirmed") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setSuccess(true);
+          setPendingTransactionId(null);
+        }
+      } catch {
+        // transient network hiccup — keep polling, next tick will retry
+      }
+    }, 4000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [pendingTransactionId]);
 
   const price = VIP_FIXED_PRICE_VND;
 
@@ -210,9 +234,9 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                     <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: "#D1FAE5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
                       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
                     </div>
-                    <h3 style={{ fontWeight: 800, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Đã gửi yêu cầu đăng ký!</h3>
+                    <h3 style={{ fontWeight: 800, fontSize: "1.125rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Thanh toán thành công!</h3>
                     <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.6, marginBottom: "1.5rem" }}>
-                      Yêu cầu đăng ký VIP của bạn đang chờ admin xác nhận. Bạn sẽ nhận được thông báo khi được duyệt.
+                      VIP của bạn đã được kích hoạt. Quay lại bài hướng dẫn để xem toàn bộ nội dung.
                     </p>
                     <Link href={`/huong-dan/${tutorialSlug}`} className="btn btn-primary" style={{ textDecoration: "none", display: "inline-flex" }}>
                       ← Quay lại bài hướng dẫn
@@ -229,6 +253,42 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                       Xem bài hướng dẫn →
                     </Link>
                   </div>
+                ) : paymentInstruction ? (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "1.25rem" }}>
+                      <div style={{ width: "2.25rem", height: "2.25rem", borderRadius: "50%", background: "var(--gradient-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                      </div>
+                      <h2 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)" }}>Quét mã để thanh toán</h2>
+                    </div>
+
+                    <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+                      <img
+                        src={paymentInstruction.qrCodeUrl}
+                        alt="QR chuyển khoản SePay"
+                        style={{ width: "100%", maxWidth: "220px", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)" }}
+                      />
+                    </div>
+
+                    <div style={{ background: "#F0F9FF", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.25rem", border: "1.5px solid #BAE6FD" }}>
+                      <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0369A1", marginBottom: "0.5rem" }}>💳 Hoặc chuyển khoản thủ công:</p>
+                      <ol style={{ margin: 0, padding: "0 0 0 1.25rem", fontSize: "0.8125rem", color: "#0C4A6E", lineHeight: 1.7 }}>
+                        <li>Ngân hàng: <strong>{paymentInstruction.bankName}</strong></li>
+                        <li>Số tài khoản: <strong>{paymentInstruction.bankAccountNumber}</strong> ({paymentInstruction.accountHolderName})</li>
+                        <li>Số tiền: <strong>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(paymentInstruction.amount)}</strong></li>
+                        <li>Nội dung (bắt buộc đúng nguyên văn): <strong style={{ fontFamily: "monospace" }}>{paymentInstruction.paymentCode}</strong></li>
+                      </ol>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.875rem", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
+                      <span className="spinner" style={{ width: "1rem", height: "1rem", border: "2px solid var(--color-border)", borderTopColor: "var(--color-accent)", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                      Đang chờ xác nhận thanh toán tự động…
+                    </div>
+
+                    <p style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.5rem" }}>
+                      Hệ thống tự động xác nhận trong vài giây sau khi SePay nhận được chuyển khoản — không cần tải lại trang.
+                    </p>
+                  </>
                 ) : (
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "1.25rem" }}>
@@ -246,31 +306,9 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                       <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>/ tháng · Hủy bất cứ lúc nào</p>
                     </div>
 
-                    {/* Payment instruction */}
-                    <div style={{ background: "#F0F9FF", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.25rem", border: "1.5px solid #BAE6FD" }}>
-                      <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0369A1", marginBottom: "0.5rem" }}>💳 Hướng dẫn thanh toán:</p>
-                      <ol style={{ margin: 0, padding: "0 0 0 1.25rem", fontSize: "0.8125rem", color: "#0C4A6E", lineHeight: 1.7 }}>
-                        <li>Chuyển khoản đến tài khoản: <strong>MB Bank - 1234567890</strong></li>
-                        <li>Nội dung: <strong>VIP {authorId.slice(0, 8).toUpperCase()}</strong></li>
-                        <li>Nhập mã giao dịch vào ô bên dưới</li>
-                      </ol>
-                    </div>
-
-                    {/* Reference code input */}
-                    <div style={{ marginBottom: "1rem" }}>
-                      <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>
-                        Mã giao dịch (Reference Code) *
-                      </label>
-                      <input
-                        type="text"
-                        value={referenceCode}
-                        onChange={e => setReferenceCode(e.target.value)}
-                        placeholder="Nhập mã giao dịch ngân hàng..."
-                        style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-primary)", fontSize: "0.9rem", boxSizing: "border-box", outline: "none", fontFamily: "monospace" }}
-                        onFocus={e => (e.target.style.borderColor = "var(--color-accent)")}
-                        onBlur={e => (e.target.style.borderColor = "var(--color-border)")}
-                      />
-                    </div>
+                    <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+                      Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt.
+                    </p>
 
                     {error && (
                       <p style={{ fontSize: "0.875rem", color: "#DC2626", background: "#FEE2E2", padding: "0.625rem 1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem" }}>{error}</p>
@@ -279,17 +317,13 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                     {loggedIn ? (
                       <button onClick={handleSubscribe} disabled={submitting} className="btn btn-accent"
                         style={{ width: "100%", justifyContent: "center", padding: "0.875rem", fontSize: "1rem", opacity: submitting ? 0.7 : 1 }}>
-                        {submitting ? "Đang gửi…" : "🔓 Gửi yêu cầu đăng ký VIP"}
+                        {submitting ? "Đang tạo giao dịch…" : "🔓 Đăng ký VIP"}
                       </button>
                     ) : (
                       <Link href="/dang-nhap" className="btn btn-accent" style={{ textDecoration: "none", display: "flex", justifyContent: "center", width: "100%", padding: "0.875rem", fontSize: "1rem" }}>
                         Đăng nhập để đăng ký VIP
                       </Link>
                     )}
-
-                    <p style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.875rem" }}>
-                      Yêu cầu sẽ được admin xác nhận trong 24 giờ
-                    </p>
                   </>
                 )}
               </div>
@@ -303,6 +337,9 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
         @media (max-width: 900px) {
           .container > div { grid-template-columns: 1fr !important; }
           aside, [style*="position: sticky"] { position: static !important; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>

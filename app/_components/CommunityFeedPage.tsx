@@ -14,7 +14,7 @@ import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 const TRENDING_TAGS = ["#OrigamiViệtNam", "#HạcGiấy", "#Origami3D", "#TrẻEm", "#ModularOrigami", "#HoaGiấy", "#NghệThuậtGấp"];
 
 function timeAgo(iso: string) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const s = Math.floor((Date.now() - new Date(iso.endsWith("Z") ? iso : iso + "Z").getTime()) / 1000);
   if (s < 60) return "vừa xong";
   if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
   if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
@@ -56,6 +56,7 @@ function PostCard({
   const [liked, setLiked] = useState(post.isLikedByCurrentUser);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liking, setLiking] = useState(false);
+  const [likeError, setLikeError] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const profile = profileCache.get(post.authorId) ?? null;
 
@@ -71,10 +72,14 @@ function PostCard({
   async function handleLike() {
     if (!token || liking) return;
     setLiking(true);
+    setLikeError(null);
     const was = liked;
     setLiked(!was); setLikeCount(c => was ? c - 1 : c + 1);
     try { await communityPostsApi.toggleLike(token, post.id, "CommunityPost"); }
-    catch { setLiked(was); setLikeCount(c => was ? c + 1 : c - 1); }
+    catch (err: unknown) {
+      setLiked(was); setLikeCount(c => was ? c + 1 : c - 1);
+      setLikeError((err as { message?: string })?.message ?? "Không thể thích bài viết. Vui lòng thử lại.");
+    }
     finally { setLiking(false); }
   }
 
@@ -183,6 +188,10 @@ function PostCard({
         )}
       </div>
 
+      {likeError && (
+        <div style={{ padding: "0 1.25rem 0.75rem", fontSize: "0.8rem", color: "var(--color-error)" }}>{likeError}</div>
+      )}
+
       {/* Report Modal */}
       <ReportModal
         isOpen={showReport}
@@ -247,7 +256,11 @@ export default function CommunityFeedPage() {
       // Backend trả về PagedResult<CommunityPostDto> với field .items và .totalPages
       const safeItems = Array.isArray(result) ? result : (result?.items ?? []);
       const pages = (result as { totalPages?: number })?.totalPages ?? (safeItems.length >= PAGE_SIZE ? pageNum + 1 : pageNum);
-      setPosts(prev => append ? [...prev, ...safeItems] : safeItems);
+      // Luôn hiển thị bài mới đăng trước, không phụ thuộc thứ tự trả về từ backend
+      setPosts(prev => {
+        const combined = append ? [...prev, ...safeItems] : safeItems;
+        return [...combined].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      });
       setTotalPages(pages);
     } catch {
       setError("Không thể tải bài viết. Vui lòng thử lại.");
@@ -370,7 +383,6 @@ export default function CommunityFeedPage() {
                     {[
                       { href: "/cong-dong/tao-bai?type=photo", icon: "📸", label: "Đăng ảnh tác phẩm" },
                       { href: "/cong-dong/tao-bai?type=achievement", icon: "🏅", label: "Chia sẻ thành tựu" },
-                      { href: "/cong-dong/tao-bai?type=tutorial", icon: "📚", label: "Giới thiệu hướng dẫn" },
                     ].map(item => (
                       <Link key={item.href} href={item.href}
                         style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.75rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "all var(--transition-fast)" }}

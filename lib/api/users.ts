@@ -126,5 +126,15 @@ export const usersApi = {
       { token }
     );
   },
+
+  /**
+   * GET /api/users/top-creators — Nhà sáng tạo nổi bật, xếp hạng theo số người theo dõi (public).
+   */
+  getTopCreators(count = 4, token?: string): Promise<FollowerUserDto[]> {
+    return request<FollowerUserDto[]>(
+      `/api/users/top-creators?count=${count}`,
+      { token }
+    );
+  },
 };
 

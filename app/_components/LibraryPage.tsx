@@ -12,7 +12,7 @@ import { isValidImageUrl } from "@/lib/utils";
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
 const TYPES = ["Tất cả", "Miễn phí", "VIP"];
 const SORTS = [{ label: "Mới nhất", value: "date" }, { label: "Phổ biến nhất", value: "likes" }];
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 10; // 2 hàng x 5 bài / trang
 
 function mapTypeToBe(type: string): string | undefined {
   if (type === "Miễn phí") return "Free";
@@ -31,9 +31,17 @@ const AUTHOR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#
 function authorColor(name: string) { return AUTHOR_COLORS[name.charCodeAt(0) % AUTHOR_COLORS.length]; }
 
 function getDiffClass(d?: string | null) {
-  if (d === "Dễ" || d === "Easy") return "badge-easy";
-  if (d === "Trung bình" || d === "Medium") return "badge-medium";
+  const v = d?.toLowerCase();
+  if (v === "dễ" || v === "easy" || v === "beginner") return "badge-easy";
+  if (v === "trung bình" || v === "medium" || v === "intermediate") return "badge-medium";
   return "badge-hard";
+}
+function getDiffLabel(d?: string | null) {
+  const v = d?.toLowerCase();
+  if (v === "dễ" || v === "easy" || v === "beginner") return "Dễ";
+  if (v === "trung bình" || v === "medium" || v === "intermediate") return "Trung bình";
+  if (v === "khó" || v === "hard" || v === "advanced") return "Khó";
+  return d ?? "";
 }
 function getTypeClass(t: string) { return t === "VIP" || t === "vip" ? "badge-vip" : "badge-free"; }
 function getTypeLabel(t: string) { return t === "Free" ? "Miễn phí" : t; }
@@ -245,8 +253,8 @@ export default function LibraryPage() {
 
           {/* ── Loading skeleton ── */}
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "2.5rem" }}>
-              {Array.from({ length: 6 }).map((_, i) => (
+            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem", marginBottom: "2.5rem" }}>
+              {Array.from({ length: 10 }).map((_, i) => (
                 <div key={i} style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", overflow: "hidden", animation: "pulse 1.5s ease-in-out infinite" }}>
                   <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)" }} />
                   <div style={{ padding: "1rem" }}>
@@ -269,7 +277,7 @@ export default function LibraryPage() {
 
           {/* ── Tutorial Grid ── */}
           {!loading && !error && tutorials.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem", marginBottom: "2.5rem" }}>
               {tutorials.map((t) => {
                 const cs = cardStates[t.id] ?? { isLiked: false, likeCount: 0, isSaved: false };
                 return (
@@ -289,7 +297,7 @@ export default function LibraryPage() {
                           {t.title}
                         </h3>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                          <AuthorLink authorId={t.author.id} style={{ gap: "0.5rem" }}>
+                          <AuthorLink authorId={t.author.id} authorName={t.author.displayName} style={{ gap: "0.5rem" }}>
                             <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: authorColor(t.author.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6875rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
                               {t.author.displayName.charAt(0)}
                             </div>
@@ -298,7 +306,7 @@ export default function LibraryPage() {
                           <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>{t.stepCount} bước</span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", flexWrap: "wrap" }}>
-                          {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                          {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{getDiffLabel(t.difficulty)}</span>}
                           <span className="badge badge-category">{t.categoryName}</span>
                         </div>
                       </div>

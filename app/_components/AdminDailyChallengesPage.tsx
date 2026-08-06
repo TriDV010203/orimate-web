@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/daily-challenge";
 import type { ApiError } from "@/lib/api/client";
 import { getToken } from "@/lib/auth";
-import { isValidImageUrl } from "@/lib/utils";
+import { isValidImageUrl, toLocalDateInputValue } from "@/lib/utils";
 
 const STATUS_META: Record<DailyChallengeStatus, { label: string; className: string }> = {
   Scheduled: { label: "Đã lên lịch", className: "badge badge-warning" },
@@ -22,7 +22,7 @@ const STATUS_META: Record<DailyChallengeStatus, { label: string; className: stri
 };
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalDateInputValue();
 }
 
 function formatVN(iso: string) {

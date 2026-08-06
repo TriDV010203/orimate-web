@@ -130,6 +130,19 @@ export const adminApi = {
     });
   },
 
+  createUser(body: {
+    email: string;
+    password: string;
+    displayName: string;
+    role: string;
+  }): Promise<AdminUserResponse> {
+    return request<AdminUserResponse>("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify(body),
+      token: getToken() ?? undefined,
+    });
+  },
+
   assignRole(userId: string, role: string): Promise<{ message: string }> {
     return request<{ message: string }>(
       `/api/admin/users/${userId}/assign-role`,
@@ -294,6 +307,7 @@ export const adminApi = {
     search?: string;
     status?: string;
     categoryId?: number;
+    difficulty?: string;
     isOfficial?: boolean;
     page?: number;
     pageSize?: number;
@@ -302,6 +316,7 @@ export const adminApi = {
     if (params?.search) q.set("search", params.search);
     if (params?.status) q.set("status", params.status);
     if (params?.categoryId) q.set("categoryId", String(params.categoryId));
+    if (params?.difficulty) q.set("difficulty", params.difficulty);
     if (params?.isOfficial !== undefined) q.set("isOfficial", String(params.isOfficial));
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));

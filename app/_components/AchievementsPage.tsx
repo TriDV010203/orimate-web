@@ -39,7 +39,7 @@ function getTimeAgo(dateStr: string): string {
 }
 
 // ── Achievement interface (matches BE data) ──────────────────────────────────
-interface Achievement {
+export interface Achievement {
   id: string;
   tutorialId: string;
   tutorialTitle: string;
@@ -53,7 +53,7 @@ interface Achievement {
   timeAgo: string;
 }
 
-function mapDto(dto: AchievementDto): Achievement {
+export function mapDto(dto: AchievementDto): Achievement {
   return {
     id: dto.id,
     tutorialId: dto.tutorialId,
@@ -71,6 +71,7 @@ function mapDto(dto: AchievementDto): Achievement {
 
 const FILTER_OPTIONS = ["Tất cả", "Công khai", "Riêng tư"] as const;
 type FilterOption = (typeof FILTER_OPTIONS)[number];
+const PAGE_SIZE = 10; // 2 hàng x 5 thành tựu / trang
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
@@ -78,6 +79,7 @@ export default function AchievementsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterOption>("Tất cả");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [page, setPage] = useState(1);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
   const [badges, setBadges] = useState<BadgeDto[]>([]);
@@ -92,7 +94,7 @@ export default function AchievementsPage() {
         setError("Bạn cần đăng nhập để xem thành tựu.");
         return;
       }
-      const result = await achievementsApi.getMine(tok, 1, 50);
+      const result = await achievementsApi.getMine(tok, 1, 200);
       setAchievements(result.items.map(mapDto));
     } catch (e: unknown) {
       setError((e as { message?: string }).message ?? "Không thể tải thành tựu.");
@@ -120,6 +122,14 @@ export default function AchievementsPage() {
     if (activeFilter === "Riêng tư") return !a.isPublic;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [activeFilter]);
 
   const stats = {
     total: achievements.length,
@@ -498,8 +508,8 @@ export default function AchievementsPage() {
               </p>
 
               {viewMode === "grid" ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
-                  {filtered.map((a) => (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.5rem" }}>
+                  {pageItems.map((a) => (
                     <AchievementCard
                       key={a.id}
                       achievement={a}
@@ -509,13 +519,30 @@ export default function AchievementsPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {filtered.map((a) => (
+                  {pageItems.map((a) => (
                     <AchievementListItem
                       key={a.id}
                       achievement={a}
                       onClick={() => setSelectedAchievement(a)}
                     />
                   ))}
+                </div>
+              )}
+
+              {/* ── Pagination ── */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginTop: "2rem" }}>
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === 1 ? 0.5 : 1 }}>← Trước</button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const pageNum = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
+                    return (
+                      <button key={pageNum} onClick={() => setPage(pageNum)}
+                        style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: `1.5px solid ${page === pageNum ? "var(--color-primary)" : "var(--color-border)"}`, background: page === pageNum ? "var(--color-primary)" : "transparent", color: page === pageNum ? "white" : "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === totalPages ? 0.5 : 1 }}>Sau →</button>
                 </div>
               )}
             </>
@@ -778,7 +805,7 @@ function AchievementListItem({
 }
 
 // ── Achievement Detail Modal ──────────────────────────────────────────────────
-function AchievementDetailModal({
+export function AchievementDetailModal({
   achievement: a,
   onClose,
   onDelete,
@@ -791,6 +818,7 @@ function AchievementDetailModal({
 }) {
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(a.note);
+  const [photoUrl, setPhotoUrl] = useState(a.photoUrl ?? "");
   const [isPublic, setIsPublic] = useState(a.isPublic);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -800,7 +828,11 @@ function AchievementDetailModal({
     if (!tok) return;
     setSaving(true);
     try {
-      const updated = await achievementsApi.update(tok, a.id, { note, isPublic });
+      const updated = await achievementsApi.update(tok, a.id, {
+        note,
+        photoUrl: photoUrl.trim() || null,
+        isPublic,
+      });
       onUpdated(updated);
       setEditing(false);
     } catch {
@@ -840,7 +872,7 @@ function AchievementDetailModal({
         {/* Header media */}
         <div
           style={{
-            background: a.photoUrl ? "var(--color-surface-2)" : `linear-gradient(135deg, ${a.bgColor}, ${a.bgColor}cc)`,
+            background: photoUrl ? "var(--color-surface-2)" : `linear-gradient(135deg, ${a.bgColor}, ${a.bgColor}cc)`,
             height: "220px",
             display: "flex",
             alignItems: "center",
@@ -850,9 +882,9 @@ function AchievementDetailModal({
             overflow: "hidden",
           }}
         >
-          {a.photoUrl ? (
+          {photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={a.photoUrl} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={photoUrl} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             "🏅"
           )}
@@ -908,13 +940,22 @@ function AchievementDetailModal({
           {/* Note / Edit area */}
           {editing ? (
             <div style={{ marginBottom: "1.25rem" }}>
+              <ImageUploadField
+                value={photoUrl}
+                onChange={setPhotoUrl}
+                token={getToken() ?? ""}
+                folder="achievements"
+                label="Ảnh tác phẩm"
+                variant="compact"
+                disabled={saving}
+              />
               <textarea
                 className="input-field"
                 rows={4}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Chia sẻ cảm nhận của bạn..."
-                style={{ resize: "vertical", width: "100%", marginBottom: "0.75rem" }}
+                style={{ resize: "vertical", width: "100%", marginTop: "0.75rem", marginBottom: "0.75rem" }}
               />
               <div
                 style={{
@@ -965,7 +1006,7 @@ function AchievementDetailModal({
                 <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
                   {saving ? "Đang lưu…" : "Lưu thay đổi"}
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(false); setNote(a.note); setIsPublic(a.isPublic); }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(false); setNote(a.note); setPhotoUrl(a.photoUrl ?? ""); setIsPublic(a.isPublic); }}>
                   Hủy
                 </button>
               </div>
