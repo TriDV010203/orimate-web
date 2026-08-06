@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { learningPathsApi } from "@/lib/api/learning-paths";
 import type { LearningPathStatusValue } from "@/lib/api/learning-paths";
+import { learningPathModesApi } from "@/lib/api/learning-path-modes";
+import type { LearningPathModeAdminDto } from "@/lib/api/learning-path-modes";
 import type { ApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
@@ -23,6 +25,7 @@ export default function AdminLearningPathsPage() {
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [modeId, setModeId] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -35,12 +38,19 @@ export default function AdminLearningPathsPage() {
 
   const token = getToken() ?? "";
 
+  const { data: modes } = useQuery({
+    queryKey: ["admin-learning-path-modes"],
+    queryFn: () => learningPathModesApi.getAllAdmin(token),
+  });
+  const modeName = (id: string) => modes?.find((m: LearningPathModeAdminDto) => m.id === id)?.name ?? "—";
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-learning-paths", search, status, page],
+    queryKey: ["admin-learning-paths", search, status, modeId, page],
     queryFn: () =>
       learningPathsApi.getAllAdmin(token, {
         search: search || undefined,
         status: status || undefined,
+        modeId: modeId || undefined,
         page,
         pageSize: 10,
       }),
@@ -95,6 +105,16 @@ export default function AdminLearningPathsPage() {
               <option key={value} value={value}>{meta.label}</option>
             ))}
           </select>
+          <select
+            value={modeId}
+            onChange={(e) => { setModeId(e.target.value); setPage(1); }}
+            style={{ padding: "0.625rem 0.75rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", fontSize: "0.875rem", background: "var(--color-surface)", outline: "none", cursor: "pointer" }}
+          >
+            <option value="">Tất cả chế độ</option>
+            {modes?.map((m: LearningPathModeAdminDto) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
           <Link href="/admin/learning-paths/new" className="btn btn-primary" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "0.375rem", whiteSpace: "nowrap" }}>
             <Plus size={16} /> Tạo lộ trình
           </Link>
@@ -107,6 +127,7 @@ export default function AdminLearningPathsPage() {
             <thead>
               <tr>
                 <th>Lộ trình</th>
+                <th>Chế độ</th>
                 <th>Số bài</th>
                 <th>Trạng thái</th>
                 <th>Ngày tạo</th>
@@ -116,14 +137,14 @@ export default function AdminLearningPathsPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="admin-table-loading">
+                  <td colSpan={6} className="admin-table-loading">
                     <Loader2 className="animate-spin" size={28} style={{ margin: "0 auto 0.5rem" }} />
                     <p>Đang nạp dữ liệu...</p>
                   </td>
                 </tr>
               ) : data?.items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="admin-table-empty">
+                  <td colSpan={6} className="admin-table-empty">
                     <Map size={32} style={{ margin: "0 auto 0.5rem" }} />
                     <p>Chưa có lộ trình học nào</p>
                   </td>
@@ -151,6 +172,8 @@ export default function AdminLearningPathsPage() {
                         </div>
                       </div>
                     </td>
+
+                    <td>{p.learningPathModeName || modeName(p.learningPathModeId)}</td>
 
                     <td>{p.itemCount} bài</td>
 

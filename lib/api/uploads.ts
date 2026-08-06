@@ -1,8 +1,13 @@
 // lib/api/uploads.ts — Upload ảnh từ thiết bị lên server (server forward lên Cloudinary, trả về url)
 
 import { request } from "./client";
-
-export type UploadFolder = "tutorials" | "achievements" | "learning-paths" | "community-posts" | "daily-challenge" | "weekly-challenge";
+export type UploadFolder =
+  | "tutorials"
+  | "achievements"
+  | "learning-paths"
+  | "community-posts"
+  | "daily-challenge"
+  | "mode-tests";
 
 export interface UploadImageResponse {
   url: string;

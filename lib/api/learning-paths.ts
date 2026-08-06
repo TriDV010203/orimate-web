@@ -20,6 +20,8 @@ export interface LearningPathItemDto {
 
 export interface LearningPathDto {
   id: string;
+  learningPathModeId: string;
+  learningPathModeName: string;
   title: string;
   description: string;
   coverImageUrl?: string | null;
@@ -32,6 +34,8 @@ export interface LearningPathDto {
 
 export interface LearningPathListItemDto {
   id: string;
+  learningPathModeId: string;
+  learningPathModeName: string;
   title: string;
   description: string;
   coverImageUrl?: string | null;
@@ -52,6 +56,7 @@ export interface LearningPathContextDto {
 }
 
 export interface CreateLearningPathRequest {
+  learningPathModeId: string;
   title: string;
   description: string;
   coverImageUrl?: string | null;
@@ -66,11 +71,13 @@ export const learningPathsApi = {
   /** GET /api/learning-paths — Lộ trình đã xuất bản (Published) */
   getList(params?: {
     search?: string;
+    modeId?: string;
     page?: number;
     pageSize?: number;
   }): Promise<PagedResult<LearningPathListItemDto>> {
     const q = new URLSearchParams();
     if (params?.search) q.set("search", params.search);
+    if (params?.modeId) q.set("modeId", params.modeId);
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";
@@ -92,11 +99,12 @@ export const learningPathsApi = {
   /** GET /api/learning-paths/admin/all — Mọi lộ trình, mọi trạng thái */
   getAllAdmin(
     token: string,
-    params?: { search?: string; status?: string; page?: number; pageSize?: number }
+    params?: { search?: string; status?: string; modeId?: string; page?: number; pageSize?: number }
   ): Promise<PagedResult<LearningPathListItemDto>> {
     const q = new URLSearchParams();
     if (params?.search) q.set("search", params.search);
     if (params?.status) q.set("status", params.status);
+    if (params?.modeId) q.set("modeId", params.modeId);
     if (params?.page) q.set("page", String(params.page));
     if (params?.pageSize) q.set("pageSize", String(params.pageSize));
     const qs = q.toString() ? `?${q.toString()}` : "";

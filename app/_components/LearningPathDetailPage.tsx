@@ -52,30 +52,30 @@ export default function LearningPathDetailPage({ id }: Props) {
 
   useEffect(() => {
     if (!path) return;
-    setCompleted(getCompletedTutorialIds(path.id));
-    setHydrated(true);
 
-    // Đối chiếu với thành tựu thật trên server cho các bài đã có achievement từ trước
-    // (vd. hoàn thành qua Thư viện trước khi ghé lại trang lộ trình).
-    if (!isLoggedIn()) return;
+    if (!isLoggedIn()) {
+      // Khách chưa đăng nhập: chỉ có tiến trình tạm lưu trình duyệt để tham khảo.
+      setCompleted(getCompletedTutorialIds(path.id));
+      setHydrated(true);
+      return;
+    }
+
+    // Đã đăng nhập: Achievement trên server là nguồn dữ liệu chuẩn, THAY THẾ hoàn toàn
+    // localStorage — localStorage lưu theo pathId (không theo user), nên nếu chỉ cộng dồn
+    // (merge) sẽ hiện nhầm bài đã hoàn thành của một tài khoản khác từng dùng máy này.
     const token = getToken()!;
     achievementsApi.getMine(token, 1, 100)
       .then((res) => {
         const achievedTutorialIds = new Set(res.items.map((a) => a.tutorialId));
-        setCompleted((prev) => {
-          const next = new Set(prev);
-          let changed = false;
-          for (const item of path.items) {
-            if (achievedTutorialIds.has(item.tutorialId) && !next.has(item.tutorialId)) {
-              next.add(item.tutorialId);
-              changed = true;
-            }
-          }
-          if (changed) setCompletedTutorialIds(path.id, next);
-          return next;
-        });
+        const next = new Set(path.items.filter((i) => achievedTutorialIds.has(i.tutorialId)).map((i) => i.tutorialId));
+        setCompleted(next);
+        setCompletedTutorialIds(path.id, next);
       })
-      .catch(() => { /* silent — vẫn còn baseline local để hiển thị */ });
+      .catch(() => {
+        // Lỗi mạng: không dùng localStorage cũ (có thể của tài khoản khác) — thà hiện trống còn hơn hiện sai.
+        setCompleted(new Set());
+      })
+      .finally(() => setHydrated(true));
   }, [path]);
 
   if (loading) {

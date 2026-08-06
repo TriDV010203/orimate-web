@@ -7,6 +7,8 @@ import { adminApi } from "@/lib/api/admin";
 import type { AdminTutorialListItemResponse } from "@/lib/api/admin";
 import { learningPathsApi } from "@/lib/api/learning-paths";
 import type { LearningPathStatusValue } from "@/lib/api/learning-paths";
+import { learningPathModesApi } from "@/lib/api/learning-path-modes";
+import type { LearningPathModeAdminDto } from "@/lib/api/learning-path-modes";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
 import ImageUploadField from "./ImageUploadField";
@@ -53,6 +55,8 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
   const [description, setDescription] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [items, setItems] = useState<PathItemForm[]>([]);
+  const [modeId, setModeId] = useState("");
+  const [modes, setModes] = useState<LearningPathModeAdminDto[]>([]);
 
   const [pickerSearchText, setPickerSearchText] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
@@ -82,6 +86,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
         setDescription(path.description);
         setCoverImageUrl(path.coverImageUrl ?? "");
         setStatus(path.status);
+        setModeId(path.learningPathModeId);
         setItems(path.items.map((i) => ({
           tutorialId: i.tutorialId,
           title: i.tutorialTitle,
@@ -100,6 +105,23 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
     return () => { cancelled = true; };
   }, [isEdit, pathId, router, token]);
+
+  // Nạp danh sách chế độ để chọn (mặc định chọn chế độ đầu tiên khi tạo mới)
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await learningPathModesApi.getAllAdmin(token);
+        if (cancelled) return;
+        setModes(res);
+        setModeId((current) => current || res[0]?.id || "");
+      } catch {
+        if (!cancelled) setModes([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
 
   // Debounce ô tìm bài để thêm vào lộ trình
   useEffect(() => {
@@ -160,6 +182,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
     const d = description.trim();
     if (t.length < 5 || t.length > 150) return "Tiêu đề phải từ 5 đến 150 ký tự.";
     if (d.length < 20 || d.length > 1000) return "Mô tả phải từ 20 đến 1000 ký tự.";
+    if (!modeId) return "Vui lòng chọn chế độ cho lộ trình này.";
     return null;
   }
 
@@ -172,6 +195,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
     setSaving(true);
     try {
       const body = {
+        learningPathModeId: modeId,
         title: title.trim(),
         description: description.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
@@ -294,6 +318,21 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
           <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
             <h3 style={{ fontWeight: 700, fontSize: "1rem" }}>Thông tin cơ bản</h3>
+
+            <div className="input-group">
+              <label className="input-label">Chế độ *</label>
+              <select
+                value={modeId}
+                onChange={(e) => setModeId(e.target.value)}
+                className="input-field"
+                style={{ cursor: "pointer" }}
+              >
+                {modes.length === 0 && <option value="">Đang tải...</option>}
+                {modes.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="input-group">
               <label className="input-label">Tiêu đề * <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>(5–150 ký tự)</span></label>

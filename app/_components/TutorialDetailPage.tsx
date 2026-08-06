@@ -502,6 +502,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   // bài hướng dẫn từ nơi khác, dù bài này có thuộc 1 lộ trình đã xuất bản hay không.
   const searchParams = useSearchParams();
   const fromPathId = searchParams.get("tuLoTrinh");
+  // true khi đến từ nút "Xem hướng dẫn" trong panel bài test mở khoá chế độ lộ trình.
+  const cameFromModeTest = searchParams.get("tuBaiTest") === "1";
+  const modeTestModeId = searchParams.get("modeId");
 
   const [tutorial, setTutorial] = useState<TutorialDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -886,6 +889,23 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 >
                   🗺️ Thuộc lộ trình: {pathCtx.pathTitle} · Bài {pathCtx.lessonIndex + 1}/{pathCtx.totalLessons}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                </Link>
+              )}
+
+              {/* Banner "quay lại bài test" — chỉ hiện khi đến từ panel mở khoá chế độ lộ trình */}
+              {cameFromModeTest && (
+                <Link
+                  href={modeTestModeId ? `/lo-trinh?moKhoa=${modeTestModeId}` : "/lo-trinh"}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.5rem",
+                    background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
+                    borderRadius: "var(--radius-full)", padding: "0.375rem 0.875rem",
+                    marginBottom: "0.875rem", textDecoration: "none",
+                    color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                  Quay lại bài test mở khoá lộ trình
                 </Link>
               )}
 

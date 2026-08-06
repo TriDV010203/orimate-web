@@ -98,6 +98,19 @@ export type {
 export { learningPathsApi } from "./learning-paths";
 
 export type {
+  ModeUnlockSubmissionStatusValue,
+  LearningPathModeUnlockTestStatusDto,
+  LearningPathModeDto,
+  LearningPathModeAdminDto,
+  ModeUnlockSubmissionDto,
+  CreateLearningPathModeRequest,
+  UpdateLearningPathModeRequest,
+  UpsertModeUnlockTestRequest,
+  SubmitModeUnlockTestRequest,
+} from "./learning-path-modes";
+export { learningPathModesApi } from "./learning-path-modes";
+
+export type {
   SkillLevelDto,
   StreakDto,
   QuestProgressDto,
