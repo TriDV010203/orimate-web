@@ -754,6 +754,9 @@ body {
   .creators-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  .tutorials-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
 }
 @media (max-width: 900px) {
   .hero-grid {
@@ -764,6 +767,9 @@ body {
   }
   .community-grid {
     grid-template-columns: 1fr !important;
+  }
+  .tutorials-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }
 @media (max-width: 600px) {

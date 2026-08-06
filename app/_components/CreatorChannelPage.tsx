@@ -489,7 +489,7 @@ export default function CreatorChannelPage({ userId }: Props) {
           {activeTab === "about" && (
             <div style={{ maxWidth: "640px", marginBottom: "3rem" }}>
               <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "1.5rem" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.875rem" }}>Về tôi</h3>
+                <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.875rem" }}>Về {profile.displayName}</h3>
                 {profile.bio ? (
                   <p style={{ color: "var(--color-text-secondary)", lineHeight: 1.75, fontSize: "0.9375rem" }}>{profile.bio}</p>
                 ) : (

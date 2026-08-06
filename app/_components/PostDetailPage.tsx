@@ -12,7 +12,7 @@ import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
 function timeAgo(iso: string) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const s = Math.floor((Date.now() - new Date(iso.endsWith("Z") ? iso : iso + "Z").getTime()) / 1000);
   if (s < 60) return "vừa xong";
   if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
   if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
@@ -42,14 +42,19 @@ function CommentItem({
   onDelete: (id: string) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const name = profile?.displayName ?? `#${comment.userId.slice(0, 6).toUpperCase()}`;
   const isOwn = currentUserId === comment.userId;
 
   async function handleDelete() {
     if (!token) return;
     setDeleting(true);
+    setDeleteError(null);
     try { await communityPostsApi.deleteComment(token, comment.id); onDelete(comment.id); }
-    catch { setDeleting(false); }
+    catch (err: unknown) {
+      setDeleting(false);
+      setDeleteError((err as { message?: string })?.message ?? "Không thể xóa bình luận. Vui lòng thử lại.");
+    }
   }
 
   return (
@@ -68,6 +73,7 @@ function CommentItem({
           <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{timeAgo(comment.createdAt)}</span>
         </div>
         <p style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{comment.content}</p>
+        {deleteError && <p style={{ fontSize: "0.75rem", color: "var(--color-error)", marginTop: "0.25rem" }}>{deleteError}</p>}
       </div>
       {isOwn && (
         <button onClick={handleDelete} disabled={deleting}
@@ -95,6 +101,7 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
+  const [likeError, setLikeError] = useState<string | null>(null);
 
   const [comments, setComments] = useState<CommentDto[]>([]);
   const [commentProfiles, setCommentProfiles] = useState<Map<string, CreatorProfileDto>>(new Map());
@@ -167,10 +174,14 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
   async function handleLike() {
     if (!token || liking) return;
     setLiking(true);
+    setLikeError(null);
     const was = liked;
     setLiked(!was); setLikeCount(c => was ? c - 1 : c + 1);
     try { await communityPostsApi.toggleLike(token, postId, "CommunityPost"); }
-    catch { setLiked(was); setLikeCount(c => was ? c + 1 : c - 1); }
+    catch (err: unknown) {
+      setLiked(was); setLikeCount(c => was ? c + 1 : c - 1);
+      setLikeError((err as { message?: string })?.message ?? "Không thể thích bài viết. Vui lòng thử lại.");
+    }
     finally { setLiking(false); }
   }
 
@@ -280,6 +291,9 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
                 💬 {comments.length} bình luận
               </span>
             </div>
+            {likeError && (
+              <div style={{ padding: "0 1.5rem 1rem", fontSize: "0.8rem", color: "var(--color-error)" }}>{likeError}</div>
+            )}
           </article>
 
           {/* Comments section */}

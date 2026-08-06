@@ -3,24 +3,38 @@
 import { useRouter } from "next/navigation";
 import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
 
+// Tên hiển thị của tài khoản hệ thống (Admin/Manager đăng bài) — không có trang cá nhân riêng.
+const SYSTEM_AUTHOR_NAME = "Đội ngũ OriGami";
+
 // Bọc avatar/tên tác giả để bấm vào là sang trang cá nhân /kenh/{authorId}.
 // Dùng span + onClick (thay vì next/link) để an toàn khi lồng bên trong 1 <Link> khác
 // (ví dụ card tutorial đã link sang trang chi tiết bài) mà không bị lỗi <a> lồng <a>.
 export default function AuthorLink({
   authorId,
+  authorName,
   children,
   style,
 }: {
   authorId: string;
+  authorName?: string;
   children: ReactNode;
   style?: CSSProperties;
 }) {
   const router = useRouter();
+  const isSystemAuthor = authorName?.trim() === SYSTEM_AUTHOR_NAME;
 
   function go(e: MouseEvent | KeyboardEvent) {
     e.preventDefault();
     e.stopPropagation();
     router.push(`/kenh/${authorId}`);
+  }
+
+  if (isSystemAuthor) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", ...style }}>
+        {children}
+      </span>
+    );
   }
 
   return (

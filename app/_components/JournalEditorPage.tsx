@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
+import { toLocalDateInputValue } from "@/lib/utils";
 
 const TUTORIAL_OPTIONS = [
   { id: "rong-origami-3d", title: "Rồng Origami 3D", emoji: "🐉" },
@@ -28,7 +29,7 @@ export default function JournalEditorPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(toLocalDateInputValue());
   const [mood, setMood] = useState("😊");
   const [isPublic, setIsPublic] = useState(true);
   const [isAchievement, setIsAchievement] = useState(false);

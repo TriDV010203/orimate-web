@@ -16,6 +16,8 @@ import {
   Search,
   Pencil,
   ChevronRight,
+  Plus,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
@@ -40,6 +42,8 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState("");
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", keyword, page],
@@ -76,6 +80,29 @@ export default function AdminUsersPage() {
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi khi phân quyền"),
   });
+
+  const createUserMut = useMutation({
+    mutationFn: ({ email, password, displayName, role }: { email: string; password: string; displayName: string; role: string }) =>
+      adminApi.createUser({ email, password, displayName, role }),
+    onSuccess: () => {
+      toast.success("Đã tạo tài khoản mới!");
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setAddOpen(false);
+      setAddError(null);
+    },
+    onError: (error: unknown) => setAddError((error as ApiError).message || "Lỗi khi tạo tài khoản"),
+  });
+
+  const handleCreateUser = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const email = (form.get("email") as string).trim();
+    const password = form.get("password") as string;
+    const displayName = (form.get("displayName") as string).trim();
+    const role = form.get("role") as string;
+    setAddError(null);
+    createUserMut.mutate({ email, password, displayName, role });
+  };
 
   const isMutating = suspendMut.isPending || activateMut.isPending || assignRoleMut.isPending;
 
@@ -194,15 +221,25 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <div className="input-with-icon" style={{ minWidth: 260 }}>
-          <Search className="input-icon" size={16} />
-          <input
-            type="text"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Tìm kiếm email, tên hiển thị..."
-            className="input-field"
-          />
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <div className="input-with-icon" style={{ minWidth: 260 }}>
+            <Search className="input-icon" size={16} />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Tìm kiếm email, tên hiển thị..."
+              className="input-field"
+            />
+          </div>
+          <button
+            onClick={() => { setAddError(null); setAddOpen(true); }}
+            className="btn btn-primary"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <Plus size={16} />
+            Thêm tài khoản
+          </button>
         </div>
       </div>
 
@@ -317,6 +354,76 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+
+      {addOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+          onClick={() => setAddOpen(false)}
+        >
+          <div className="card" style={{ padding: "1.5rem", maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem" }}>
+              <h2 style={{ fontWeight: 800, fontSize: "1.125rem" }}>Thêm tài khoản mới</h2>
+              <button
+                onClick={() => setAddOpen(false)}
+                className="admin-icon-action"
+                aria-label="Đóng"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser}>
+              <div className="admin-form-grid">
+                <div className="input-group">
+                  <label className="input-label" htmlFor="add-displayName">
+                    Tên hiển thị <span style={{ color: "#E03131" }}>*</span>
+                  </label>
+                  <input id="add-displayName" name="displayName" type="text" required maxLength={60} className="input-field" placeholder="Tên hiển thị" />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label" htmlFor="add-email">
+                    Email <span style={{ color: "#E03131" }}>*</span>
+                  </label>
+                  <input id="add-email" name="email" type="email" required className="input-field" placeholder="ten@example.com" />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label" htmlFor="add-password">
+                    Mật khẩu <span style={{ color: "#E03131" }}>*</span>
+                  </label>
+                  <input id="add-password" name="password" type="password" required minLength={6} className="input-field" placeholder="Tối thiểu 6 ký tự" />
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label" htmlFor="add-role">Phân quyền</label>
+                  <select id="add-role" name="role" defaultValue="User" className="input-field">
+                    <option value="Admin">Quản trị viên</option>
+                    <option value="Manager">Người duyệt bài</option>
+                    <option value="User">Thành viên</option>
+                  </select>
+                </div>
+              </div>
+
+              {addError && (
+                <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "var(--radius-md)", padding: "0.75rem 1rem", color: "#DC2626", fontSize: "0.875rem", marginTop: "1rem" }}>
+                  {addError}
+                </div>
+              )}
+
+              <div className="admin-form-actions">
+                <button type="button" onClick={() => setAddOpen(false)} className="btn btn-ghost">
+                  Hủy bỏ
+                </button>
+                <button type="submit" disabled={createUserMut.isPending} className="btn btn-primary">
+                  {createUserMut.isPending && <Loader2 size={16} className="animate-spin" />}
+                  Tạo tài khoản
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,9 +16,17 @@ function authorColor(name: string) { return AUTHOR_COLORS[name.charCodeAt(0) % A
 function getDiffClass(d?: string | null) {
   if (!d) return "badge-easy";
   const l = d.toLowerCase();
-  if (l === "dễ" || l === "easy") return "badge-easy";
-  if (l === "trung bình" || l === "medium") return "badge-medium";
+  if (l === "dễ" || l === "easy" || l === "beginner") return "badge-easy";
+  if (l === "trung bình" || l === "medium" || l === "intermediate") return "badge-medium";
   return "badge-hard";
+}
+function getDiffLabel(d?: string | null) {
+  if (!d) return "";
+  const l = d.toLowerCase();
+  if (l === "dễ" || l === "easy" || l === "beginner") return "Dễ";
+  if (l === "trung bình" || l === "medium" || l === "intermediate") return "Trung bình";
+  if (l === "khó" || l === "hard" || l === "advanced") return "Khó";
+  return d;
 }
 function getTypeClass(t: string) { return t?.toLowerCase() === "vip" ? "badge-vip" : "badge-free"; }
 function getTypeLabel(t: string) { return t?.toLowerCase() === "free" ? "Miễn phí" : t; }
@@ -33,6 +41,8 @@ function formatSavedAt(dateStr: string): string {
   if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
   return `${Math.floor(diffDays / 30)} tháng trước`;
 }
+
+const PAGE_SIZE = 10; // 2 hàng x 5 bài / trang
 
 function SkeletonCard() {
   return (
@@ -57,6 +67,7 @@ export default function WishlistPage() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<"all" | "free" | "vip">("all");
   const [sortBy, setSortBy] = useState<"recent" | "name">("recent");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -71,7 +82,7 @@ export default function WishlistPage() {
     setError(null);
     try {
       const token = getToken()!;
-      const result = await wishlistsApi.getMyWishlist(token, { pageSize: 100 });
+      const result = await wishlistsApi.getMyWishlist(token, { pageSize: 300 });
       const tutList: TutorialListItemDto[] = [];
       const atMap: Record<string, string> = {};
       for (const item of result.items) {
@@ -118,6 +129,14 @@ export default function WishlistPage() {
       return at(b.id) - at(a.id);
     });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [filterType, sortBy]);
+
   return (
     <>
       <Navbar />
@@ -159,8 +178,8 @@ export default function WishlistPage() {
 
           {/* Loading skeleton */}
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
-              {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
+              {Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           )}
 
@@ -173,10 +192,10 @@ export default function WishlistPage() {
             </div>
           )}
 
-          {/* Grid */}
+          {/* Grid (2 hàng x 5 bài / trang) */}
           {!loading && !error && filtered.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
-              {filtered.map((t) => (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
+              {pageItems.map((t) => (
                 <article key={t.id} className="card" style={{ overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
                   <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                     <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
@@ -198,7 +217,7 @@ export default function WishlistPage() {
                         {t.title}
                       </h3>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                        <AuthorLink authorId={t.author.id} style={{ gap: "0.5rem" }}>
+                        <AuthorLink authorId={t.author.id} authorName={t.author.displayName} style={{ gap: "0.5rem" }}>
                           <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: authorColor(t.author.displayName), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 700, color: "white", flexShrink: 0 }}>
                             {t.author.displayName.charAt(0)}
                           </div>
@@ -207,7 +226,7 @@ export default function WishlistPage() {
                         <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước</span>
                       </div>
                       <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
-                        {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                        {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{getDiffLabel(t.difficulty)}</span>}
                         <span className="badge badge-category">{t.categoryName}</span>
                       </div>
                     </div>
@@ -249,6 +268,23 @@ export default function WishlistPage() {
                   </div>
                 </article>
               ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && !error && totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginTop: "2rem" }}>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === 1 ? 0.5 : 1 }}>← Trước</button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const pageNum = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
+                return (
+                  <button key={pageNum} onClick={() => setPage(pageNum)}
+                    style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: `1.5px solid ${page === pageNum ? "var(--color-primary)" : "var(--color-border)"}`, background: page === pageNum ? "var(--color-primary)" : "transparent", color: page === pageNum ? "white" : "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === totalPages ? 0.5 : 1 }}>Sau →</button>
             </div>
           )}
 

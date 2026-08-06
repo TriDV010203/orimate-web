@@ -7,17 +7,17 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { useEffect, useState, useCallback } from "react";
-import { tutorialsApi, communityPostsApi, wishlistsApi, dailyChallengeApi, type TutorialListItemDto, type DailyChallengeDto } from "@/lib/api";
+import { tutorialsApi, communityPostsApi, wishlistsApi, dailyChallengeApi, usersApi, type TutorialListItemDto, type DailyChallengeDto, type FollowerUserDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
 import { DIFFICULTY_META, useCountdownToMidnightGmt7 } from "./DailyChallengePage";
 
-const CREATORS = [
-  { name: "Quang Minh", tutorials: 48, followers: "12.4K", color: "#2D6A4F", initial: "QM", tag: "Origami Nâng cao" },
-  { name: "Thu Hương", tutorials: 32, followers: "8.7K", color: "#D4713B", initial: "TH", tag: "Hoa & Nghệ thuật" },
-  { name: "Hoàng Nam", tutorials: 61, followers: "21.3K", color: "#2C7DA0", initial: "HN", tag: "Origami 3D" },
-  { name: "Lan Anh", tutorials: 27, followers: "6.2K", color: "#9B59B6", initial: "LA", tag: "Origami trẻ em" },
-];
+const CREATOR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#C0392B", "#16A085"];
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+  return String(n);
+}
 
 const STATS = [
   { num: "10K+", label: "Bài hướng dẫn" },
@@ -40,9 +40,9 @@ const FALLBACK_COLORS = [
 function getDiffClass(difficulty?: string | null) {
   if (!difficulty) return "badge-easy";
   const d = difficulty.toLowerCase();
-  if (d === "dễ" || d === "easy") return "badge-easy";
-  if (d === "trung bình" || d === "medium") return "badge-medium";
-  if (d === "khó" || d === "hard") return "badge-hard";
+  if (d === "dễ" || d === "easy" || d === "beginner") return "badge-easy";
+  if (d === "trung bình" || d === "medium" || d === "intermediate") return "badge-medium";
+  if (d === "khó" || d === "hard" || d === "advanced") return "badge-hard";
   return "badge-easy";
 }
 function getTypeClass(type: string) { return type?.toLowerCase() === "vip" ? "badge-vip" : "badge-free"; }
@@ -50,9 +50,9 @@ function getTypeLabel(type: string) { return type?.toLowerCase() === "vip" ? "VI
 function getDiffLabel(difficulty?: string | null) {
   if (!difficulty) return "Dễ";
   const d = difficulty.toLowerCase();
-  if (d === "easy") return "Dễ";
-  if (d === "medium") return "Trung bình";
-  if (d === "hard") return "Khó";
+  if (d === "dễ" || d === "easy" || d === "beginner") return "Dễ";
+  if (d === "trung bình" || d === "medium" || d === "intermediate") return "Trung bình";
+  if (d === "khó" || d === "hard" || d === "advanced") return "Khó";
   return difficulty;
 }
 
@@ -164,13 +164,15 @@ export default function HomePage() {
   const [activeFilter, setActiveFilter] = useState<string>("Tất cả");
   const [loggedIn, setLoggedIn] = useState(false);
   const [cardStates, setCardStates] = useState<Record<string, CardState>>({});
+  const [creators, setCreators] = useState<FollowerUserDto[]>([]);
+  const [creatorsLoading, setCreatorsLoading] = useState(true);
 
   useEffect(() => { setLoggedIn(isLoggedIn()); }, []);
 
   useEffect(() => {
     const token = isLoggedIn() ? getToken() ?? undefined : undefined;
     // Lấy tutorial nổi bật nhất theo lượt like
-    tutorialsApi.getList({ pageSize: 8, sortBy: "likes" }, token)
+    tutorialsApi.getList({ pageSize: 5, sortBy: "likes" }, token)
       .then((res) => {
         setTutorials(res.items);
         const states: Record<string, CardState> = {};
@@ -186,6 +188,34 @@ export default function HomePage() {
       .catch(() => setTutorials([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const token = isLoggedIn() ? getToken() ?? undefined : undefined;
+    // Nhà sáng tạo nổi bật — xếp hạng theo số người theo dõi (BE)
+    usersApi.getTopCreators(4, token)
+      .then(setCreators)
+      .catch(() => setCreators([]))
+      .finally(() => setCreatorsLoading(false));
+  }, []);
+
+  const handleFollowCreator = useCallback(async (creatorId: string) => {
+    if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
+    const token = getToken()!;
+    const prev = creators.find((c) => c.userId === creatorId);
+    if (!prev) return;
+    // Optimistic update
+    setCreators((cs) => cs.map((c) =>
+      c.userId === creatorId
+        ? { ...c, isFollowing: !c.isFollowing, followerCount: c.followerCount + (c.isFollowing ? -1 : 1) }
+        : c
+    ));
+    try {
+      await usersApi.toggleFollow(token, creatorId);
+    } catch (err) {
+      console.error("[follow] failed:", err);
+      setCreators((cs) => cs.map((c) => (c.userId === creatorId ? prev : c)));
+    }
+  }, [creators]);
 
   const handleLike = useCallback(async (tutorialId: string) => {
     if (!isLoggedIn()) { window.location.href = "/dang-nhap"; return; }
@@ -338,9 +368,9 @@ export default function HomePage() {
             </div>
 
             {/* Cards grid */}
-            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
+            <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
               {loading
-                ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+                ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
                 : (displayTutorials.length === 0
                     ? (
                       <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", color: "var(--color-text-muted)" }}>
@@ -372,7 +402,7 @@ export default function HomePage() {
                               </div>
                               <div style={{ padding: "1rem 1rem 0.5rem" }}>
                                 <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.5rem", color: "var(--color-text-primary)", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{t.title}</h3>
-                                <AuthorLink authorId={t.author.id} style={{ gap: "0.5rem", marginBottom: "0.5rem" }}>
+                                <AuthorLink authorId={t.author.id} authorName={t.author.displayName} style={{ gap: "0.5rem", marginBottom: "0.5rem" }}>
                                   <div style={{ width: "1.75rem", height: "1.75rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "0.6875rem", fontWeight: 700, flexShrink: 0 }}>
                                     {initials}
                                   </div>
@@ -488,28 +518,54 @@ export default function HomePage() {
               <p className="section-subtitle">Những nhà sáng tạo được yêu thích nhất trên OriGami</p>
             </div>
             <div className="creators-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "1.25rem" }}>
-              {CREATORS.map((c) => (
-                <div key={c.name} className="card" style={{ padding: "1.5rem", textAlign: "center" }}>
-                  <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: c.color, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "1.125rem", margin: "0 auto 1rem", boxShadow: `0 4px 16px ${c.color}40` }}>
-                    {c.initial}
-                  </div>
-                  <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.25rem" }}>{c.name}</h3>
-                  <span className="badge badge-category" style={{ marginBottom: "1rem", display: "inline-block" }}>{c.tag}</span>
-                  <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginBottom: "1.125rem" }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{c.tutorials}</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Bài viết</div>
+              {creatorsLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="card" style={{ padding: "1.5rem", textAlign: "center" }}>
+                      <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: "var(--color-surface-2)", margin: "0 auto 1rem", animation: "pulse 1.5s infinite" }} />
+                      <div style={{ width: "70%", height: "1rem", background: "var(--color-surface-2)", borderRadius: "4px", margin: "0 auto 0.75rem", animation: "pulse 1.5s infinite" }} />
+                      <div style={{ width: "90%", height: "2.5rem", background: "var(--color-surface-2)", borderRadius: "var(--radius-sm)", margin: "0 auto", animation: "pulse 1.5s infinite" }} />
                     </div>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{c.followers}</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Người theo dõi</div>
-                    </div>
+                  ))
+                : creators.length === 0
+                ? (
+                  <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
+                    Chưa có nhà sáng tạo nổi bật. Hãy là người đầu tiên được theo dõi!
                   </div>
-                  <button className="btn btn-outline btn-sm" style={{ width: "100%" }} id={`follow-${c.name.replace(/\s/g, "-")}`}>
-                    + Theo dõi
-                  </button>
-                </div>
-              ))}
+                )
+                : creators.map((c, idx) => {
+                    const color = CREATOR_COLORS[idx % CREATOR_COLORS.length];
+                    const initial = c.displayName.split(" ").map((n) => n[0]).slice(-2).join("").toUpperCase();
+                    return (
+                      <div key={c.userId} className="card" style={{ padding: "1.5rem", textAlign: "center" }}>
+                        <AuthorLink authorId={c.userId} authorName={c.displayName} style={{ flexDirection: "column", display: "flex" }}>
+                          <div style={{ width: "4rem", height: "4rem", borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "1.125rem", margin: "0 auto 1rem", boxShadow: `0 4px 16px ${color}40`, overflow: "hidden" }}>
+                            {isValidImageUrl(c.avatarUrl) ? (
+                              <Image src={c.avatarUrl} alt={c.displayName} width={64} height={64} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+                            ) : initial}
+                          </div>
+                          <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.25rem" }}>{c.displayName}</h3>
+                        </AuthorLink>
+                        <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginBottom: "1.125rem", marginTop: "0.75rem" }}>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{c.tutorialCount}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Bài viết</div>
+                          </div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)" }}>{formatCount(c.followerCount)}</div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>Người theo dõi</div>
+                          </div>
+                        </div>
+                        <button
+                          className={`btn btn-sm ${c.isFollowing ? "btn-outline" : "btn-primary"}`}
+                          style={{ width: "100%" }}
+                          id={`follow-${c.userId}`}
+                          onClick={() => handleFollowCreator(c.userId)}
+                        >
+                          {c.isFollowing ? "✓ Đang theo dõi" : "+ Theo dõi"}
+                        </button>
+                      </div>
+                    );
+                  })}
             </div>
           </div>
         </section>

@@ -141,9 +141,9 @@ export default function Navbar() {
           >
             {[
               { href: "/huong-dan", label: "Thư viện" },
-              { href: "/lo-trinh", label: "Lộ trình", badge: "Mới" },
+              { href: "/lo-trinh", label: "Lộ trình" },
               { href: "/cong-dong", label: "Cộng đồng" },
-              { href: "/thach-thuc", label: "Thử thách", badge: "Mới" },
+              { href: "/thach-thuc", label: "Thử thách" },
               { href: "/cua-hang", label: "Cửa hàng" },
             ].map((link) => (
               <Link
@@ -428,7 +428,7 @@ export default function Navbar() {
                           onClick={() => setUserDropdownOpen(false)}
                         />
                         <DropdownItem
-                          href="/huong-dan/cua-toi"
+                          href="/studio"
                           icon="📚"
                           label="Bài hướng dẫn của tôi"
                           onClick={() => setUserDropdownOpen(false)}
