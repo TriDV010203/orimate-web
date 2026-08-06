@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
@@ -40,9 +39,14 @@ export default function LoginPage() {
     setResendStatus("idle");
     try {
       const data = await authApi.login(email.trim(), password);
-      saveSession(data, remember);
+      saveSession(data, true);
       window.dispatchEvent(new Event("authChange"));
-      router.push("/");
+      const roles = data.roles ?? [];
+      if (roles.includes("Admin") || roles.includes("Manager")) {
+        router.push("/admin");
+      } else {
+        router.push("/");
+      }
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.status === 401 || apiErr.status === 400) {
@@ -230,19 +234,6 @@ export default function LoginPage() {
                   Quên mật khẩu?
                 </Link>
               </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <input
-                type="checkbox"
-                id="remember-me"
-                className="checkbox-custom"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-              />
-              <label htmlFor="remember-me" style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                Ghi nhớ đăng nhập
-              </label>
             </div>
 
             <button

@@ -10,7 +10,7 @@ import type { LearningPathStatusValue } from "@/lib/api/learning-paths";
 import { learningPathModesApi } from "@/lib/api/learning-path-modes";
 import type { LearningPathModeAdminDto } from "@/lib/api/learning-path-modes";
 import { getToken } from "@/lib/auth";
-import { isValidImageUrl } from "@/lib/utils";
+import { isValidImageUrl, diffLabel, DIFFICULTY_OPTIONS } from "@/lib/utils";
 import ImageUploadField from "./ImageUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2, Search, Rocket, Archive } from "lucide-react";
 import toast from "react-hot-toast";
@@ -29,14 +29,6 @@ const STATUS_META: Record<LearningPathStatusValue, { label: string; badge: strin
   Published: { label: "Đã xuất bản", badge: "badge-success" },
   Archived: { label: "Đã lưu trữ", badge: "badge-danger" },
 };
-
-function diffLabel(d: string) {
-  const l = d.toLowerCase();
-  if (l === "beginner") return "Dễ";
-  if (l === "intermediate") return "Trung bình";
-  if (l === "advanced") return "Khó";
-  return d;
-}
 
 interface Props {
   /** Khi có giá trị: chế độ sửa lộ trình đã tồn tại. Khi undefined: tạo lộ trình mới. */
@@ -60,6 +52,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
   const [pickerSearchText, setPickerSearchText] = useState("");
   const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerDifficulty, setPickerDifficulty] = useState("");
   const [pickerResults, setPickerResults] = useState<AdminTutorialListItemResponse[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
 
@@ -140,6 +133,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
           search: pickerSearch || undefined,
           status: "Published",
           isOfficial: true,
+          difficulty: pickerDifficulty || undefined,
           page: 1,
           pageSize: 20,
         });
@@ -151,7 +145,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [pickerSearch, token]);
+  }, [pickerSearch, pickerDifficulty, token]);
 
   function addItem(t: AdminTutorialListItemResponse) {
     if (items.some((i) => i.tutorialId === t.id)) return;
@@ -353,15 +347,25 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
           <div className="card" style={{ padding: "1.25rem", minWidth: 0 }}>
             <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.875rem" }}>Thêm bài hướng dẫn</h3>
-            <div className="input-with-icon" style={{ marginBottom: "0.875rem" }}>
-              <Search className="input-icon" size={16} />
-              <input
-                type="text"
-                value={pickerSearchText}
-                onChange={(e) => setPickerSearchText(e.target.value)}
-                placeholder="Tìm bài official đã xuất bản..."
-                className="input-field"
-              />
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.875rem" }}>
+              <div className="input-with-icon" style={{ flex: 1 }}>
+                <Search className="input-icon" size={16} />
+                <input
+                  type="text"
+                  value={pickerSearchText}
+                  onChange={(e) => setPickerSearchText(e.target.value)}
+                  placeholder="Tìm bài official đã xuất bản..."
+                  className="input-field"
+                />
+              </div>
+              <select
+                value={pickerDifficulty}
+                onChange={(e) => setPickerDifficulty(e.target.value)}
+                style={{ padding: "0.625rem 0.75rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", fontSize: "0.875rem", background: "var(--color-surface)", cursor: "pointer" }}
+              >
+                <option value="">Mọi độ khó</option>
+                {DIFFICULTY_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </select>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: 260, overflowY: "auto" }}>
               {pickerLoading ? (
@@ -384,6 +388,7 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
                       <span style={{ flex: 1, minWidth: 0, fontSize: "0.875rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {t.title}
                       </span>
+                      <span className="badge badge-neutral" style={{ flexShrink: 0, fontSize: "0.75rem" }}>{diffLabel(t.difficulty)}</span>
                       <button
                         onClick={() => addItem(t)}
                         disabled={added}

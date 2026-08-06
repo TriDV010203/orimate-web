@@ -8,6 +8,7 @@ import AuthorLink from "./AuthorLink";
 import HatGapWalletCard from "./HatGapWalletCard";
 import { isLoggedIn, getToken, getUser } from "@/lib/auth";
 import { achievementsApi, AchievementDto } from "@/lib/api/achievements";
+import { AchievementDetailModal, mapDto as mapAchievementDto, type Achievement } from "./AchievementsPage";
 import { usersApi, CreatorProfileDto } from "@/lib/api/users";
 import { wishlistsApi } from "@/lib/api/wishlists";
 import { subscriptionsApi } from "@/lib/api/subscriptions";
@@ -26,6 +27,11 @@ const AVATAR_COLORS = [
 
 const TABS = ["Bài hướng dẫn", "Thành tựu", "Wishlist", "VIP của tôi"] as const;
 type Tab = (typeof TABS)[number];
+
+/** Admin/Manager chỉ xem thông tin cơ bản — ẩn hạt gấp, thành tựu, bài hướng dẫn, yêu thích, VIP */
+function isStaffRole(roles?: string[] | null): boolean {
+  return !!roles && (roles.includes("Admin") || roles.includes("Manager"));
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function formatNumber(n: number) {
@@ -53,6 +59,7 @@ function getAvatarInitials(displayName?: string | null): string {
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<Tab>("Bài hướng dẫn");
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   // Profile data
   const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
@@ -77,6 +84,7 @@ export default function ProfilePage() {
   // Achievements preview
   const [achievementsPreview, setAchievementsPreview] = useState<AchievementDto[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
+  const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
 
   // Wishlist preview
   const [wishlistItems, setWishlistItems] = useState<TutorialListItemDto[]>([]);
@@ -98,6 +106,7 @@ export default function ProfilePage() {
       const loggedIn = isLoggedIn();
 
       setIsOwnProfile(loggedIn);
+      setIsStaff(isStaffRole(storedUser?.roles));
 
       if (!token || !storedUser || !loggedIn) {
         setProfileLoading(false);
@@ -137,7 +146,7 @@ export default function ProfilePage() {
     if (!storedUser) return;
     const tok = getToken() ?? undefined;
     setTutorialsLoading(true);
-    tutorialsApi.getList({ authorId: storedUser.userId, pageSize: 6 }, tok)
+    tutorialsApi.getList({ authorId: storedUser.userId, pageSize: 5 }, tok)
       .then((r) => setTutorials(r.items.filter((t) => t.author.id === storedUser.userId)))
       .catch(() => {})
       .finally(() => setTutorialsLoading(false));
@@ -152,7 +161,7 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setAchievementsLoading(true);
 
-    achievementsApi.getMine(tok, 1, 3)
+    achievementsApi.getMine(tok, 1, 5)
       .then((r) => setAchievementsPreview(r.items))
       .catch(() => {})
       .finally(() => setAchievementsLoading(false));
@@ -164,7 +173,7 @@ export default function ProfilePage() {
     const tok = getToken();
     if (!tok) return;
     setWishlistLoading(true);
-    wishlistsApi.getMyWishlist(tok, { pageSize: 6 })
+    wishlistsApi.getMyWishlist(tok, { pageSize: 5 })
       .then((res) => {
         const tutorials: TutorialListItemDto[] = [];
         const atMap: Record<string, string> = {};
@@ -176,7 +185,7 @@ export default function ProfilePage() {
         }
         setWishlistItems(tutorials);
         setWishlistSavedAt(atMap);
-        setWishlistTotal(tutorials.length);
+        setWishlistTotal(res.totalCount);
       })
       .catch(() => {})
       .finally(() => setWishlistLoading(false));
@@ -398,20 +407,24 @@ export default function ProfilePage() {
                     </svg>
                     Chỉnh sửa hồ sơ
                   </button>
-                  <Link
-                    href="/studio"
-                    className="btn btn-outline btn-sm"
-                    style={{ minWidth: "110px", justifyContent: "center" }}
-                  >
-                    🎬 Creator Studio
-                  </Link>
-                  <Link
-                    href="/ho-so/thanh-tich"
-                    className="btn btn-outline btn-sm"
-                    style={{ minWidth: "110px", justifyContent: "center" }}
-                  >
-                    🏅 Thành tựu
-                  </Link>
+                  {!isStaff && (
+                    <Link
+                      href="/studio"
+                      className="btn btn-outline btn-sm"
+                      style={{ minWidth: "110px", justifyContent: "center" }}
+                    >
+                      🎬 Creator Studio
+                    </Link>
+                  )}
+                  {!isStaff && (
+                    <Link
+                      href="/ho-so/thanh-tich"
+                      className="btn btn-outline btn-sm"
+                      style={{ minWidth: "110px", justifyContent: "center" }}
+                    >
+                      🏅 Thành tựu
+                    </Link>
+                  )}
                   <Link
                     href="/ho-so/doi-mat-khau"
                     className="btn btn-ghost btn-sm"
@@ -423,13 +436,15 @@ export default function ProfilePage() {
               </div>
 
               {/* ── Stats Row ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0", marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--color-border)" }}>
-                {[
-                  { label: "Bài viết", value: formatNumber(profile?.postCount ?? 0), icon: "📚", tab: "Bài hướng dẫn" as Tab | null, href: null },
-                  { label: "Người theo dõi", value: formatNumber(profile?.followerCount ?? 0), icon: "👥", tab: null, href: "/ho-so/nguoi-theo-doi" },
-                  { label: "Đang theo dõi", value: formatNumber(profile?.followingCount ?? 0), icon: "➡️", tab: null, href: "/ho-so/dang-theo-doi" },
-                  { label: "Thành tựu", value: formatNumber(profile?.achievementCount ?? 0), icon: "🏅", tab: "Thành tựu" as Tab | null, href: null },
-                ].map((s, i, arr) => {
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${isStaff ? 2 : 4}, 1fr)`, gap: "0", marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--color-border)" }}>
+                {(
+                  [
+                    !isStaff && { label: "Bài viết", value: formatNumber(profile?.postCount ?? 0), icon: "📚", tab: "Bài hướng dẫn" as Tab | null, href: null },
+                    { label: "Người theo dõi", value: formatNumber(profile?.followerCount ?? 0), icon: "👥", tab: null, href: "/ho-so/nguoi-theo-doi" },
+                    { label: "Đang theo dõi", value: formatNumber(profile?.followingCount ?? 0), icon: "➡️", tab: null, href: "/ho-so/dang-theo-doi" },
+                    !isStaff && { label: "Thành tựu", value: formatNumber(profile?.achievementCount ?? 0), icon: "🏅", tab: "Thành tựu" as Tab | null, href: null },
+                  ].filter(Boolean) as { label: string; value: string; icon: string; tab: Tab | null; href: string | null }[]
+                ).map((s, i, arr) => {
                   const cellStyle = {
                     textAlign: "center" as const,
                     padding: "0.5rem",
@@ -474,9 +489,11 @@ export default function ProfilePage() {
           </div>
 
           {/* ── Hạt Gấp Wallet ── */}
-          <HatGapWalletCard />
+          {!isStaff && <HatGapWalletCard />}
 
-          {/* ── Tabs ── */}
+          {/* ── Tabs (ẩn với Admin/Manager — chỉ hiển thị thông tin cơ bản) ── */}
+          {!isStaff && (
+          <>
           <div style={{ display: "flex", gap: "0.25rem", borderBottom: "2px solid var(--color-border)", marginBottom: "2rem" }}>
             {TABS.map((tab) => (
               <button
@@ -546,9 +563,9 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Grid */}
+                {/* Row (5 bài gần nhất) */}
                 {!tutorialsLoading && tutorials.length > 0 && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 260px))", gap: "1.25rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
                     {tutorials.map((t) => (
                       <Link
                         key={t.id}
@@ -620,32 +637,32 @@ export default function ProfilePage() {
                     <p style={{ fontSize: "0.875rem" }}>Chưa có thành tựu nào. Hãy thêm thành tựu đầu tiên!</p>
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
                     {achievementsPreview.map((a) => (
-                      <Link key={a.id} href="/ho-so/thanh-tich" style={{ textDecoration: "none", display: "block" }}>
-                        <div
-                          className="card"
-                          style={{ cursor: "pointer", overflow: "hidden", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)"; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
-                        >
-                          <div style={{ aspectRatio: "4/3", background: a.photoUrl ? "var(--color-surface-2)" : "linear-gradient(135deg, #F0F7F4 0%, #E8F5E8 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem", position: "relative", overflow: "hidden" }}>
-                            {a.photoUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={a.photoUrl} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            ) : "🏅"}
-                            <div style={{ position: "absolute", top: "0.625rem", right: "0.625rem", background: a.isPublic ? "#DCFCE7" : "#F5F5F0", color: a.isPublic ? "#16A34A" : "#888", borderRadius: "var(--radius-full)", padding: "0.2rem 0.5rem", fontSize: "0.6875rem", fontWeight: 600 }}>
-                              {a.isPublic ? "🌍 Công khai" : "🔒 Riêng tư"}
-                            </div>
-                          </div>
-                          <div style={{ padding: "0.875rem" }}>
-                            <h3 style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.5rem", color: "var(--color-text-primary)" }}>{a.tutorialTitle}</h3>
-                            <div style={{ color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
-                              📅 {formatDate(a.createdAt)}
-                            </div>
+                      <div
+                        key={a.id}
+                        className="card"
+                        style={{ cursor: "pointer", overflow: "hidden", transition: "transform var(--transition-normal), box-shadow var(--transition-normal)" }}
+                        onClick={() => setSelectedAchievement(mapAchievementDto(a))}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card-hover)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-card)"; }}
+                      >
+                        <div style={{ aspectRatio: "4/3", background: a.photoUrl ? "var(--color-surface-2)" : "linear-gradient(135deg, #F0F7F4 0%, #E8F5E8 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "4rem", position: "relative", overflow: "hidden" }}>
+                          {a.photoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={a.photoUrl} alt={a.tutorialTitle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : "🏅"}
+                          <div style={{ position: "absolute", top: "0.625rem", right: "0.625rem", background: a.isPublic ? "#DCFCE7" : "#F5F5F0", color: a.isPublic ? "#16A34A" : "#888", borderRadius: "var(--radius-full)", padding: "0.2rem 0.5rem", fontSize: "0.6875rem", fontWeight: 600 }}>
+                            {a.isPublic ? "🌍 Công khai" : "🔒 Riêng tư"}
                           </div>
                         </div>
-                      </Link>
+                        <div style={{ padding: "0.875rem" }}>
+                          <h3 style={{ fontWeight: 700, fontSize: "0.9rem", marginBottom: "0.5rem", color: "var(--color-text-primary)" }}>{a.tutorialTitle}</h3>
+                          <div style={{ color: "var(--color-text-muted)", fontSize: "0.8125rem" }}>
+                            📅 {formatDate(a.createdAt)}
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -690,9 +707,9 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Grid */}
+                {/* Row (5 bài gần nhất) */}
                 {!wishlistLoading && wishlistItems.length > 0 && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.25rem" }}>
                     {wishlistItems.map((t) => {
                       const savedDate = wishlistSavedAt[t.id];
                       return (
@@ -728,7 +745,7 @@ export default function ProfilePage() {
                                 {t.title}
                               </h3>
                               <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", display: "flex", justifyContent: "space-between" }}>
-                                <AuthorLink authorId={t.author.id}>{t.author.displayName}</AuthorLink>
+                                <AuthorLink authorId={t.author.id} authorName={t.author.displayName}>{t.author.displayName}</AuthorLink>
                                 <span>{t.stepCount} bước</span>
                               </div>
                             </div>
@@ -740,10 +757,10 @@ export default function ProfilePage() {
                 )}
 
                 {/* View all link if there are more items */}
-                {!wishlistLoading && wishlistTotal > 6 && (
+                {!wishlistLoading && wishlistTotal > 5 && (
                   <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
                     <Link href="/danh-sach-yeu-thich" className="btn btn-outline">
-                      Xem thêm {wishlistTotal - 6} bài khác
+                      Xem thêm {wishlistTotal - 5} bài khác
                     </Link>
                   </div>
                 )}
@@ -824,6 +841,8 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       </main>
       <Footer />
@@ -978,6 +997,29 @@ export default function ProfilePage() {
           </svg>
           Hồ sơ đã được cập nhật thành công!
         </div>
+      )}
+
+      {/* ── Achievement Detail Modal ── */}
+      {selectedAchievement && (
+        <AchievementDetailModal
+          achievement={selectedAchievement}
+          onClose={() => setSelectedAchievement(null)}
+          onDelete={async () => {
+            const tok = getToken();
+            if (!tok) return;
+            try {
+              await achievementsApi.delete(tok, selectedAchievement.id);
+              setAchievementsPreview((prev) => prev.filter((a) => a.id !== selectedAchievement.id));
+              setSelectedAchievement(null);
+            } catch {
+              // silently ignore
+            }
+          }}
+          onUpdated={(dto) => {
+            setAchievementsPreview((prev) => prev.map((a) => (a.id === dto.id ? dto : a)));
+            setSelectedAchievement(mapAchievementDto(dto));
+          }}
+        />
       )}
 
       <style>{`

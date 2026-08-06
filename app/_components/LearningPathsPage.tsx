@@ -29,6 +29,9 @@ export default function LearningPathsPage() {
   const [paths, setPaths] = useState<LearningPathListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const PAGE_SIZE = 10; // 2 hàng x 5 lộ trình / trang
 
   const loadModes = useCallback(async () => {
     setModesLoading(true);
@@ -54,15 +57,18 @@ export default function LearningPathsPage() {
     loadModes();
   }, [loadModes]);
 
-  // Luôn tải toàn bộ lộ trình đã xuất bản (mọi chế độ) — chế độ nào đang khoá thì đánh dấu khoá trên từng thẻ.
+  // Tải lộ trình đã xuất bản (mọi chế độ) theo trang — chế độ nào đang khoá thì đánh dấu khoá trên từng thẻ.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await learningPathsApi.getList({ page: 1, pageSize: 48 });
-        if (!cancelled) setPaths(res.items);
+        const res = await learningPathsApi.getList({ page, pageSize: PAGE_SIZE });
+        if (!cancelled) {
+          setPaths(res.items);
+          setTotalPages(res.totalPages);
+        }
       } catch (err) {
         if (!cancelled) setError((err as ApiError).message ?? "Không thể tải danh sách lộ trình.");
       } finally {
@@ -70,7 +76,7 @@ export default function LearningPathsPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (unlockPanelMode) {
@@ -122,7 +128,7 @@ export default function LearningPathsPage() {
           ) : (
             <>
               {/* ── Path cards ───────────────────────────────────────────────── */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "1.5rem", marginBottom: "3rem" }}>
+              <div className="tutorials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1.5rem", marginBottom: "2rem" }}>
                 {paths.map((path) => {
                   const mode = getModeForPath(path);
                   const isLocked = !modesLoading && mode !== null && !mode.isUnlocked;
@@ -179,7 +185,7 @@ export default function LearningPathsPage() {
                             className="btn btn-outline"
                             style={{ marginTop: "auto", justifyContent: "center" }}
                           >
-                            <Lock size={16} /> Đã khoá — Làm bài test để mở
+                            <Lock size={16} /> Đã khoá
                           </button>
                         ) : (
                           <Link
@@ -196,6 +202,23 @@ export default function LearningPathsPage() {
                   );
                 })}
               </div>
+
+              {/* ── Pagination ── */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem", marginBottom: "3rem" }}>
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === 1 ? 0.5 : 1 }}>← Trước</button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const pageNum = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i;
+                    return (
+                      <button key={pageNum} onClick={() => setPage(pageNum)}
+                        style={{ width: "2.25rem", height: "2.25rem", borderRadius: "var(--radius-md)", border: `1.5px solid ${page === pageNum ? "var(--color-primary)" : "var(--color-border)"}`, background: page === pageNum ? "var(--color-primary)" : "transparent", color: page === pageNum ? "white" : "var(--color-text-secondary)", fontWeight: 600, cursor: "pointer", fontSize: "0.875rem" }}>
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="btn btn-outline" style={{ padding: "0.5rem 1rem", fontSize: "0.875rem", opacity: page === totalPages ? 0.5 : 1 }}>Sau →</button>
+                </div>
+              )}
 
               {/* ── Panel mở khoá (hiện khi bấm vào 1 lộ trình đang khoá) ────────── */}
               {unlockPanelMode && (

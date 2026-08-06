@@ -8,6 +8,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
+import ImageUploadField from "./ImageUploadField";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   tutorialsApi, achievementsApi, communityPostsApi, wishlistsApi, learningPathsApi,
@@ -104,18 +105,15 @@ function AchievementModal({ tutorialId, tutorialTitle, onClose, onSuccess }: Ach
             </div>
           )}
 
-          {/* Photo URL */}
+          {/* Photo */}
           <div style={{ marginBottom: "1rem" }}>
-            <label htmlFor="achievement-photo-url" style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", marginBottom: "0.375rem", color: "var(--color-text-primary)" }}>
-              📷 Ảnh tác phẩm của bạn (tùy chọn)
-            </label>
-            <input
-              id="achievement-photo-url" type="url" value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
-              placeholder="https://example.com/my-origami.jpg"
-              style={{ width: "100%", padding: "0.625rem 0.875rem", border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-sm)", fontSize: "0.875rem", color: "var(--color-text-primary)", background: "var(--color-bg)", outline: "none" }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--color-border)")}
+            <ImageUploadField
+              value={photoUrl}
+              onChange={setPhotoUrl}
+              token={getToken() ?? ""}
+              folder="achievements"
+              label="📷 Ảnh tác phẩm của bạn (tùy chọn)"
+              variant="compact"
             />
             <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>Bạn có thể thêm ảnh sau trong trang Thành tựu</p>
           </div>
@@ -867,12 +865,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
           <div style={{ position: "relative", zIndex: 1, width: "100%", padding: "3rem 0 2rem" }}>
             <div className="container">
               {/* Breadcrumb */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
-                <Link href="/" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Trang chủ</Link>
-                <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
-                <Link href="/huong-dan" style={{ color: "rgba(255,255,255,0.7)", textDecoration: "none" }}>Hướng dẫn</Link>
-                <span style={{ color: "rgba(255,255,255,0.4)" }}>›</span>
-                <span style={{ color: "rgba(255,255,255,0.9)" }}>{tutorial.title}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", fontSize: "0.8125rem" }}>
+                <Link href="/" style={{ color: "rgba(0,0,0,0.65)", textDecoration: "none" }}>Trang chủ</Link>
+                <span style={{ color: "rgba(0,0,0,0.35)" }}>›</span>
+                <Link href="/huong-dan" style={{ color: "rgba(0,0,0,0.65)", textDecoration: "none" }}>Hướng dẫn</Link>
+                <span style={{ color: "rgba(0,0,0,0.35)" }}>›</span>
+                <span style={{ color: "rgba(0,0,0,0.9)" }}>{tutorial.title}</span>
               </div>
 
               {/* Banner "thuộc lộ trình" — chỉ hiện khi đến từ trang lộ trình */}
@@ -881,10 +879,10 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   href={`/lo-trinh/${pathCtx.pathId}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "0.5rem",
-                    background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
+                    background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.15)",
                     borderRadius: "var(--radius-full)", padding: "0.375rem 0.875rem",
                     marginBottom: "0.875rem", textDecoration: "none",
-                    color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
+                    color: "rgba(0,0,0,0.85)", fontSize: "0.8125rem", fontWeight: 600,
                   }}
                 >
                   🗺️ Thuộc lộ trình: {pathCtx.pathTitle} · Bài {pathCtx.lessonIndex + 1}/{pathCtx.totalLessons}
@@ -898,10 +896,10 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   href={modeTestModeId ? `/lo-trinh?moKhoa=${modeTestModeId}` : "/lo-trinh"}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "0.5rem",
-                    background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
+                    background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.15)",
                     borderRadius: "var(--radius-full)", padding: "0.375rem 0.875rem",
                     marginBottom: "0.875rem", textDecoration: "none",
-                    color: "rgba(255,255,255,0.95)", fontSize: "0.8125rem", fontWeight: 600,
+                    color: "rgba(0,0,0,0.85)", fontSize: "0.8125rem", fontWeight: 600,
                   }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
@@ -911,7 +909,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
               {/* Badges */}
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.875rem" }}>
-                <span style={{ background: "rgba(255,255,255,0.15)", color: "white", fontSize: "0.75rem", fontWeight: 600, padding: "0.25rem 0.75rem", borderRadius: "var(--radius-full)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                <span style={{ background: "rgba(0,0,0,0.06)", color: "#111", fontSize: "0.75rem", fontWeight: 600, padding: "0.25rem 0.75rem", borderRadius: "var(--radius-full)", border: "1px solid rgba(0,0,0,0.12)" }}>
                   🗂 {tutorial.categoryName}
                 </span>
                 <span style={{ background: diffColor.bg, color: diffColor.text, fontSize: "0.75rem", fontWeight: 700, padding: "0.25rem 0.75rem", borderRadius: "var(--radius-full)" }}>
@@ -927,24 +925,24 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 )}
               </div>
 
-              <h1 style={{ color: "white", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.5rem)", marginBottom: "0.75rem", textShadow: "0 2px 8px rgba(0,0,0,0.3)", lineHeight: 1.2 }}>
+              <h1 style={{ color: "#000", fontWeight: 900, fontSize: "clamp(1.5rem, 3.5vw, 2.5rem)", marginBottom: "0.75rem", lineHeight: 1.2 }}>
                 {tutorial.title}
               </h1>
-              <p style={{ color: "rgba(255,255,255,0.85)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+              <p style={{ color: "rgba(0,0,0,0.75)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.65, marginBottom: "1.25rem" }}>
                 {tutorial.description}
               </p>
 
               {/* Meta row */}
-              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>
+              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center" }}>
                 {/* Author */}
-                <AuthorLink authorId={tutorial.author.id} style={{ gap: "0.5rem" }}>
-                  <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: "var(--gradient-primary)", border: "2px solid rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.6875rem", color: "white", flexShrink: 0 }}>
+                <AuthorLink authorId={tutorial.author.id} authorName={tutorial.author.displayName} style={{ gap: "0.5rem" }}>
+                  <div style={{ width: "2rem", height: "2rem", borderRadius: "50%", background: "var(--gradient-primary)", border: "2px solid rgba(0,0,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.6875rem", color: "white", flexShrink: 0 }}>
                     {tutorial.author.displayName.split(" ").map((n) => n[0]).slice(-2).join("").toUpperCase()}
                   </div>
-                  <span style={{ color: "rgba(255,255,255,0.9)", fontSize: "0.875rem", fontWeight: 600 }}>{tutorial.author.displayName}</span>
+                  <span style={{ color: "rgba(0,0,0,0.85)", fontSize: "0.875rem", fontWeight: 600 }}>{tutorial.author.displayName}</span>
                 </AuthorLink>
-                <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.875rem" }}>📋 {totalSteps} bước</div>
-                <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.875rem" }}>
+                <div style={{ color: "rgba(0,0,0,0.7)", fontSize: "0.875rem" }}>📋 {totalSteps} bước</div>
+                <div style={{ color: "rgba(0,0,0,0.7)", fontSize: "0.875rem" }}>
                   📅 {new Date(tutorial.publishedAt).toLocaleDateString("vi-VN")}
                 </div>
 
@@ -955,9 +953,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   style={{
                     display: "flex", alignItems: "center", gap: "0.375rem",
                     padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)",
-                    border: "1.5px solid rgba(255,255,255,0.4)",
-                    background: isLiked ? "rgba(239,68,68,0.25)" : "rgba(255,255,255,0.12)",
-                    color: isLiked ? "#fca5a5" : "rgba(255,255,255,0.9)",
+                    border: isLiked ? "1.5px solid rgba(239,68,68,0.4)" : "1.5px solid rgba(0,0,0,0.2)",
+                    background: isLiked ? "rgba(239,68,68,0.12)" : "rgba(0,0,0,0.04)",
+                    color: isLiked ? "#dc2626" : "rgba(0,0,0,0.85)",
                     cursor: likeLoading ? "wait" : "pointer",
                     fontSize: "0.875rem", fontWeight: 600,
                     transition: "all var(--transition-fast)",
@@ -978,9 +976,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                     style={{
                       display: "flex", alignItems: "center", gap: "0.375rem",
                       padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)",
-                      border: "1.5px solid rgba(255,255,255,0.3)",
-                      background: "rgba(255,255,255,0.1)",
-                      color: "rgba(255,255,255,0.7)",
+                      border: "1.5px solid rgba(0,0,0,0.2)",
+                      background: "rgba(0,0,0,0.04)",
+                      color: "rgba(0,0,0,0.75)",
                       cursor: "pointer",
                       fontSize: "0.875rem", fontWeight: 500,
                       transition: "all var(--transition-fast)",
@@ -1002,9 +1000,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   style={{
                     display: "flex", alignItems: "center", gap: "0.375rem",
                     padding: "0.375rem 0.875rem", borderRadius: "var(--radius-full)",
-                    border: "1.5px solid rgba(255,255,255,0.4)",
-                    background: isSaved ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.12)",
-                    color: isSaved ? "#6ee7b7" : "rgba(255,255,255,0.9)",
+                    border: isSaved ? "1.5px solid rgba(16,185,129,0.4)" : "1.5px solid rgba(0,0,0,0.2)",
+                    background: isSaved ? "rgba(16,185,129,0.12)" : "rgba(0,0,0,0.04)",
+                    color: isSaved ? "#059669" : "rgba(0,0,0,0.85)",
                     cursor: saveLoading ? "wait" : "pointer",
                     fontSize: "0.875rem", fontWeight: 600,
                     transition: "all var(--transition-fast)",
