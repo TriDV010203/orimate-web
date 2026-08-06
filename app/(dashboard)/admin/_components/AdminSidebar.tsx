@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { name: "Lộ trình học", href: "/admin/learning-paths", icon: Map },
   { name: "Chế độ lộ trình", href: "/admin/learning-path-modes", icon: Layers },
   { name: "Thử thách ngày", href: "/admin/daily-challenges", icon: Trophy },
+  { name: "Thử thách tuần", href: "/admin/weekly-challenges", icon: Medal },
   { name: "Cửa hàng", href: "/admin/shop", icon: ShoppingBag },
   { name: "Doanh thu VIP", href: "/admin/revenue", icon: Wallet },
   { name: "Báo cáo vi phạm", href: "/admin/reports", icon: Flag },
