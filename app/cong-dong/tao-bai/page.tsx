@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import CreatePostPage from "../../_components/CreatePostPage";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <CreatePostPage />;
+  return (
+    <Suspense fallback={null}>
+      <CreatePostPage />
+    </Suspense>
+  );
 }
