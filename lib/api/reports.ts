@@ -1,13 +1,16 @@
 // lib/api/reports.ts — Reports (báo cáo vi phạm) API endpoints
 
-import { request } from "./client";
+import { request, type TargetType } from "./client";
+
+export type { TargetType };
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
-export type ReportTargetType = "Tutorial" | "CommunityPost" | "Comment" | "User";
+/** BE Domain.Enums.ReportActionType */
+export type ReportActionType = "Dismiss" | "RemoveContent" | "SuspendAccount";
 
 export interface SubmitReportRequest {
-  targetType: ReportTargetType;
+  targetType: TargetType;
   targetId: string;
   reason: string;
 }
@@ -24,11 +27,7 @@ export const reportsApi = {
   ): Promise<{ reportId: string }> {
     return request<{ reportId: string }>("/api/reports", {
       method: "POST",
-      body: JSON.stringify({
-        TargetType: body.targetType,
-        TargetId: body.targetId,
-        Reason: body.reason,
-      }),
+      body: JSON.stringify(body),
       token,
     });
   },

@@ -2,16 +2,27 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type ApiError } from "@/lib/api";
+import type { ReportActionType } from "@/lib/api/reports";
+import type { TargetType } from "@/lib/api/client";
 import { Check, EyeOff, ShieldAlert, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
 
-const TARGET_TYPE_NAME: Record<number, string> = {
-  0: "Hướng dẫn",
-  1: "Bài đăng",
-  2: "Bình luận",
+const TARGET_TYPE_NAME: Record<TargetType, string> = {
+  Tutorial: "Hướng dẫn",
+  CommunityPost: "Bài đăng",
+  Comment: "Bình luận",
+  StuckThread: "Chủ đề hỏi bị kẹt",
+  DailyChallengeSubmission: "Bài nộp thử thách ngày",
+  WeeklyChallengeSubmission: "Bài nộp thử thách tuần",
 };
+
+const REPORT_ACTIONS: { type: ReportActionType; label: string }[] = [
+  { type: "Dismiss", label: "Bỏ qua (Không vi phạm)" },
+  { type: "RemoveContent", label: "Gỡ bỏ nội dung này" },
+  { type: "SuspendAccount", label: "Khóa tài khoản người đăng" },
+];
 
 export default function AdminReportsPage() {
   const qc = useQueryClient();
@@ -21,7 +32,7 @@ export default function AdminReportsPage() {
   });
 
   const handleMut = useMutation({
-    mutationFn: ({ id, actionType }: { id: string; actionType: number }) =>
+    mutationFn: ({ id, actionType }: { id: string; actionType: ReportActionType }) =>
       adminApi.handleReport(id, actionType),
     onSuccess: () => {
       toast.success("Đã xử lý khiếu nại thành công!");
@@ -30,9 +41,9 @@ export default function AdminReportsPage() {
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi khi xử lý báo cáo"),
   });
 
-  const processReport = (id: string, actionType: number) => {
-    const actions = ["Bỏ qua (Không vi phạm)", "Gỡ bỏ nội dung này", "Khóa tài khoản người đăng"];
-    if (confirm(`Xác nhận hành động: ${actions[actionType]}?`)) handleMut.mutate({ id, actionType });
+  const processReport = (id: string, actionType: ReportActionType) => {
+    const label = REPORT_ACTIONS.find((a) => a.type === actionType)?.label ?? actionType;
+    if (confirm(`Xác nhận hành động: ${label}?`)) handleMut.mutate({ id, actionType });
   };
 
   return (
@@ -87,7 +98,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-success"
                           title="Bỏ qua"
-                          onClick={() => processReport(rep.id, 0)}
+                          onClick={() => processReport(rep.id, "Dismiss")}
                           disabled={handleMut.isPending}
                         >
                           <Check size={16} />
@@ -95,7 +106,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Gỡ bỏ"
-                          onClick={() => processReport(rep.id, 1)}
+                          onClick={() => processReport(rep.id, "RemoveContent")}
                           disabled={handleMut.isPending}
                         >
                           <EyeOff size={16} />
@@ -103,7 +114,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Khóa TK"
-                          onClick={() => processReport(rep.id, 2)}
+                          onClick={() => processReport(rep.id, "SuspendAccount")}
                           disabled={handleMut.isPending}
                         >
                           <ShieldAlert size={16} />

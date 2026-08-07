@@ -1,6 +1,8 @@
 // lib/api/community-posts.ts — Community posts API endpoints
 
-import { request } from "./client";
+import { request, type TargetType } from "./client";
+
+export type { TargetType };
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
@@ -55,7 +57,7 @@ export interface CommentDto {
 
 export interface AddCommentRequest {
   targetId: string;
-  targetType: "CommunityPost" | "Tutorial";
+  targetType: TargetType;
   content: string;
 }
 
@@ -101,12 +103,11 @@ export const communityPostsApi = {
   toggleLike(
     token: string,
     targetId: string,
-    targetType: "CommunityPost" | "Tutorial"
+    targetType: TargetType
   ): Promise<ToggleLikeResponse> {
-    // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType)
     return request<ToggleLikeResponse>("/api/likes/toggle", {
       method: "POST",
-      body: JSON.stringify({ TargetId: targetId, TargetType: targetType }),
+      body: JSON.stringify({ targetId, targetType }),
       token,
     });
   },
@@ -114,7 +115,7 @@ export const communityPostsApi = {
   /** GET /api/comments?targetId=&targetType=CommunityPost — Lấy comments của một bài */
   getComments(
     targetId: string,
-    targetType: "CommunityPost" | "Tutorial" = "CommunityPost",
+    targetType: TargetType = "CommunityPost",
     page = 1,
     pageSize = 20
   ): Promise<PagedResult<CommentDto>> {
@@ -128,14 +129,9 @@ export const communityPostsApi = {
     token: string,
     body: AddCommentRequest
   ): Promise<{ commentId: string }> {
-    // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType, Content)
     return request<{ commentId: string }>("/api/comments", {
       method: "POST",
-      body: JSON.stringify({
-        TargetId: body.targetId,
-        TargetType: body.targetType,
-        Content: body.content,
-      }),
+      body: JSON.stringify(body),
       token,
     });
   },

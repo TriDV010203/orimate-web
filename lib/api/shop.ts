@@ -72,4 +72,17 @@ export const shopApi = {
       token,
     });
   },
+
+  /** GET /api/shop/patterns — Mẫu gấp trả phí (chưa có UI tiêu thụ, response shape chưa được BE document) */
+  getPatterns(token?: string): Promise<unknown> {
+    return request<unknown>("/api/shop/patterns", { token });
+  },
+
+  /** POST /api/shop/patterns/{id}/purchase — Mua mẫu gấp bằng Hạt Gấp */
+  purchasePattern(token: string, id: string): Promise<unknown> {
+    return request<unknown>(`/api/shop/patterns/${id}/purchase`, {
+      method: "POST",
+      token,
+    });
+  },
 };

@@ -46,7 +46,8 @@ export { communityPostsApi } from "./community-posts";
 export type { NotificationDto, NotificationPagedResult } from "./notifications";
 export { notificationsApi } from "./notifications";
 
-export type { ReportTargetType, SubmitReportRequest } from "./reports";
+export type { TargetType } from "./client";
+export type { ReportActionType, SubmitReportRequest } from "./reports";
 export { reportsApi } from "./reports";
 
 export type {

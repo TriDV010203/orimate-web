@@ -48,6 +48,10 @@ export interface UserPagedResult<T> {
   totalPages: number;
 }
 
+export interface OnboardingStatusDto {
+  hasCompletedOnboarding: boolean;
+}
+
 // ── Users API ─────────────────────────────────────────────────────────────────
 
 export const usersApi = {
@@ -134,6 +138,21 @@ export const usersApi = {
     return request<FollowerUserDto[]>(
       `/api/users/top-creators?count=${count}`,
       { token }
+    );
+  },
+
+  /** GET /api/users/me/onboarding-status */
+  getOnboardingStatus(token: string): Promise<OnboardingStatusDto> {
+    return request<OnboardingStatusDto>("/api/users/me/onboarding-status", {
+      token,
+    });
+  },
+
+  /** POST /api/users/me/complete-onboarding */
+  completeOnboarding(token: string): Promise<{ message: string }> {
+    return request<{ message: string }>(
+      "/api/users/me/complete-onboarding",
+      { method: "POST", token }
     );
   },
 };

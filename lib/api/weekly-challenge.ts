@@ -105,7 +105,7 @@ export const weeklyChallengeApi = {
   toggleSubmissionLike(token: string, submissionId: string): Promise<{ isLiked: boolean }> {
     return request<{ isLiked: boolean }>("/api/likes/toggle", {
       method: "POST",
-      body: JSON.stringify({ TargetId: submissionId, TargetType: "WeeklyChallengeSubmission" }),
+      body: JSON.stringify({ targetId: submissionId, targetType: "WeeklyChallengeSubmission" }),
       token,
     });
   },

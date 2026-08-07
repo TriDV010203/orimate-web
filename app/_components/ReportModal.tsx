@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { reportsApi } from "@/lib/api/reports";
-import type { ReportTargetType } from "@/lib/api/reports";
+import type { TargetType } from "@/lib/api/client";
 import { getToken } from "@/lib/auth";
 
 interface ReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   targetId: string;
-  targetType: ReportTargetType;
+  targetType: TargetType;
   targetTitle?: string;
 }
 
@@ -65,11 +65,13 @@ export default function ReportModal({ isOpen, onClose, targetId, targetType, tar
     onClose();
   }
 
-  const targetTypeLabel: Record<ReportTargetType, string> = {
+  const targetTypeLabel: Record<TargetType, string> = {
     Tutorial: "bài hướng dẫn",
     CommunityPost: "bài đăng",
     Comment: "bình luận",
-    User: "người dùng",
+    StuckThread: "chủ đề hỏi bị kẹt",
+    DailyChallengeSubmission: "bài nộp thử thách ngày",
+    WeeklyChallengeSubmission: "bài nộp thử thách tuần",
   };
 
   return (
