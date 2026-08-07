@@ -53,6 +53,7 @@ export interface CommentDto {
   userId: string;
   content: string;
   createdAt: string;
+  replies?: CommentDto[] | null;
 }
 
 export interface AddCommentRequest {

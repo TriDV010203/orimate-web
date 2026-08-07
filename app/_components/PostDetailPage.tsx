@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { getToken, isLoggedIn } from "@/lib/auth";
-import { communityPostsApi, type CommunityPostDto, type CommentDto, type PagedResult } from "@/lib/api/community-posts";
+import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
@@ -32,36 +32,84 @@ function Avatar({ userId, profile, size = 40 }: { userId: string; profile?: Crea
   );
 }
 
+// Bình luận chỉ được tự xóa trong vòng 5 phút kể từ lúc gửi (khớp giới hạn phía BE).
+const COMMENT_DELETE_WINDOW_MS = 5 * 60 * 1000;
+
 // ── Comment Item ──────────────────────────────────────────────────────────────
 function CommentItem({
-  comment, profile, currentUserId, token, onDelete,
+  comment, profile, currentUserId, token, profiles, onChanged, highlightId, isReply = false,
 }: {
   comment: CommentDto;
   profile?: CreatorProfileDto | null;
   currentUserId: string | null;
   token: string | null;
-  onDelete: (id: string) => void;
+  profiles: Map<string, CreatorProfileDto>;
+  onChanged: () => void;
+  highlightId?: string | null;
+  isReply?: boolean;
 }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [replying, setReplying] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
   const name = profile?.displayName ?? `#${comment.userId.slice(0, 6).toUpperCase()}`;
   const isOwn = currentUserId === comment.userId;
+  const isHighlighted = !!highlightId && highlightId === comment.id;
+
+  // Cập nhật định kỳ để nút "Xóa" tự ẩn ngay khi vượt mốc 5 phút, không cần tải lại trang.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const createdMs = new Date(comment.createdAt.endsWith("Z") ? comment.createdAt : comment.createdAt + "Z").getTime();
+  const canDelete = isOwn && now - createdMs <= COMMENT_DELETE_WINDOW_MS;
 
   async function handleDelete() {
     if (!token) return;
     setDeleting(true);
     setDeleteError(null);
-    try { await communityPostsApi.deleteComment(token, comment.id); onDelete(comment.id); }
+    try { await communityPostsApi.deleteComment(token, comment.id); onChanged(); }
     catch (err: unknown) {
       setDeleting(false);
       setDeleteError((err as { message?: string })?.message ?? "Không thể xóa bình luận. Vui lòng thử lại.");
     }
   }
 
+  async function handleSubmitReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!token || !replyText.trim()) return;
+    setSubmittingReply(true);
+    setReplyError(null);
+    try {
+      await communityPostsApi.addComment(token, { targetId: comment.id, targetType: "Comment", content: replyText.trim() });
+      setReplyText("");
+      setReplying(false);
+      onChanged();
+    } catch (err: unknown) {
+      setReplyError((err as { message?: string })?.message ?? "Không thể gửi trả lời.");
+    } finally {
+      setSubmittingReply(false);
+    }
+  }
+
   return (
-    <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", padding: "0.875rem 0", borderBottom: "1px solid var(--color-border)" }}>
+    <div
+      id={`comment-${comment.id}`}
+      style={{
+        display: "flex", gap: "0.75rem", alignItems: "flex-start", padding: "0.875rem 0.5rem",
+        borderBottom: isReply ? "none" : "1px solid var(--color-border)",
+        background: isHighlighted ? "rgba(212,113,59,0.12)" : "transparent",
+        borderRadius: "var(--radius-md)",
+        transition: "background 1s ease",
+      }}
+    >
       <AuthorLink authorId={comment.userId}>
-        <Avatar userId={comment.userId} profile={profile} size={36} />
+        <Avatar userId={comment.userId} profile={profile} size={isReply ? 30 : 36} />
       </AuthorLink>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
@@ -75,8 +123,44 @@ function CommentItem({
         </div>
         <p style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{comment.content}</p>
         {deleteError && <p style={{ fontSize: "0.75rem", color: "var(--color-error)", marginTop: "0.25rem" }}>{deleteError}</p>}
+
+        {/* Trả lời — chỉ cho bình luận gốc, không cho phép trả lời một trả lời (khớp BE: chỉ lồng 1 cấp) */}
+        {!isReply && token && (
+          <button onClick={() => setReplying(r => !r)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.78rem", padding: 0, marginTop: "0.375rem", fontWeight: 600 }}
+            onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
+            {replying ? "Hủy trả lời" : "Trả lời"}
+          </button>
+        )}
+
+        {replying && (
+          <form onSubmit={handleSubmitReply} style={{ marginTop: "0.625rem", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+            <textarea
+              value={replyText} onChange={e => setReplyText(e.target.value)} autoFocus
+              placeholder={`Trả lời ${name}...`} rows={1} maxLength={500}
+              className="input-field" style={{ resize: "none", fontSize: "0.85rem", fontFamily: "inherit", flex: 1 }}
+              onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleSubmitReply(e as unknown as React.FormEvent); }} />
+            <button type="submit" disabled={!replyText.trim() || submittingReply} className="btn btn-primary btn-sm"
+              style={{ opacity: !replyText.trim() || submittingReply ? 0.6 : 1, flexShrink: 0 }}>
+              {submittingReply ? "..." : "Gửi"}
+            </button>
+          </form>
+        )}
+        {replyError && <p style={{ fontSize: "0.75rem", color: "var(--color-error)", marginTop: "0.25rem" }}>{replyError}</p>}
+
+        {/* Danh sách trả lời */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div style={{ marginTop: "0.75rem", paddingLeft: "0.875rem", borderLeft: "2px solid var(--color-border)", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            {comment.replies.map(r => (
+              <CommentItem key={r.id} comment={r} profile={profiles.get(r.userId) ?? null}
+                currentUserId={currentUserId} token={token} profiles={profiles}
+                onChanged={onChanged} highlightId={highlightId} isReply />
+            ))}
+          </div>
+        )}
       </div>
-      {isOwn && (
+      {canDelete && (
         <button onClick={handleDelete} disabled={deleting}
           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.8rem", padding: "0.25rem 0.5rem", borderRadius: "var(--radius-sm)", opacity: deleting ? 0.5 : 1 }}
           onMouseEnter={e => (e.currentTarget.style.color = "var(--color-error)")}
@@ -89,7 +173,7 @@ function CommentItem({
 }
 
 // ── Content (dùng chung cho trang chi tiết và modal) ────────────────────────────
-export function PostDetailContent({ postId, autoFocusComment = false }: { postId: string; autoFocusComment?: boolean }) {
+export function PostDetailContent({ postId, autoFocusComment = false, highlightCommentId }: { postId: string; autoFocusComment?: boolean; highlightCommentId?: string }) {
   const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -159,9 +243,14 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
   const comments = commentsQuery.data?.items ?? [];
   const loadingComments = commentsQuery.isPending;
 
-  // fetch profiles cho các tác giả bình luận chưa có sẵn
+  // fetch profiles cho các tác giả bình luận (kể cả trả lời lồng bên trong) chưa có sẵn
   useEffect(() => {
-    const uniqueIds = [...new Set(comments.map(c => c.userId))].filter(id => !commentProfiles.has(id));
+    const allIds = new Set<string>();
+    comments.forEach(c => {
+      allIds.add(c.userId);
+      c.replies?.forEach(r => allIds.add(r.userId));
+    });
+    const uniqueIds = [...allIds].filter(id => !commentProfiles.has(id));
     uniqueIds.forEach(id => {
       usersApi.getProfile(id, token ?? undefined)
         .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
@@ -176,6 +265,15 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
       commentInputRef.current?.focus();
     }
   }, [autoFocusComment, loggedIn, loadingComments]);
+
+  // Đến từ link báo cáo vi phạm với 1 bình luận cụ thể — cuộn tới và làm nổi bật bình luận đó
+  useEffect(() => {
+    if (!highlightCommentId || loadingComments) return;
+    const t = setTimeout(() => {
+      document.getElementById(`comment-${highlightCommentId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [highlightCommentId, loadingComments, comments]);
 
   async function handleLike() {
     if (!token || liking) return;
@@ -207,10 +305,8 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
     }
   }
 
-  function handleDeleteComment(id: string) {
-    queryClient.setQueryData(["community-comments", postId], (old?: PagedResult<CommentDto>) =>
-      old ? { ...old, items: old.items.filter(c => c.id !== id) } : old
-    );
+  function refreshComments() {
+    queryClient.invalidateQueries({ queryKey: ["community-comments", postId] });
   }
 
   const authorName = postProfile?.displayName ?? (post ? `#${post.authorId.slice(0,6).toUpperCase()}` : "");
@@ -341,7 +437,8 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
               <div>
                 {comments.map(c => (
                   <CommentItem key={c.id} comment={c} profile={commentProfiles.get(c.userId) ?? null}
-                    currentUserId={currentUserId} token={token} onDelete={handleDeleteComment} />
+                    currentUserId={currentUserId} token={token} profiles={commentProfiles}
+                    onChanged={refreshComments} highlightId={highlightCommentId} />
                 ))}
               </div>
             )}
@@ -358,6 +455,9 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
 export default function PostDetailPage() {
   const params = useParams();
   const postId = params?.id as string;
+  const searchParams = useSearchParams();
+  const fromReport = searchParams.get("fromReport") === "1";
+  const highlightCommentId = searchParams.get("highlightComment") ?? undefined;
 
   return (
     <>
@@ -371,7 +471,19 @@ export default function PostDetailPage() {
             <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>Bài viết</span>
           </div>
 
-          <PostDetailContent postId={postId} />
+          {/* Đến từ trang quản trị báo cáo — cho phép quay lại nhanh */}
+          {fromReport && (
+            <Link
+              href="/admin/reports"
+              className="btn btn-outline btn-sm"
+              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.25rem" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+              Quay lại trang báo cáo
+            </Link>
+          )}
+
+          <PostDetailContent postId={postId} highlightCommentId={highlightCommentId} />
         </div>
       </main>
       <Footer />

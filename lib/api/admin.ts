@@ -29,6 +29,11 @@ export interface PendingReportDto {
   reason: string;
   createdAt: string;
   targetContent: string | null;
+  /** Slug của Tutorial (TargetType=Tutorial, hoặc RootTargetType=Tutorial khi báo cáo là 1 Comment) — dùng để dựng link /huong-dan/{slug} */
+  targetSlug?: string | null;
+  /** TargetType=Comment: loại nội dung gốc chứa comment này sau khi lần theo chuỗi reply */
+  rootTargetType?: TargetType | null;
+  rootTargetId?: string | null;
 }
 
 export interface ManagerQueueItemResponse {

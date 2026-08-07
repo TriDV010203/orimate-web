@@ -504,6 +504,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   // true khi đến từ nút "Xem hướng dẫn" trong panel bài test mở khoá chế độ lộ trình.
   const cameFromModeTest = searchParams.get("tuBaiTest") === "1";
   const modeTestModeId = searchParams.get("modeId");
+  const fromReport = searchParams.get("fromReport") === "1";
 
   const [tutorial, setTutorial] = useState<TutorialDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -873,6 +874,23 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                 <span style={{ color: "rgba(0,0,0,0.35)" }}>›</span>
                 <span style={{ color: "rgba(0,0,0,0.9)" }}>{tutorial.title}</span>
               </div>
+
+              {/* Đến từ trang quản trị báo cáo — cho phép quay lại nhanh */}
+              {fromReport && (
+                <Link
+                  href="/admin/reports"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.5rem",
+                    background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.15)",
+                    borderRadius: "var(--radius-full)", padding: "0.375rem 0.875rem",
+                    marginBottom: "0.875rem", textDecoration: "none",
+                    color: "rgba(0,0,0,0.85)", fontSize: "0.8125rem", fontWeight: 600,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
+                  Quay lại trang báo cáo
+                </Link>
+              )}
 
               {/* Banner "thuộc lộ trình" — chỉ hiện khi đến từ trang lộ trình */}
               {cameFromPath && pathCtx && (

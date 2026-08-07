@@ -1,13 +1,36 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { adminApi, type ApiError } from "@/lib/api";
+import type { PendingReportDto } from "@/lib/api/admin";
 import type { ReportActionType } from "@/lib/api/reports";
 import type { TargetType } from "@/lib/api/client";
-import { Check, EyeOff, ShieldAlert, Loader2 } from "lucide-react";
+import { Check, EyeOff, ShieldAlert, Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
+
+// Dựng link xem chi tiết nội dung bị báo cáo — trả về null nếu chưa hỗ trợ xem trước
+// (vd. StuckThread, bài nộp thử thách... chưa có trang chi tiết công khai).
+function getReportTargetHref(rep: PendingReportDto): string | null {
+  if (rep.targetType === "CommunityPost") {
+    return `/cong-dong/${rep.targetId}?fromReport=1`;
+  }
+  if (rep.targetType === "Tutorial") {
+    return rep.targetSlug ? `/huong-dan/${rep.targetSlug}?fromReport=1` : null;
+  }
+  if (rep.targetType === "Comment") {
+    if (rep.rootTargetType === "CommunityPost" && rep.rootTargetId) {
+      return `/cong-dong/${rep.rootTargetId}?fromReport=1&highlightComment=${rep.targetId}`;
+    }
+    if (rep.rootTargetType === "Tutorial" && rep.targetSlug) {
+      return `/huong-dan/${rep.targetSlug}?fromReport=1&highlightComment=${rep.targetId}`;
+    }
+    return null;
+  }
+  return null;
+}
 
 const TARGET_TYPE_NAME: Record<TargetType, string> = {
   Tutorial: "Hướng dẫn",
@@ -79,17 +102,38 @@ export default function AdminReportsPage() {
                   </td>
                 </tr>
               ) : (
-                reports.map((rep) => (
+                reports.map((rep) => {
+                  const href = getReportTargetHref(rep);
+                  return (
                   <tr key={rep.id}>
                     <td>
                       <span className="badge badge-neutral">{TARGET_TYPE_NAME[rep.targetType] ?? "Khác"}</span>
                     </td>
                     <td>
-                      &quot;
-                      {rep.targetContent || (
-                        <span style={{ color: "var(--color-text-muted)" }}>[Nội dung đã bị xóa ẩn]</span>
+                      {href ? (
+                        <Link
+                          href={href}
+                          title="Xem chi tiết nội dung bị báo cáo"
+                          style={{ color: "var(--color-primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                        >
+                          &quot;
+                          {rep.targetContent || (
+                            <span style={{ color: "var(--color-text-muted)" }}>[Nội dung đã bị xóa ẩn]</span>
+                          )}
+                          &quot;
+                          <ExternalLink size={13} style={{ flexShrink: 0 }} />
+                        </Link>
+                      ) : (
+                        <>
+                          &quot;
+                          {rep.targetContent || (
+                            <span style={{ color: "var(--color-text-muted)" }}>[Nội dung đã bị xóa ẩn]</span>
+                          )}
+                          &quot;
+                        </>
                       )}
-                      &quot;
                     </td>
                     <td>{rep.reason}</td>
                     <td>{format(new Date(rep.createdAt), "HH:mm dd/MM/yyyy", { locale: vi })}</td>
@@ -98,11 +142,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-success"
                           title="Bỏ qua"
-<<<<<<< HEAD
-                          onClick={() => processReport(rep.id, 1)}
-=======
                           onClick={() => processReport(rep.id, "Dismiss")}
->>>>>>> origin/main
                           disabled={handleMut.isPending}
                         >
                           <Check size={16} />
@@ -110,11 +150,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Gỡ bỏ"
-<<<<<<< HEAD
-                          onClick={() => processReport(rep.id, 2)}
-=======
                           onClick={() => processReport(rep.id, "RemoveContent")}
->>>>>>> origin/main
                           disabled={handleMut.isPending}
                         >
                           <EyeOff size={16} />
@@ -122,11 +158,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Khóa TK"
-<<<<<<< HEAD
-                          onClick={() => processReport(rep.id, 3)}
-=======
                           onClick={() => processReport(rep.id, "SuspendAccount")}
->>>>>>> origin/main
                           disabled={handleMut.isPending}
                         >
                           <ShieldAlert size={16} />
@@ -134,7 +166,8 @@ export default function AdminReportsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
