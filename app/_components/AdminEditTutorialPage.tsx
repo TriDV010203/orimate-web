@@ -8,6 +8,7 @@ import { tutorialsApi } from "@/lib/api/tutorials";
 import type { CategoryDto } from "@/lib/api/tutorials";
 import { getToken } from "@/lib/auth";
 import ImageUploadField from "./ImageUploadField";
+import Model3DUploadField from "./Model3DUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -49,6 +50,9 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
   const [difficulty, setDifficulty] = useState("Beginner");
   const [type, setType] = useState("Free");
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [model3DUrl, setModel3DUrl] = useState("");
+  const [model3DPosterUrl, setModel3DPosterUrl] = useState("");
+  const [modelUploading, setModelUploading] = useState(false);
   const [steps, setSteps] = useState<StepForm[]>([]);
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
@@ -80,6 +84,8 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
         setDifficulty(detail.difficulty);
         setType(detail.type);
         setCoverImageUrl(detail.coverImageUrl ?? "");
+        setModel3DUrl(detail.model3DUrl ?? "");
+        setModel3DPosterUrl(detail.model3DPosterUrl ?? "");
         setSteps(
           detail.steps
             .slice()
@@ -131,6 +137,10 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
 
   async function handleSave() {
     setFormError(null);
+    if (modelUploading) {
+      setFormError("Vui lòng chờ mô hình 3D tải xong trước khi lưu.");
+      return;
+    }
     const err = validate();
     if (err) { setFormError(err); return; }
 
@@ -143,6 +153,8 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
         title: title.trim(),
         description: description.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
+        model3DUrl: model3DUrl.trim() || null,
+        model3DPosterUrl: model3DUrl.trim() ? model3DPosterUrl.trim() || null : null,
         type,
         difficulty,
         categoryId: Number(categoryId),
@@ -188,7 +200,7 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
             {" · "}Trạng thái hiện tại: <strong>{status}</strong> — lưu sẽ áp dụng ngay, không cần duyệt lại.
           </p>
         </div>
-        <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
+        <button onClick={handleSave} disabled={saving || modelUploading} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
           {saving ? <><Loader2 className="animate-spin" size={16} /> Đang lưu...</> : "Lưu thay đổi"}
         </button>
       </div>
@@ -212,6 +224,22 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
               token={getToken() ?? ""}
               folder="tutorials"
               variant="cover"
+              disabled={saving}
+            />
+          </div>
+
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.375rem" }}>Mô hình 3D</h3>
+            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+              Không bắt buộc. Tải sản phẩm hoàn thiện ở định dạng GLB.
+            </p>
+            <Model3DUploadField
+              value={model3DUrl}
+              posterUrl={model3DPosterUrl}
+              onChange={setModel3DUrl}
+              onPosterChange={setModel3DPosterUrl}
+              onUploadingChange={setModelUploading}
+              token={getToken() ?? ""}
               disabled={saving}
             />
           </div>

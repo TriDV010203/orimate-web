@@ -13,7 +13,7 @@ import {
 } from "@/lib/api/daily-challenge";
 import type { ApiError } from "@/lib/api/client";
 import { getToken } from "@/lib/auth";
-import { isValidImageUrl, toLocalDateInputValue } from "@/lib/utils";
+import { diffLabel, isValidImageUrl, toLocalDateInputValue } from "@/lib/utils";
 
 const STATUS_META: Record<DailyChallengeStatus, { label: string; className: string }> = {
   Scheduled: { label: "Đã lên lịch", className: "badge badge-warning" },
@@ -240,7 +240,7 @@ export default function AdminDailyChallengesPage() {
                           )}
                         </div>
                         <span style={{ flex: 1, minWidth: 0, fontSize: "0.8125rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
-                        <span style={{ fontSize: "0.6875rem", color: "var(--color-text-muted)" }}>{t.authorName}</span>
+                        <span style={{ fontSize: "0.6875rem", color: "var(--color-text-muted)" }}>{diffLabel(t.difficulty)}</span>
                       </div>
                     ))
                   )}
@@ -273,7 +273,7 @@ export default function AdminDailyChallengesPage() {
                     className="filter-chip"
                     style={{ textAlign: "left", justifyContent: "flex-start", width: "100%" }}
                   >
-                    {s.title} <span style={{ opacity: 0.6, marginLeft: "0.25rem" }}>({s.difficulty})</span>
+                    {s.title} <span style={{ opacity: 0.6, marginLeft: "0.25rem" }}>({diffLabel(s.difficulty)})</span>
                   </button>
                 ))}
               </div>

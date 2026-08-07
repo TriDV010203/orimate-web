@@ -8,6 +8,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
+import Model3DViewer from "./Model3DViewer";
 import ImageUploadField from "./ImageUploadField";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
@@ -1021,6 +1022,14 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
         {/* ── CONTENT ──────────────────────────────────────────────────────── */}
         <div className="container" style={{ padding: "2rem 1rem 4rem" }}>
+          {tutorial.model3DUrl && (
+            <Model3DViewer
+              modelUrl={tutorial.model3DUrl}
+              posterUrl={tutorial.model3DPosterUrl}
+              title={tutorial.title}
+            />
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "2rem", alignItems: "start" }}>
 
             {/* ── LEFT: Steps list ─────────────────────────────────────────── */}

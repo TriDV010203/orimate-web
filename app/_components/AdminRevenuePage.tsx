@@ -3,8 +3,6 @@
 import { useState } from "react";
 import {
   useQuery,
-  useMutation,
-  useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
 import {
@@ -13,12 +11,9 @@ import {
   HandCoins,
   Users,
   Loader2,
-  CheckCircle2,
-  XCircle,
   Receipt,
 } from "lucide-react";
 import { format } from "date-fns";
-import toast from "react-hot-toast";
 import { subscriptionsApi } from "@/lib/api/subscriptions";
 import type { AdminTransactionDto, TransactionStatusFilter } from "@/lib/api/subscriptions";
 import { getToken } from "@/lib/auth";
@@ -48,7 +43,6 @@ const STAT_COLORS = [
 ];
 
 export default function AdminRevenuePage() {
-  const qc = useQueryClient();
   const token = getToken() ?? "";
   const [statusFilter, setStatusFilter] = useState<TransactionStatusFilter | "All">("PendingConfirmation");
   const [page, setPage] = useState(1);
@@ -69,39 +63,6 @@ export default function AdminRevenuePage() {
     placeholderData: keepPreviousData,
   });
 
-  const confirmMut = useMutation({
-    mutationFn: (transactionId: string) => subscriptionsApi.confirmPayment(token, transactionId),
-    onSuccess: () => {
-      toast.success("Đã xác nhận thanh toán — VIP đã được kích hoạt cho người dùng.");
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-platform-revenue"] });
-    },
-    onError: (error: unknown) => toast.error((error as { message?: string }).message || "Lỗi khi xác nhận giao dịch"),
-  });
-
-  const rejectMut = useMutation({
-    mutationFn: ({ id, adminNote }: { id: string; adminNote: string }) =>
-      subscriptionsApi.rejectPayment(token, id, adminNote),
-    onSuccess: () => {
-      toast.success("Đã từ chối giao dịch.");
-      qc.invalidateQueries({ queryKey: ["admin-transactions"] });
-      qc.invalidateQueries({ queryKey: ["admin-platform-revenue"] });
-    },
-    onError: (error: unknown) => toast.error((error as { message?: string }).message || "Lỗi khi từ chối giao dịch"),
-  });
-
-  const isMutating = confirmMut.isPending || rejectMut.isPending;
-
-  function handleReject(id: string) {
-    const reason = prompt("Nhập lý do từ chối giao dịch (tối thiểu 5 ký tự):");
-    if (!reason) return;
-    if (reason.trim().length < 5) {
-      toast.error("Lý do quá ngắn hoặc không hợp lệ!");
-      return;
-    }
-    rejectMut.mutate({ id, adminNote: reason.trim() });
-  }
-
   const stats = [
     { label: "Tổng doanh thu (GMV)", value: formatCurrency(revenue?.totalGrossRevenue ?? 0), icon: Wallet },
     { label: "Hoa hồng đã thu (10%)", value: formatCurrency(revenue?.totalCommissionCollected ?? 0), icon: Percent },
@@ -114,7 +75,7 @@ export default function AdminRevenuePage() {
       <div className="admin-page-header">
         <h1 className="admin-page-title">Doanh thu &amp; Hoa hồng VIP</h1>
         <p className="admin-page-desc">
-          Theo dõi doanh thu VIP toàn nền tảng và xác nhận/từ chối các giao dịch chuyển khoản thủ công.
+          Theo dõi doanh thu VIP toàn nền tảng — giao dịch được SePay tự động xác nhận qua webhook.
         </p>
       </div>
 
@@ -139,7 +100,7 @@ export default function AdminRevenuePage() {
       <div className="admin-toolbar">
         <div className="admin-page-header" style={{ marginBottom: 0 }}>
           <h2 style={{ fontWeight: 700, fontSize: "1.0625rem" }}>Giao dịch VIP</h2>
-          <p className="admin-page-desc">Xác nhận thanh toán thủ công sau khi kiểm tra mã chuyển khoản.</p>
+          <p className="admin-page-desc">Sổ giao dịch chỉ đọc — SePay tự động xác nhận qua webhook, không cần thao tác thủ công.</p>
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -164,10 +125,10 @@ export default function AdminRevenuePage() {
                 <th>Creator</th>
                 <th>Số tiền</th>
                 <th>Hoa hồng / Creator nhận</th>
-                <th>Mã giao dịch</th>
+                <th>Mã thanh toán</th>
                 <th>Trạng thái</th>
                 <th>Ngày tạo</th>
-                <th style={{ textAlign: "right" }}>Thao tác</th>
+                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -201,34 +162,11 @@ export default function AdminRevenuePage() {
                       <td style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
                         {formatCurrency(tx.platformFeeAmount)} / {formatCurrency(tx.creatorNetAmount)}
                       </td>
-                      <td style={{ fontFamily: "monospace", fontSize: "0.8125rem" }}>{tx.referenceCode ?? "—"}</td>
+                      <td style={{ fontFamily: "monospace", fontSize: "0.8125rem" }}>{tx.paymentCode}</td>
                       <td><span className={`badge ${sm.className}`}>{sm.label}</span></td>
                       <td>{format(new Date(tx.createdAt), "dd/MM/yyyy HH:mm")}</td>
-                      <td>
-                        {tx.status === "PendingConfirmation" ? (
-                          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                            <button
-                              onClick={() => confirmMut.mutate(tx.id)}
-                              disabled={isMutating}
-                              className="admin-icon-action admin-icon-action-success"
-                              title="Xác nhận thanh toán"
-                            >
-                              <CheckCircle2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleReject(tx.id)}
-                              disabled={isMutating}
-                              className="admin-icon-action admin-icon-action-danger"
-                              title="Từ chối thanh toán"
-                            >
-                              <XCircle size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-                            {tx.adminNote ?? "—"}
-                          </span>
-                        )}
+                      <td style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+                        {tx.adminNote ?? "—"}
                       </td>
                     </tr>
                   );
