@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
 import { getToken, isLoggedIn } from "@/lib/auth";
-import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
+import { communityPostsApi, type CommunityPostDto, type CommentDto, type PagedResult } from "@/lib/api/community-posts";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
@@ -89,23 +90,18 @@ function CommentItem({
 
 // ── Content (dùng chung cho trang chi tiết và modal) ────────────────────────────
 export function PostDetailContent({ postId, autoFocusComment = false }: { postId: string; autoFocusComment?: boolean }) {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  const [post, setPost] = useState<CommunityPostDto | null>(null);
-  const [postProfile, setPostProfile] = useState<CreatorProfileDto | null>(null);
-  const [loadingPost, setLoadingPost] = useState(true);
-  const [postError, setPostError] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [liking, setLiking] = useState(false);
   const [likeError, setLikeError] = useState<string | null>(null);
 
-  const [comments, setComments] = useState<CommentDto[]>([]);
   const [commentProfiles, setCommentProfiles] = useState<Map<string, CreatorProfileDto>>(new Map());
-  const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -124,45 +120,55 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
     const t = getToken();
     setToken(t); setLoggedIn(isLoggedIn());
     setCurrentUserId(decodeUserId(t));
+    setAuthReady(true);
   }, []);
 
-  // Load post bằng API trực tiếp
-  useEffect(() => {
-    if (!postId) return;
-    setLoadingPost(true);
-    const tok = token ?? undefined;
-    communityPostsApi.getById(postId, tok)
-      .then(found => {
-        setPost(found);
-        setLiked(found.isLikedByCurrentUser);
-        setLikeCount(found.likeCount);
-        return usersApi.getProfile(found.authorId, tok);
-      })
-      .then(profile => { if (profile) setPostProfile(profile); })
-      .catch(() => setPostError("Không thể tải bài viết. Vui lòng thử lại."))
-      .finally(() => setLoadingPost(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId, token]);
+  // Load post bằng API trực tiếp — cache theo postId+token, quay lại trang thấy ngay không cần chờ
+  const postQuery = useQuery({
+    queryKey: ["community-post", postId, token ?? "anon"],
+    queryFn: async () => {
+      const tok = token ?? undefined;
+      const found = await communityPostsApi.getById(postId, tok);
+      const profile = await usersApi.getProfile(found.authorId, tok).catch(() => null);
+      return { post: found, profile };
+    },
+    enabled: authReady && !!postId,
+  });
 
-  // Load comments
+  const post = postQuery.data?.post ?? null;
+  const postProfile = postQuery.data?.profile ?? null;
+  const loadingPost = postQuery.isPending;
+  const postError = postQuery.isError
+    ? ((postQuery.error as { status?: number })?.status === 404
+        ? "Bài viết này không tồn tại hoặc đã bị gỡ."
+        : "Không thể tải bài viết. Vui lòng thử lại.")
+    : null;
+
+  // Đồng bộ trạng thái thích khi dữ liệu bài viết được tải/làm mới
   useEffect(() => {
-    if (!postId) return;
-    setLoadingComments(true);
-    communityPostsApi.getComments(postId)
-      .then(result => {
-        setComments(result.items);
-        // fetch profiles for unique authors
-        const uniqueIds = [...new Set(result.items.map(c => c.userId))];
-        uniqueIds.forEach(id => {
-          usersApi.getProfile(id, token ?? undefined)
-            .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
-            .catch(() => {});
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoadingComments(false));
+    if (post) { setLiked(post.isLikedByCurrentUser); setLikeCount(post.likeCount); }
+  }, [post]);
+
+  // Load comments — cùng cơ chế cache
+  const commentsQuery = useQuery({
+    queryKey: ["community-comments", postId],
+    queryFn: () => communityPostsApi.getComments(postId),
+    enabled: !!postId,
+  });
+
+  const comments = commentsQuery.data?.items ?? [];
+  const loadingComments = commentsQuery.isPending;
+
+  // fetch profiles cho các tác giả bình luận chưa có sẵn
+  useEffect(() => {
+    const uniqueIds = [...new Set(comments.map(c => c.userId))].filter(id => !commentProfiles.has(id));
+    uniqueIds.forEach(id => {
+      usersApi.getProfile(id, token ?? undefined)
+        .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
+        .catch(() => {});
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]);
+  }, [comments]);
 
   // Tự động focus ô nhập bình luận khi mở từ modal (bấm icon bình luận trên feed)
   useEffect(() => {
@@ -193,17 +199,7 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
     try {
       await communityPostsApi.addComment(token, { targetId: postId, targetType: "CommunityPost", content: commentText.trim() });
       setCommentText("");
-      // Reload comments
-      const result = await communityPostsApi.getComments(postId);
-      setComments(result.items);
-      const uniqueIds = [...new Set(result.items.map(c => c.userId))];
-      uniqueIds.forEach(id => {
-        if (!commentProfiles.has(id)) {
-          usersApi.getProfile(id, token ?? undefined)
-            .then(p => setCommentProfiles(prev => { const m = new Map(prev); m.set(id, p); return m; }))
-            .catch(() => {});
-        }
-      });
+      await queryClient.invalidateQueries({ queryKey: ["community-comments", postId] });
     } catch (err: unknown) {
       setCommentError((err as { message?: string })?.message ?? "Không thể đăng bình luận.");
     } finally {
@@ -212,7 +208,9 @@ export function PostDetailContent({ postId, autoFocusComment = false }: { postId
   }
 
   function handleDeleteComment(id: string) {
-    setComments(prev => prev.filter(c => c.id !== id));
+    queryClient.setQueryData(["community-comments", postId], (old?: PagedResult<CommentDto>) =>
+      old ? { ...old, items: old.items.filter(c => c.id !== id) } : old
+    );
   }
 
   const authorName = postProfile?.displayName ?? (post ? `#${post.authorId.slice(0,6).toUpperCase()}` : "");
