@@ -35,15 +35,33 @@ export default function Navbar() {
       const data = await visualSearchApi.searchByImage(file);
       console.log("Kết quả trả về từ Backend:", data);
 
-      // Lấy từ khóa vật thể do AI nhận diện được
-      const keyword = data.detectedObject || data.keyword || "origami";
+      // Lấy chuỗi thô từ AI (ví dụ: "16: 'dog'")
+      const rawKeyword = data.detectedObject || data.keyword || "";
 
-      // 1. HIỂN THỊ THÔNG BÁO CHO NGƯỜI DÙNG BIẾT AI ĐÃ NHẬN DIỆN ĐƯỢC GÌ
-      alert(`🤖 AI nhận diện được vật thể: "${keyword}". Bấm OK để xem các bài hướng dẫn liên quan!`);
+      // ── BỘ LỌC LÀM SẠCH CHUỖI ──
+      let cleanKeyword = rawKeyword.toString();
+      
+      // Nếu chuỗi có chứa dấu hai chấm (vd: "16: 'dog'"), tách lấy phần sau
+      if (cleanKeyword.includes(':')) {
+        cleanKeyword = cleanKeyword.split(':')[1];
+      }
+      
+      // Xóa bỏ tất cả dấu nháy đơn, nháy kép và khoảng trắng thừa -> thành "dog"
+      cleanKeyword = cleanKeyword.replace(/['"]/g, '').trim();
+      // ──────────────────────────
 
-      // 2. Đóng khung tìm kiếm và chuyển hướng sang trang Thư viện kèm từ khóa
+      // Kiểm tra nếu kết quả trống hoặc là "unknown"
+      if (!cleanKeyword || cleanKeyword.toLowerCase() === "unknown") {
+        alert("🤖 AI không nhận diện rõ vật thể trong ảnh này. Vui lòng thử lại với một bức ảnh rõ nét hơn nhé!");
+        return;
+      }
+
+      // Thông báo với từ khóa đã được làm sạch chuẩn xác
+      alert(`🤖 AI đã nhận diện thành công: "${cleanKeyword}". Bấm OK để xem các bài hướng dẫn tương ứng!`);
+
+      // Điều hướng sang trang Thư viện với từ khóa sạch (vd: /huong-dan?search=dog)
       setSearchOpen(false);
-      router.push(`/huong-dan?search=${encodeURIComponent(keyword)}`);
+      router.push(`/huong-dan?search=${encodeURIComponent(cleanKeyword)}`);
 
     } catch (error) {
       console.error("Lỗi tìm kiếm hình ảnh:", error);
