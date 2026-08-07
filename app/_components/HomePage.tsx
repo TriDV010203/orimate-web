@@ -290,10 +290,12 @@ export default function HomePage() {
                   Tham gia cộng đồng hơn <strong>50.000 người</strong> yêu thích Origami. Học từ hàng nghìn bài hướng dẫn, chia sẻ thành quả và kết nối với các nhà sáng tạo tài năng.
                 </p>
                 <div style={{ display: "flex", gap: "0.875rem", flexWrap: "wrap" }}>
-                  <Link href="/dang-ky" className="btn btn-primary btn-lg">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                    Bắt đầu miễn phí
-                  </Link>
+                  {!loggedIn && (
+                    <Link href="/dang-ky" className="btn btn-primary btn-lg">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                      Bắt đầu miễn phí
+                    </Link>
+                  )}
                   <Link href="/huong-dan" className="btn btn-outline btn-lg">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3" /></svg>
                     Xem hướng dẫn

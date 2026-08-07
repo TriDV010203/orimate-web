@@ -74,7 +74,10 @@ export interface ScheduleWeeklyChallengeRequest {
 export const weeklyChallengeApi = {
   /** GET /api/weekly-challenge/current — công khai, cá nhân hoá nếu có token. Chỉ có dữ liệu vào Chủ Nhật. */
   getCurrent(token?: string): Promise<WeeklyChallengeDto> {
-    return request<WeeklyChallengeDto>("/api/weekly-challenge/current", { token });
+    return request<WeeklyChallengeDto>("/api/weekly-challenge/current", {
+      token,
+      expectedErrorStatuses: [404],
+    });
   },
 
   /** GET /api/weekly-challenge/current/submissions — sắp xếp theo lượt thích */
