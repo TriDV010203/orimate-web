@@ -87,7 +87,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-success"
                           title="Bỏ qua"
-                          onClick={() => processReport(rep.id, 0)}
+                          onClick={() => processReport(rep.id, 1)}
                           disabled={handleMut.isPending}
                         >
                           <Check size={16} />
@@ -95,7 +95,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Gỡ bỏ"
-                          onClick={() => processReport(rep.id, 1)}
+                          onClick={() => processReport(rep.id, 2)}
                           disabled={handleMut.isPending}
                         >
                           <EyeOff size={16} />
@@ -103,7 +103,7 @@ export default function AdminReportsPage() {
                         <button
                           className="admin-icon-action admin-icon-action-danger"
                           title="Khóa TK"
-                          onClick={() => processReport(rep.id, 2)}
+                          onClick={() => processReport(rep.id, 3)}
                           disabled={handleMut.isPending}
                         >
                           <ShieldAlert size={16} />
