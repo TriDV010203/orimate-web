@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { isLoggedIn, getUser, getToken, clearSession, type StoredUser } from "@/lib/auth";
-import { authApi } from "@/lib/api";
+import { authApi, visualSearchApi } from "@/lib/api";
 import { useRouter, usePathname } from "next/navigation";
 
 export default function Navbar() {
@@ -15,6 +15,65 @@ export default function Navbar() {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ====== 2. THÊM STATE VÀ HÀM XỬ LÝ AI TÌM KIẾM HÌNH ẢNH ======
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSearchingImage, setIsSearchingImage] = useState(false);
+
+  const handleCameraClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsSearchingImage(true);
+      
+      // Gọi API AI xử lý hình ảnh
+      const data = await visualSearchApi.searchByImage(file);
+      console.log("Kết quả trả về từ Backend:", data);
+
+      // Lấy chuỗi thô từ AI (ví dụ: "16: 'dog'")
+      const rawKeyword = data.detectedObject || data.keyword || "";
+
+      // ── BỘ LỌC LÀM SẠCH CHUỖI ──
+      let cleanKeyword = rawKeyword.toString();
+      
+      // Nếu chuỗi có chứa dấu hai chấm (vd: "16: 'dog'"), tách lấy phần sau
+      if (cleanKeyword.includes(':')) {
+        cleanKeyword = cleanKeyword.split(':')[1];
+      }
+      
+      // Xóa bỏ tất cả dấu nháy đơn, nháy kép và khoảng trắng thừa -> thành "dog"
+      cleanKeyword = cleanKeyword.replace(/['"]/g, '').trim();
+      // ──────────────────────────
+
+      // Kiểm tra nếu kết quả trống hoặc là "unknown"
+      if (!cleanKeyword || cleanKeyword.toLowerCase() === "unknown") {
+        alert("🤖 AI không nhận diện rõ vật thể trong ảnh này. Vui lòng thử lại với một bức ảnh rõ nét hơn nhé!");
+        return;
+      }
+
+      // Thông báo với từ khóa đã được làm sạch chuẩn xác
+      alert(`🤖 AI đã nhận diện thành công: "${cleanKeyword}". Bấm OK để xem các bài hướng dẫn tương ứng!`);
+
+      // Điều hướng sang trang Thư viện với từ khóa sạch (vd: /huong-dan?search=dog)
+      setSearchOpen(false);
+      router.push(`/huong-dan?search=${encodeURIComponent(cleanKeyword)}`);
+
+    } catch (error) {
+      console.error("Lỗi tìm kiếm hình ảnh:", error);
+      alert("Hệ thống AI đang bận hoặc có lỗi, vui lòng thử lại!");
+    } finally {
+      setIsSearchingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+  // ============================================================
 
   // Khởi tạo và cập nhật trạng thái đăng nhập phía client
   function refreshAuth() {
@@ -32,8 +91,8 @@ export default function Navbar() {
       window.removeEventListener("storage", refreshAuth);
       window.removeEventListener("authChange", refreshAuth);
     };
-  // Re-check khi pathname thay đổi (navigate sau login)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-check khi pathname thay đổi (navigate sau login)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // Đóng dropdown khi click ngoài
@@ -558,6 +617,7 @@ export default function Navbar() {
         </nav>
 
         {/* Search Dropdown */}
+        {/* Search Dropdown */}
         {searchOpen && (
           <div
             style={{
@@ -565,7 +625,8 @@ export default function Navbar() {
               borderTop: "1px solid var(--color-border)",
             }}
           >
-            <div className="search-bar" style={{ maxWidth: "100%" }}>
+            {/* Thêm position: "relative" để định vị nút camera bên trong */}
+            <div className="search-bar" style={{ maxWidth: "100%", position: "relative", display: "flex", alignItems: "center" }}>
               <svg
                 className="search-icon"
                 viewBox="0 0 24 24"
@@ -576,12 +637,57 @@ export default function Navbar() {
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
               </svg>
+
               <input
                 id="nav-search-input"
                 type="search"
                 placeholder="Tìm kiếm bài hướng dẫn, chủ đề, tác giả..."
                 autoFocus
+                style={{ width: "100%", paddingRight: "40px" }} // Chừa chỗ trống bên phải cho icon camera
               />
+
+              {/* --- NÚT CAMERA & INPUT FILE ẨN --- */}
+              <button
+                type="button"
+                onClick={handleCameraClick}
+                disabled={isSearchingImage}
+                title="Tìm bằng hình ảnh (AI)"
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: isSearchingImage ? "not-allowed" : "pointer",
+                  color: isSearchingImage ? "var(--color-primary)" : "var(--color-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "4px",
+                }}
+              >
+                {isSearchingImage ? (
+                  // Icon loading xoay vòng
+                  <svg className="spin-anim" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                ) : (
+                  // Icon Camera SVG thuần
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                    <circle cx="12" cy="13" r="3" />
+                  </svg>
+                )}
+              </button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                accept="image/*"
+                style={{ display: "none" }} // Ẩn file input đi
+              />
+              {/* --------------------------------- */}
+
             </div>
           </div>
         )}
@@ -595,6 +701,13 @@ export default function Navbar() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-6px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+          .spin-anim {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </header>

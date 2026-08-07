@@ -65,7 +65,7 @@ export { subscriptionsApi, VIP_FIXED_PRICE_VND } from "./subscriptions";
 
 export type { JournalDto, CreateJournalRequest, UpdateJournalRequest } from "./journals";
 export { journalsApi } from "./journals";
-
+export { visualSearchApi } from "./visual-search";
 export type {
   CreatorProfileDto,
   UpdateProfileRequest,

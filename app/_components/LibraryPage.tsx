@@ -8,6 +8,7 @@ import AuthorLink from "./AuthorLink";
 import { tutorialsApi, communityPostsApi, wishlistsApi, type TutorialListItemDto, type CategoryDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const DIFFICULTIES = ["Tất cả", "Dễ", "Trung bình", "Khó"];
 const TYPES = ["Tất cả", "Miễn phí", "VIP"];
@@ -54,7 +55,18 @@ export default function LibraryPage() {
   const [difficulty, setDifficulty] = useState("Tất cả");
   const [type, setType] = useState("Tất cả");
   const [sort, setSort] = useState("date");
-  const [search, setSearch] = useState("");
+  // const [search, setSearch] = useState("");
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("search") || "";
+  const [search, setSearch] = useState(initialSearch);
+
+  // Đồng bộ lại state nếu URL thay đổi
+  useEffect(() => {
+    const q = searchParams.get("search");
+    if (q !== null) {
+      setSearch(q);
+    }
+  }, [searchParams]);
   const [page, setPage] = useState(1);
 
   const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
