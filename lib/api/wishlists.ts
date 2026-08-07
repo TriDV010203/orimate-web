@@ -32,8 +32,7 @@ export const wishlistsApi = {
   toggle(token: string, tutorialId: string): Promise<WishlistToggleResponse> {
     return request<WishlistToggleResponse>("/api/wishlists/toggle", {
       method: "POST",
-      // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType)
-      body: JSON.stringify({ TargetId: tutorialId, TargetType: "Tutorial" }),
+      body: JSON.stringify({ targetId: tutorialId, targetType: "Tutorial" }),
       token,
     });
   },

@@ -146,8 +146,8 @@ export default function ProfilePage() {
     if (!storedUser) return;
     const tok = getToken() ?? undefined;
     setTutorialsLoading(true);
-    tutorialsApi.getList({ authorId: storedUser.userId, pageSize: 5 }, tok)
-      .then((r) => setTutorials(r.items.filter((t) => t.author.id === storedUser.userId)))
+    tutorialsApi.getList({ sortBy: "date", pageSize: 100 }, tok)
+      .then((r) => setTutorials(r.items.filter((t) => t.author.id === storedUser.userId).slice(0, 5)))
       .catch(() => {})
       .finally(() => setTutorialsLoading(false));
   }, [activeTab]);

@@ -131,10 +131,9 @@ export const dailyChallengeApi = {
 
   /** POST /api/likes/toggle — like/unlike một bài nộp thử thách (cần đăng nhập) */
   toggleSubmissionLike(token: string, submissionId: string): Promise<ToggleLikeResponse> {
-    // Dùng PascalCase key vì backend dùng C# positional record (TargetId, TargetType)
     return request<ToggleLikeResponse>("/api/likes/toggle", {
       method: "POST",
-      body: JSON.stringify({ TargetId: submissionId, TargetType: "DailyChallengeSubmission" }),
+      body: JSON.stringify({ targetId: submissionId, targetType: "DailyChallengeSubmission" }),
       token,
     });
   },

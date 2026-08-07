@@ -10,6 +10,15 @@ export interface ApiError {
   status: number;
 }
 
+/** BE Domain.Enums.TargetType — dùng chung cho Likes, Comments, Wishlists, Reports. */
+export type TargetType =
+  | "Tutorial"
+  | "CommunityPost"
+  | "Comment"
+  | "StuckThread"
+  | "DailyChallengeSubmission"
+  | "WeeklyChallengeSubmission";
+
 export async function request<T>(
   path: string,
   options?: RequestInit & { token?: string; expectedErrorStatuses?: number[] }

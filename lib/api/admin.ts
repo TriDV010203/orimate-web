@@ -1,8 +1,9 @@
 // lib/api/admin.ts — Các API endpoint quản trị và kiểm duyệt dành cho Admin/Manager/CTV
 
-import { request } from "./client";
+import { request, type TargetType } from "./client";
 import { getToken } from "../auth";
 import type { PagedResult, TutorialStepDto, UpdateTutorialRequest, TutorialResponse } from "./tutorials";
+import type { ReportActionType } from "./reports";
 
 export interface BlockedWordResponse {
   createdAt: string | number | Date;
@@ -23,7 +24,7 @@ export interface AdminUserResponse {
 export interface PendingReportDto {
   id: string;
   reporterId: string;
-  targetType: number; // 0: Tutorial, 1: CommunityPost, 2: Comment
+  targetType: TargetType;
   targetId: string;
   reason: string;
   createdAt: string;
@@ -229,10 +230,20 @@ export const adminApi = {
     });
   },
 
-  handleReport(id: string, actionType: number): Promise<{ message: string }> {
+  handleReport(id: string, actionType: ReportActionType): Promise<{ message: string }> {
     return request<{ message: string }>(`/api/reports/${id}/handle`, {
       method: "POST",
       body: JSON.stringify({ actionType }),
+      token: getToken() ?? undefined,
+    });
+  },
+
+  // ── MODERATION ────────────────────────────────────────────────────────
+
+  deleteViolatingComment(commentId: string, reason?: string): Promise<{ message: string }> {
+    return request<{ message: string }>(`/api/moderation/comments/${commentId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ reason }),
       token: getToken() ?? undefined,
     });
   },
@@ -337,6 +348,15 @@ export const adminApi = {
     return request<TutorialResponse>(`/api/tutorials/${id}/admin`, {
       method: "PUT",
       body: JSON.stringify(body),
+      token: getToken() ?? undefined,
+    });
+  },
+
+  /** PUT /api/admin/tutorials/{tutorialId}/official — Gắn/gỡ nhãn bài chính thức */
+  setTutorialOfficial(tutorialId: string, isOfficial: boolean): Promise<{ message: string }> {
+    return request<{ message: string }>(`/api/admin/tutorials/${tutorialId}/official`, {
+      method: "PUT",
+      body: JSON.stringify({ isOfficial }),
       token: getToken() ?? undefined,
     });
   },

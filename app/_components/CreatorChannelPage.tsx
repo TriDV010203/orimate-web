@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { usersApi, tutorialsApi, type CreatorProfileDto, type TutorialListItemDto } from "@/lib/api";
 import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
-import { subscriptionsApi, VIP_FIXED_PRICE_VND, type MySubscriptionDto } from "@/lib/api/subscriptions";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND, type MySubscriptionDto, type PaymentInstructionDto } from "@/lib/api/subscriptions";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
@@ -47,10 +47,12 @@ export default function CreatorChannelPage({ userId }: Props) {
   // VIP subscribe widget
   const [mySubscription, setMySubscription] = useState<MySubscriptionDto | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
-  const [referenceCode, setReferenceCode] = useState("");
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeError, setSubscribeError] = useState<string | null>(null);
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
+  const [pendingTransactionId, setPendingTransactionId] = useState<string | null>(null);
+  const [paymentInstruction, setPaymentInstruction] = useState<PaymentInstructionDto | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
   const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
@@ -82,17 +84,13 @@ export default function CreatorChannelPage({ userId }: Props) {
     loadProfile();
   }, [userId]);
 
-  // Tải danh sách tutorial của creator (lọc theo authorId nếu BE hỗ trợ)
+  // BE không hỗ trợ lọc theo authorId trên GET /api/tutorials → tự lọc phía client
   useEffect(() => {
     async function loadTutorials() {
       setLoadingTutorials(true);
       try {
-        const result = await tutorialsApi.getList({ authorId: userId, pageSize: 24 });
-        // Lọc thêm client-side theo authorId nếu BE trả về tất cả
-        const creatorTutorials = result.items.filter(
-          (t) => t.author.id === userId
-        );
-        setTutorials(creatorTutorials.length > 0 ? creatorTutorials : result.items);
+        const result = await tutorialsApi.getList({ sortBy: "date", pageSize: 100 });
+        setTutorials(result.items.filter((t) => t.author.id === userId));
       } catch {
         setTutorials([]);
       } finally {
@@ -134,15 +132,12 @@ export default function CreatorChannelPage({ userId }: Props) {
   async function handleSubscribe() {
     const token = getToken();
     if (!token) { router.push("/dang-nhap"); return; }
-    if (!referenceCode.trim()) {
-      setSubscribeError("Vui lòng nhập mã chuyển khoản (Reference Code) để xác nhận thanh toán.");
-      return;
-    }
     setSubscribing(true);
     setSubscribeError(null);
     try {
-      await subscriptionsApi.subscribe(token, userId, referenceCode.trim());
-      setSubscribeSuccess(true);
+      const result = await subscriptionsApi.subscribe(token, userId);
+      setPendingTransactionId(result.transaction.id);
+      setPaymentInstruction(result.paymentInstruction);
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       setSubscribeError(apiErr.message ?? "Không thể đăng ký VIP. Vui lòng thử lại.");
@@ -150,6 +145,30 @@ export default function CreatorChannelPage({ userId }: Props) {
       setSubscribing(false);
     }
   }
+
+  // Poll trạng thái giao dịch trong lúc chờ SePay tự động xác nhận qua webhook.
+  useEffect(() => {
+    if (!pendingTransactionId) return;
+    const token = getToken();
+    if (!token) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const tx = await subscriptionsApi.getTransaction(token, pendingTransactionId);
+        if (tx.status === "Confirmed") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setSubscribeSuccess(true);
+          setPendingTransactionId(null);
+        }
+      } catch {
+        // lỗi mạng tạm thời — tiếp tục poll, lần sau thử lại
+      }
+    }, 4000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [pendingTransactionId]);
 
   async function handleFollow() {
     const token = getToken();
@@ -430,11 +449,40 @@ export default function CreatorChannelPage({ userId }: Props) {
                 </div>
               ) : subscribeSuccess ? (
                 <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1.5px solid var(--color-border)", padding: "1.75rem", textAlign: "center" }}>
-                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>📨</div>
-                  <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Đã gửi yêu cầu đăng ký!</h3>
+                  <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>✅</div>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>Thanh toán thành công!</h3>
                   <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)", lineHeight: 1.6 }}>
-                    Yêu cầu đăng ký VIP của bạn đang chờ admin xác nhận.
+                    VIP của bạn đã được kích hoạt.
                   </p>
+                </div>
+              ) : paymentInstruction ? (
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "2px solid var(--color-accent)", padding: "1.75rem" }}>
+                  <h3 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "1.25rem" }}>
+                    Quét mã để thanh toán
+                  </h3>
+
+                  <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
+                    <img
+                      src={paymentInstruction.qrCodeUrl}
+                      alt="QR chuyển khoản SePay"
+                      style={{ width: "100%", maxWidth: "220px", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)" }}
+                    />
+                  </div>
+
+                  <div style={{ background: "#F0F9FF", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.25rem", border: "1.5px solid #BAE6FD" }}>
+                    <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0369A1", marginBottom: "0.5rem" }}>💳 Hoặc chuyển khoản thủ công:</p>
+                    <ol style={{ margin: 0, padding: "0 0 0 1.25rem", fontSize: "0.8125rem", color: "#0C4A6E", lineHeight: 1.7 }}>
+                      <li>Ngân hàng: <strong>{paymentInstruction.bankName}</strong></li>
+                      <li>Số tài khoản: <strong>{paymentInstruction.bankAccountNumber}</strong> ({paymentInstruction.accountHolderName})</li>
+                      <li>Số tiền: <strong>{formatCurrency(paymentInstruction.amount)}</strong></li>
+                      <li>Nội dung (bắt buộc đúng nguyên văn): <strong style={{ fontFamily: "monospace" }}>{paymentInstruction.paymentCode}</strong></li>
+                    </ol>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", padding: "0.875rem", color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
+                    <span className="spinner" style={{ width: "1rem", height: "1rem", border: "2px solid var(--color-border)", borderTopColor: "var(--color-accent)", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                    Đang chờ xác nhận thanh toán tự động…
+                  </div>
                 </div>
               ) : (
                 <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "2px solid var(--color-accent)", padding: "1.75rem" }}>
@@ -450,27 +498,9 @@ export default function CreatorChannelPage({ userId }: Props) {
                     <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>/ 30 ngày</p>
                   </div>
 
-                  <div style={{ background: "#F0F9FF", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.25rem", border: "1.5px solid #BAE6FD" }}>
-                    <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0369A1", marginBottom: "0.5rem" }}>💳 Hướng dẫn thanh toán:</p>
-                    <ol style={{ margin: 0, padding: "0 0 0 1.25rem", fontSize: "0.8125rem", color: "#0C4A6E", lineHeight: 1.7 }}>
-                      <li>Chuyển khoản đến tài khoản: <strong>MB Bank - 1234567890</strong></li>
-                      <li>Nội dung: <strong>VIP {userId.slice(0, 8).toUpperCase()}</strong></li>
-                      <li>Nhập mã giao dịch vào ô bên dưới</li>
-                    </ol>
-                  </div>
-
-                  <div style={{ marginBottom: "1rem" }}>
-                    <label style={{ display: "block", fontWeight: 600, fontSize: "0.875rem", color: "var(--color-text-primary)", marginBottom: "0.5rem" }}>
-                      Mã giao dịch (Reference Code) *
-                    </label>
-                    <input
-                      type="text"
-                      value={referenceCode}
-                      onChange={e => setReferenceCode(e.target.value)}
-                      placeholder="Nhập mã giao dịch ngân hàng..."
-                      style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-primary)", fontSize: "0.9rem", boxSizing: "border-box", outline: "none", fontFamily: "monospace" }}
-                    />
-                  </div>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
+                    Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt.
+                  </p>
 
                   {subscribeError && (
                     <p style={{ fontSize: "0.875rem", color: "#DC2626", background: "#FEE2E2", padding: "0.625rem 1rem", borderRadius: "var(--radius-md)", marginBottom: "1rem" }}>{subscribeError}</p>
@@ -478,7 +508,7 @@ export default function CreatorChannelPage({ userId }: Props) {
 
                   <button onClick={handleSubscribe} disabled={subscribing} className="btn btn-accent"
                     style={{ width: "100%", justifyContent: "center", padding: "0.875rem", fontSize: "1rem", opacity: subscribing ? 0.7 : 1 }}>
-                    {subscribing ? "Đang gửi…" : "🔓 Gửi yêu cầu đăng ký VIP"}
+                    {subscribing ? "Đang tạo giao dịch…" : "🔓 Đăng ký VIP"}
                   </button>
                 </div>
               )}
