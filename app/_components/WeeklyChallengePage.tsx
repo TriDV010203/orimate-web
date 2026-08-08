@@ -9,7 +9,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { getToken, isLoggedIn } from "@/lib/auth";
-import { weeklyChallengeApi } from "@/lib/api/weekly-challenge";
+import { weeklyChallengeApi, type WeeklyChallengeSubmissionDto } from "@/lib/api/weekly-challenge";
 import type { ApiError } from "@/lib/api/client";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -33,7 +33,7 @@ export function useCountdownToSundayMidnightGmt7(endDateStr?: string) {
     function tick() {
       const nowGmt7Ms = Date.now() + 7 * 3_600_000;
 
-      const endDate = new Date(endDateStr);
+      const endDate = new Date(endDateStr!);
       endDate.setUTCHours(23, 59, 59, 999);
 
       const remaining = endDate.getTime() - nowGmt7Ms;
@@ -80,7 +80,9 @@ function WeeklyChallengePageInner() {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setToken(getToken());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoggedIn(isLoggedIn());
   }, []);
 
@@ -102,18 +104,20 @@ function WeeklyChallengePageInner() {
 
   const [subPage, setSubPage] = useState(1);
   const [subTotalPages, setSubTotalPages] = useState(1);
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<WeeklyChallengeSubmissionDto[]>([]);
   const [loadingSubs, setLoadingSubs] = useState(false);
   const [loadingMoreSubs, setLoadingMoreSubs] = useState(false);
 
+  const challengeId = challenge?.id;
+
   const fetchSubmissions = useCallback(
     async (pageNum: number, append = false) => {
-      if (!challenge) return;
+      if (!challengeId) return;
       if (append) setLoadingMoreSubs(true);
       else setLoadingSubs(true);
       try {
         const res = await weeklyChallengeApi.getSubmissions(
-          challenge.id,
+          challengeId,
           { page: pageNum, pageSize: 9 },
           token ?? undefined,
         );
@@ -129,14 +133,16 @@ function WeeklyChallengePageInner() {
         else setLoadingSubs(false);
       }
     },
-    [challenge, token],
+    [challengeId, token],
   );
 
   useEffect(() => {
-    if (challenge && !is404) {
+    if (challengeId && !is404) {
+      // We purposefully call this in an effect to load the initial page of submissions
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchSubmissions(1);
     }
-  }, [challenge, is404, fetchSubmissions]);
+  }, [challengeId, is404, fetchSubmissions]);
 
   function handleLoadMoreSubs() {
     fetchSubmissions(subPage + 1, true);
@@ -179,22 +185,16 @@ function WeeklyChallengePageInner() {
     submitMut.mutate();
   }
 
-  const toggleLikeMut = useMutation({
-    mutationFn: (submissionId: string) => {
-      if (!token) throw new Error("Chưa đăng nhập");
-      return weeklyChallengeApi.toggleSubmissionLike(token, submissionId);
-    },
-    onSuccess: (_, submissionId) => {
-      // Optimistic update done in handleToggleLike
-    },
-  });
+  async function handleToggleLike(e: React.MouseEvent, submissionId: string) {
+    e.preventDefault();
+    e.stopPropagation();
 
-  function handleToggleLike(submissionId: string) {
-    if (!loggedIn) {
+    if (!loggedIn || !token) {
       toast.error("Vui lòng đăng nhập để bình chọn.");
       return;
     }
-    // Optimistic UI update for perceived performance
+
+    // Optimistic UI update
     setSubmissions((prev) =>
       prev.map((s) =>
         s.id === submissionId
@@ -206,22 +206,24 @@ function WeeklyChallengePageInner() {
           : s,
       ),
     );
-    toggleLikeMut.mutate(submissionId, {
-      onError: () => {
-        // Revert on error
-        setSubmissions((prev) =>
-          prev.map((s) =>
-            s.id === submissionId
-              ? {
-                  ...s,
-                  isLikedByCurrentUser: !s.isLikedByCurrentUser,
-                  likeCount: s.likeCount + (s.isLikedByCurrentUser ? -1 : 1),
-                }
-              : s,
-          ),
-        );
-      },
-    });
+
+    try {
+      await weeklyChallengeApi.toggleSubmissionLike(token, submissionId);
+    } catch {
+      toast.error("Không thể bình chọn lúc này, máy chủ đang bận.");
+      // Revert on error
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === submissionId
+            ? {
+                ...s,
+                isLikedByCurrentUser: !s.isLikedByCurrentUser,
+                likeCount: s.likeCount + (s.isLikedByCurrentUser ? -1 : 1),
+              }
+            : s,
+        ),
+      );
+    }
   }
 
   const alreadySubmitted = challenge?.hasSubmittedThisWeek || false;
@@ -449,12 +451,16 @@ function WeeklyChallengePageInner() {
                             className="wc-podium-img"
                           />
                           <div className="wc-author">
-                            {sub.userDisplayName || "Ẩn danh"}
+                            {(sub.userDisplayName || "Ẩn danh").split('@')[0]}
                           </div>
-                          <div className="wc-likes">
-                            <Heart size={18} fill="#ef4444" />{" "}
+                          <button
+                            className="wc-likes"
+                            onClick={(e) => handleToggleLike(e, sub.id)}
+                            style={{ cursor: "pointer", border: "none", outline: "none" }}
+                          >
+                            <Heart size={18} fill={sub.isLikedByCurrentUser ? "#ef4444" : "none"} color={sub.isLikedByCurrentUser ? "#ef4444" : "currentColor"} />{" "}
                             {sub.likeCount || 0}
-                          </div>
+                          </button>
                         </div>
                       );
                     })}
@@ -486,11 +492,11 @@ function WeeklyChallengePageInner() {
                               <span
                                 style={{ fontWeight: 600, fontSize: "0.95rem" }}
                               >
-                                {sub.userDisplayName || "Ẩn danh"}
+                                {(sub.userDisplayName || "Ẩn danh").split('@')[0]}
                               </span>
                             </div>
                             <button
-                              onClick={() => handleToggleLike(sub.id)}
+                              onClick={(e) => handleToggleLike(e, sub.id)}
                               className={`wc-like-btn ${sub.isLikedByCurrentUser ? "liked" : ""}`}
                             >
                               <Heart
