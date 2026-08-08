@@ -328,6 +328,32 @@ function WeeklyChallengePageInner() {
                 </Link>
               </div>
 
+              {/* Reward Section */}
+              <div className="wc-hero-card" style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}>
+                <h2 style={{ fontSize: "1.2rem", textAlign: "center", marginBottom: "1rem" }}>🎁 Cơ Cấu Giải Thưởng</h2>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  <li style={{ padding: "0.75rem 0", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e5e7eb" }}>
+                    <span style={{ fontWeight: 600 }}>🥇 Hạng 1</span>
+                    <strong style={{ color: "var(--color-primary)" }}>+30 Hạt Gấp</strong>
+                  </li>
+                  <li style={{ padding: "0.75rem 0", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e5e7eb" }}>
+                    <span style={{ fontWeight: 600 }}>🥈 Hạng 2</span>
+                    <strong style={{ color: "var(--color-primary)" }}>+20 Hạt Gấp</strong>
+                  </li>
+                  <li style={{ padding: "0.75rem 0", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e5e7eb" }}>
+                    <span style={{ fontWeight: 600 }}>🥉 Hạng 3</span>
+                    <strong style={{ color: "var(--color-primary)" }}>+10 Hạt Gấp</strong>
+                  </li>
+                  <li style={{ padding: "0.75rem 0", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontWeight: 600 }}>⭐ Top 4 - 10</span>
+                    <strong style={{ color: "var(--color-primary)" }}>+5 Hạt Gấp</strong>
+                  </li>
+                </ul>
+                <p style={{ fontSize: "0.85rem", color: "#6b7280", marginTop: "1rem", textAlign: "center", fontStyle: "italic" }}>
+                  * Dùng Hạt Gấp để đổi quà và mua pattern hiếm trong Cửa hàng.
+                </p>
+              </div>
+
               {!alreadySubmitted && loggedIn ? (
                 <div className="wc-submit-card" id="submit-section">
                   <h2 className="wc-submit-title">Tham Gia Cuộc Thi</h2>

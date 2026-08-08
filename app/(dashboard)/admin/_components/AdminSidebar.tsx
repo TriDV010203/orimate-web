@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Medal, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
 
 const navItems = [
   { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
