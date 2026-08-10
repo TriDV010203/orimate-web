@@ -8,6 +8,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
+import CommentSection from "./CommentSection";
 import Model3DViewer from "./Model3DViewer";
 import ImageUploadField from "./ImageUploadField";
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -983,6 +984,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
           {!started ? (
             /* ── TRANG THÔNG TIN ĐẦY ĐỦ — 1 bên là thông tin, 1 bên là các khối đã thiết kế sẵn ── */
+            <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "2rem", alignItems: "start" }}>
 
               {/* ── TRÁI: 1 khung gộp — tác giả/hành động + thông tin bài hướng dẫn ── */}
@@ -1188,6 +1190,12 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
               </div>
             </div>
+
+            {/* Bình luận về bài hướng dẫn */}
+            <div style={{ marginTop: "2rem" }}>
+              <CommentSection targetId={tutorial.id} targetType="Tutorial" title="Bình luận" />
+            </div>
+            </>
           ) : (
             /* ── TRÌNH XEM TỪNG BƯỚC — bắt đầu từ bước 1, tự đánh dấu hoàn thành khi chuyển bước sau ── */
             <>

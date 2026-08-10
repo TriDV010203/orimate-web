@@ -79,6 +79,7 @@ export default function ProfilePage() {
 
   // Tutorials preview (bài hướng dẫn của bản thân)
   const [tutorials, setTutorials] = useState<TutorialListItemDto[]>([]);
+  const [tutorialsCount, setTutorialsCount] = useState(0);
   const [tutorialsLoading, setTutorialsLoading] = useState(false);
 
   // Achievements preview
@@ -147,7 +148,11 @@ export default function ProfilePage() {
     const tok = getToken() ?? undefined;
     setTutorialsLoading(true);
     tutorialsApi.getList({ sortBy: "date", pageSize: 100 }, tok)
-      .then((r) => setTutorials(r.items.filter((t) => t.author.id === storedUser.userId).slice(0, 5)))
+      .then((r) => {
+        const mine = r.items.filter((t) => t.author.id === storedUser.userId);
+        setTutorialsCount(mine.length);
+        setTutorials(mine.slice(0, 5));
+      })
       .catch(() => {})
       .finally(() => setTutorialsLoading(false));
   }, [activeTab]);
@@ -439,7 +444,7 @@ export default function ProfilePage() {
               <div style={{ display: "grid", gridTemplateColumns: `repeat(${isStaff ? 2 : 4}, 1fr)`, gap: "0", marginTop: "1.5rem", paddingTop: "1.5rem", borderTop: "1px solid var(--color-border)" }}>
                 {(
                   [
-                    !isStaff && { label: "Bài viết", value: formatNumber(profile?.postCount ?? 0), icon: "📚", tab: "Bài hướng dẫn" as Tab | null, href: null },
+                    !isStaff && { label: "Bài hướng dẫn", value: formatNumber(tutorialsCount), icon: "📚", tab: "Bài hướng dẫn" as Tab | null, href: null },
                     { label: "Người theo dõi", value: formatNumber(profile?.followerCount ?? 0), icon: "👥", tab: null, href: "/ho-so/nguoi-theo-doi" },
                     { label: "Đang theo dõi", value: formatNumber(profile?.followingCount ?? 0), icon: "➡️", tab: null, href: "/ho-so/dang-theo-doi" },
                     !isStaff && { label: "Thành tựu", value: formatNumber(profile?.achievementCount ?? 0), icon: "🏅", tab: "Thành tựu" as Tab | null, href: null },
@@ -536,7 +541,7 @@ export default function ProfilePage() {
                     </h2>
                     {!tutorialsLoading && (
                       <p style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>
-                        {formatNumber(profile?.postCount ?? tutorials.length)} bài viết
+                        {formatNumber(tutorialsCount)} bài hướng dẫn
                       </p>
                     )}
                   </div>
@@ -1004,17 +1009,6 @@ export default function ProfilePage() {
         <AchievementDetailModal
           achievement={selectedAchievement}
           onClose={() => setSelectedAchievement(null)}
-          onDelete={async () => {
-            const tok = getToken();
-            if (!tok) return;
-            try {
-              await achievementsApi.delete(tok, selectedAchievement.id);
-              setAchievementsPreview((prev) => prev.filter((a) => a.id !== selectedAchievement.id));
-              setSelectedAchievement(null);
-            } catch {
-              // silently ignore
-            }
-          }}
           onUpdated={(dto) => {
             setAchievementsPreview((prev) => prev.map((a) => (a.id === dto.id ? dto : a)));
             setSelectedAchievement(mapAchievementDto(dto));

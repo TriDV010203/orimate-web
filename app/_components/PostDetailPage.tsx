@@ -7,6 +7,7 @@ import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import AuthorLink from "./AuthorLink";
+import ReportModal from "./ReportModal";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { communityPostsApi, type CommunityPostDto, type CommentDto } from "@/lib/api/community-posts";
 import { usersApi, type CreatorProfileDto } from "@/lib/api/users";
@@ -55,6 +56,7 @@ function CommentItem({
   const [submittingReply, setSubmittingReply] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [showReport, setShowReport] = useState(false);
 
   const name = profile?.displayName ?? `#${comment.userId.slice(0, 6).toUpperCase()}`;
   const isOwn = currentUserId === comment.userId;
@@ -124,15 +126,30 @@ function CommentItem({
         <p style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{comment.content}</p>
         {deleteError && <p style={{ fontSize: "0.75rem", color: "var(--color-error)", marginTop: "0.25rem" }}>{deleteError}</p>}
 
-        {/* Trả lời — chỉ cho bình luận gốc, không cho phép trả lời một trả lời (khớp BE: chỉ lồng 1 cấp) */}
-        {!isReply && token && (
-          <button onClick={() => setReplying(r => !r)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.78rem", padding: 0, marginTop: "0.375rem", fontWeight: 600 }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
-            {replying ? "Hủy trả lời" : "Trả lời"}
-          </button>
+        {/* Trả lời / Báo cáo */}
+        {token && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.875rem", marginTop: "0.375rem" }}>
+            {/* Trả lời — chỉ cho bình luận gốc, không cho phép trả lời một trả lời (khớp BE: chỉ lồng 1 cấp) */}
+            {!isReply && (
+              <button onClick={() => setReplying(r => !r)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.78rem", padding: 0, fontWeight: 600 }}
+                onMouseEnter={e => (e.currentTarget.style.color = "var(--color-primary)")}
+                onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
+                {replying ? "Hủy trả lời" : "Trả lời"}
+              </button>
+            )}
+            {!isOwn && (
+              <button onClick={() => setShowReport(true)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "0.78rem", padding: 0, fontWeight: 600 }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#DC2626")}
+                onMouseLeave={e => (e.currentTarget.style.color = "var(--color-text-muted)")}>
+                Báo cáo
+              </button>
+            )}
+          </div>
         )}
+
+        <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} targetId={comment.id} targetType="Comment" />
 
         {replying && (
           <form onSubmit={handleSubmitReply} style={{ marginTop: "0.625rem", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -241,6 +258,7 @@ export function PostDetailContent({ postId, autoFocusComment = false, highlightC
   });
 
   const comments = commentsQuery.data?.items ?? [];
+  const totalCommentCount = commentsQuery.data?.totalCommentCount ?? comments.length;
   const loadingComments = commentsQuery.isPending;
 
   // fetch profiles cho các tác giả bình luận (kể cả trả lời lồng bên trong) chưa có sẵn
@@ -382,7 +400,7 @@ export function PostDetailContent({ postId, autoFocusComment = false, highlightC
                 {likeCount} Thích
               </button>
               <span style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-                💬 {comments.length} bình luận
+                💬 {totalCommentCount} bình luận
               </span>
             </div>
             {likeError && (
@@ -393,7 +411,7 @@ export function PostDetailContent({ postId, autoFocusComment = false, highlightC
           {/* Comments section */}
           <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-sm)", padding: "1.5rem" }}>
             <h2 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-text-primary)", marginBottom: "1.25rem" }}>
-              💬 Bình luận ({comments.length})
+              💬 Bình luận ({totalCommentCount})
             </h2>
 
             {/* Add comment */}

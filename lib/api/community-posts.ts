@@ -56,6 +56,11 @@ export interface CommentDto {
   replies?: CommentDto[] | null;
 }
 
+// totalCount = số bình luận gốc (dùng phân trang / "Xem thêm"); totalCommentCount = tính cả trả lời (hiển thị "Bình luận (N)").
+export interface CommentsPagedResult extends PagedResult<CommentDto> {
+  totalCommentCount: number;
+}
+
 export interface AddCommentRequest {
   targetId: string;
   targetType: TargetType;
@@ -119,8 +124,8 @@ export const communityPostsApi = {
     targetType: TargetType = "CommunityPost",
     page = 1,
     pageSize = 20
-  ): Promise<PagedResult<CommentDto>> {
-    return request<PagedResult<CommentDto>>(
+  ): Promise<CommentsPagedResult> {
+    return request<CommentsPagedResult>(
       `/api/comments?targetId=${targetId}&targetType=${targetType}&page=${page}&pageSize=${pageSize}`
     );
   },
