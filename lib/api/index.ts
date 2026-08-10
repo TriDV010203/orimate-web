@@ -21,6 +21,10 @@ export type {
   TutorialResponse,
   TutorialAuthorDetailDto,
   TutorialProgressDto,
+  PerceivedDifficultyValue,
+  TutorialRatingSummaryDto,
+  CompleteTutorialRequest,
+  CompleteTutorialResultDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";
 
@@ -63,8 +67,6 @@ export type {
 } from "./subscriptions";
 export { subscriptionsApi, VIP_FIXED_PRICE_VND } from "./subscriptions";
 
-export type { JournalDto, CreateJournalRequest, UpdateJournalRequest } from "./journals";
-export { journalsApi } from "./journals";
 export { visualSearchApi } from "./visual-search";
 export type {
   CreatorProfileDto,

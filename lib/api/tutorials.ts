@@ -1,6 +1,7 @@
 // lib/api/tutorials.ts — Các API endpoint và types liên quan đến tutorial
 
 import { request } from "./client";
+import type { AchievementDto } from "./achievements";
 
 // ── Tutorial types (matches BE DTOs) ──────────────────────────────────────────
 
@@ -58,8 +59,14 @@ export interface TutorialDetailDto {
   wishlistCount?: number;
   isLikedByCurrentUser?: boolean | null;
   isWishlistedByCurrentUser?: boolean | null;
-  isCompleted?: boolean;
-  achievementId?: string | null;
+  ratingSummary?: TutorialRatingSummaryDto | null;
+  hasAchievement?: boolean;
+  hasRated?: boolean;
+  completedStepCount?: number;
+  totalStepCount?: number;
+  progressPercent?: number;
+  /** Số người dùng đã hoàn thành bài này (tổng số Achievement gắn với tutorial, không phụ thuộc người xem hiện tại). */
+  completedCount?: number;
 }
 
 export interface PagedResult<T> {
@@ -171,9 +178,32 @@ export interface TutorialProgressDto {
   tutorialId: string;
   totalSteps: number;
   completedSteps: number;
-  completedStepIds: string[];
+  percentComplete: number;
   isCompleted: boolean;
-  completionPercent: number;
+  completedStepIds: string[];
+}
+
+// ── Rating / completion types ────────────────────────────────────────────────
+
+/** BE Domain.Enums.PerceivedDifficulty — đánh giá độ khó theo cảm nhận người học (khác difficulty tác giả đặt) */
+export type PerceivedDifficultyValue = "Easy" | "Medium" | "Hard";
+
+export interface TutorialRatingSummaryDto {
+  counts: Partial<Record<PerceivedDifficultyValue, number>>;
+  totalCount: number;
+}
+
+export interface CompleteTutorialRequest {
+  perceivedDifficulty?: PerceivedDifficultyValue | null;
+  photoUrl?: string | null;
+  note?: string | null;
+  isPublic?: boolean;
+}
+
+export interface CompleteTutorialResultDto {
+  progress: TutorialProgressDto;
+  achievement: AchievementDto;
+  isNewCompletion: boolean;
 }
 
 // ── Variant types ───────────────────────────────────────────────────────────────
@@ -370,6 +400,23 @@ export const tutorialsApi = {
       `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
       { method: "DELETE", token }
     );
+  },
+
+  /**
+   * POST /api/tutorials/{tutorialId}/complete — Hoàn thành tutorial: tạo thành tựu + (lần đầu) lưu
+   * đánh giá độ khó. BE tự kiểm tra đã hoàn thành hết các bước chưa; gọi lại lần 2 vẫn trả về
+   * thành tựu cũ (idempotent), không tạo trùng hay ghi đè rating.
+   */
+  completeTutorial(
+    token: string,
+    tutorialId: string,
+    body: CompleteTutorialRequest
+  ): Promise<CompleteTutorialResultDto> {
+    return request<CompleteTutorialResultDto>(`/api/tutorials/${tutorialId}/complete`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    });
   },
 
   /** POST /api/tutorials/{tutorialId}/steps/{stepId}/stuck — Đánh dấu đang bị kẹt ở bước này */

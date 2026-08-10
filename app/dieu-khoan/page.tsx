@@ -52,7 +52,7 @@ export default function DieuKhoanPage() {
                 {
                   num: "3",
                   title: "Nội dung người dùng",
-                  content: "Bạn giữ toàn bộ quyền sở hữu đối với nội dung bạn đăng tải (bài hướng dẫn, bài viết cộng đồng, nhật ký). Tuy nhiên, bằng cách đăng nội dung lên OriGami, bạn cấp cho chúng tôi giấy phép không độc quyền, miễn phí bản quyền để hiển thị, phân phối và quảng bá nội dung đó trên nền tảng. Bạn cam kết không đăng nội dung vi phạm bản quyền, nội dung khiêu dâm, bạo lực, thù ghét, hoặc thông tin sai sự thật.",
+                  content: "Bạn giữ toàn bộ quyền sở hữu đối với nội dung bạn đăng tải (bài hướng dẫn, bài viết cộng đồng). Tuy nhiên, bằng cách đăng nội dung lên OriGami, bạn cấp cho chúng tôi giấy phép không độc quyền, miễn phí bản quyền để hiển thị, phân phối và quảng bá nội dung đó trên nền tảng. Bạn cam kết không đăng nội dung vi phạm bản quyền, nội dung khiêu dâm, bạo lực, thù ghét, hoặc thông tin sai sự thật.",
                 },
                 {
                   num: "4",
