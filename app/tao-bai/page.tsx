@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import CreatePostPage from "../../_components/CreatePostPage";
+import CreatePostPage from "../_components/CreatePostPage";
 
 export const metadata: Metadata = {
   title: "Tạo bài viết — OriGami Cộng đồng",
