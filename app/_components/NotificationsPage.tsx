@@ -20,9 +20,18 @@ const TABS: { key: Tab; label: string }[] = [
 
 function getNotifIcon(type: string): string {
   switch (type?.toLowerCase()) {
-    case "like": return "❤️";
-    case "comment": return "💬";
-    case "follow": return "👤";
+    // case "like": return "❤️";
+    // case "comment": return "💬";
+    // case "follow": return "👤";
+    case "like":
+    case "newlike": 
+      return "❤️";
+    case "comment":
+    case "newcomment": 
+      return "💬";
+    case "follow":
+    case "newfollower": 
+      return "👤";
     case "achievement": return "🏆";
     case "vip": return "💎";
     default: return "📢";
@@ -126,15 +135,31 @@ export default function NotificationsPage() {
     }
   }
 
+  // function getNotifLink(notif: NotificationDto): string {
+  //   if (!notif.relatedEntityType || !notif.relatedEntityId) return "#";
+  //   switch (notif.relatedEntityType) {
+  //     case "Tutorial": return `/huong-dan/${notif.relatedEntityId}`;
+  //     case "CommunityPost": return `/cong-dong`;
+  //     case "Achievement": return `/ho-so/thanh-tich`;
+  //     default: return "#";
+  //   }
+  // }
   function getNotifLink(notif: NotificationDto): string {
-    if (!notif.relatedEntityType || !notif.relatedEntityId) return "#";
-    switch (notif.relatedEntityType) {
-      case "Tutorial": return `/huong-dan/${notif.relatedEntityId}`;
-      case "CommunityPost": return `/cong-dong`;
-      case "Achievement": return `/ho-so/thanh-tich`;
-      default: return "#";
-    }
+  if (!notif.relatedEntityType || !notif.relatedEntityId) return "/thong-bao";
+  
+  switch (notif.relatedEntityType.toLowerCase()) {
+    case "tutorial":
+      return `/huong-dan/${notif.relatedEntityId}`;
+    case "communitypost":
+      return `/cong-dong/${notif.relatedEntityId}`; // Chuyển thẳng đến bài viết cộng đồng
+    case "user":
+      return `/kenh/${notif.relatedEntityId}`; // Chuyển đến trang cá nhân người theo dõi
+    case "achievement":
+      return `/ho-so/thanh-tich`;
+    default:
+      return "/thong-bao";
   }
+}
 
   return (
     <>
