@@ -1,7 +1,7 @@
 // lib/api/client.ts — HTTP client nội bộ (shared across all API modules)
-// next.config.ts đã cấu hình rewrite: /api/* → http://localhost:5104/api/*
+// next.config.ts đã cấu hình rewrite: /api/* → BE (mặc định http://orimate.runasp.net/api/*)
 // → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
-// → Không cần CORS vì browser chỉ nói chuyện với Next.js (cùng origin)
+// → Không cần CORS, không bị mixed-content vì browser chỉ nói chuyện với Next.js (cùng origin)
 
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
