@@ -199,13 +199,15 @@ export default function Navbar() {
               gap: "0.25rem",
             }}
           >
-            {[
-              { href: "/huong-dan", label: "Thư viện" },
-              { href: "/lo-trinh", label: "Lộ trình" },
-              { href: "/cong-dong", label: "Cộng đồng" },
-              { href: "/thach-thuc", label: "Thử thách" },
-              { href: "/cua-hang", label: "Cửa hàng" },
-            ].map((link) => (
+            {(
+              [
+                { href: "/huong-dan", label: "Thư viện" },
+                { href: "/lo-trinh", label: "Lộ trình" },
+                { href: "/cong-dong", label: "Cộng đồng" },
+                { href: "/thach-thuc", label: "Thử thách" },
+                { href: "/cua-hang", label: "Cửa hàng" },
+              ] as { href: string; label: string; badge?: string }[]
+            ).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

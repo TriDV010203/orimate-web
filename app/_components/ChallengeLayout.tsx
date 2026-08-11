@@ -4,6 +4,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ImageUploadField from "./ImageUploadField";
 import { Avatar, DIFFICULTY_META } from "./DailyChallengePage";
+import type { UploadFolder } from "@/lib/api/uploads";
 
 export interface ChallengeLayoutProps {
   challengeType: "daily" | "weekly";
@@ -45,7 +46,7 @@ export interface ChallengeLayoutProps {
   submitError: string | null;
   onSubmit: (e: React.FormEvent) => void;
   token: string | null;
-  folder: string;
+  folder: UploadFolder;
   // Sidebar
   leaderboardTitle: string;
   leaderboard: any[];
