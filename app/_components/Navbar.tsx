@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { isLoggedIn, getUser, getToken, clearSession, type StoredUser } from "@/lib/auth";
 import { authApi, visualSearchApi } from "@/lib/api";
 import { useRouter, usePathname } from "next/navigation";
+import NotificationPopover from "./NotificationPopover";
 
 export default function Navbar() {
   const router = useRouter();
@@ -281,7 +282,8 @@ export default function Navbar() {
             {loggedIn ? (
               <>
                 {/* Notification bell */}
-                <button
+                <NotificationPopover />
+                {/* <button
                   id="nav-notif-btn"
                   className="btn btn-ghost btn-sm"
                   style={{
@@ -305,7 +307,7 @@ export default function Navbar() {
                     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                   </svg>
                   <span className="notif-dot" />
-                </button>
+                </button> */}
 
                 {/* User Avatar + Email Dropdown */}
                 <div ref={dropdownRef} style={{ position: "relative" }}>
