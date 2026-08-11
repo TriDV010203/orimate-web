@@ -3,7 +3,7 @@
 // → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
 // → Không cần CORS, không bị mixed-content vì browser chỉ nói chuyện với Next.js (cùng origin)
 
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://orimate.runasp.net";
 
 export interface ApiError {
   message: string;
