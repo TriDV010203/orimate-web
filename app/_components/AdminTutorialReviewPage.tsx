@@ -129,12 +129,11 @@ export default function AdminTutorialReviewPage({ tutorialId }: { tutorialId: st
   if (isLoading) {
     return <div className="card admin-queue-item"><Loader2 className="animate-spin" size={24} /></div>;
   }
-
   if (error || !tutorial) {
     return (
       <div className="card admin-empty-state">
         <p style={{ fontWeight: 600, color: "var(--color-error)" }}>
-          {(error as ApiError)?.message ?? "Không thể tải bài hướng dẫn."}
+          {(error as unknown as ApiError)?.message ?? "Không thể tải bài hướng dẫn."}
         </p>
       </div>
     );
