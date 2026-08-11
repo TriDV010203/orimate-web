@@ -10,6 +10,7 @@ import { Toaster } from "react-hot-toast";
 import Link from "next/link";
 import { isLoggedIn, getUser, getToken, clearSession } from "@/lib/auth";
 import { authApi } from "@/lib/api";
+import NotificationPopover from "../../_components/NotificationPopover";
 
 export default function AdminLayout({
   children,
@@ -113,9 +114,10 @@ export default function AdminLayout({
                 )}
               </button>
 
-              <button className="admin-icon-btn">
+              {/* <button className="admin-icon-btn">
                 <Bell size={18} />
-              </button>
+              </button> */}
+              <NotificationPopover className="admin-icon-btn" />
 
               <div ref={avatarMenuRef} style={{ position: "relative" }}>
                 <button
