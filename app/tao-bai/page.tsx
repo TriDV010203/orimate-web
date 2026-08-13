@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import CreatePostPage from "../../_components/CreatePostPage";
+import { Suspense } from "react";
+import CreatePostPage from "../_components/CreatePostPage";
 
 export const metadata: Metadata = {
   title: "Tạo bài viết — OriGami Cộng đồng",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <CreatePostPage />;
+  return (
+    <Suspense fallback={null}>
+      <CreatePostPage />
+    </Suspense>
+  );
 }

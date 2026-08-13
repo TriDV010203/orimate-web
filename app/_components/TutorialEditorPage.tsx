@@ -6,6 +6,7 @@ import { useRouter, useParams } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import ImageUploadField from "./ImageUploadField";
+import Model3DUploadField from "./Model3DUploadField";
 import { tutorialsApi } from "@/lib/api/tutorials";
 import type { CategoryDto, TutorialStatusValue } from "@/lib/api/tutorials";
 import { getToken, getUser } from "@/lib/auth";
@@ -51,6 +52,9 @@ export default function TutorialEditorPage() {
   const [difficulty, setDifficulty] = useState("Beginner");
   const [type, setType] = useState<"Free" | "VIP">("Free");
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [model3DUrl, setModel3DUrl] = useState("");
+  const [model3DPosterUrl, setModel3DPosterUrl] = useState("");
+  const [modelUploading, setModelUploading] = useState(false);
   const [steps, setSteps] = useState<StepForm[]>([]);
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
@@ -87,6 +91,8 @@ export default function TutorialEditorPage() {
           setDifficulty(detail.difficulty);
           setType(detail.type === "VIP" ? "VIP" : "Free");
           setCoverImageUrl(detail.coverImageUrl ?? "");
+          setModel3DUrl(detail.model3DUrl ?? "");
+          setModel3DPosterUrl(detail.model3DPosterUrl ?? "");
           setStatus(detail.status);
           setSteps(
             [...detail.steps]
@@ -154,6 +160,11 @@ export default function TutorialEditorPage() {
   async function handleSave(submitAfter: boolean) {
     setFormError(null);
 
+    if (modelUploading) {
+      setFormError("Vui lòng chờ mô hình 3D tải xong trước khi lưu bài.");
+      return;
+    }
+
     const basicErr = validateBasic();
     if (basicErr) { setFormError(basicErr); return; }
     if (submitAfter) {
@@ -170,6 +181,8 @@ export default function TutorialEditorPage() {
         title: title.trim(),
         description: description.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
+        model3DUrl: model3DUrl.trim() || null,
+        model3DPosterUrl: model3DUrl.trim() ? model3DPosterUrl.trim() || null : null,
         type,
         difficulty,
         categoryId: Number(categoryId),
@@ -274,10 +287,10 @@ export default function TutorialEditorPage() {
             )}
             {canEdit && (
               <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
-                <button onClick={() => handleSave(false)} disabled={saving} className="btn btn-outline" style={{ padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}>
+                <button onClick={() => handleSave(false)} disabled={saving || modelUploading} className="btn btn-outline" style={{ padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}>
                   {saving ? "Đang lưu..." : "💾 Lưu nháp"}
                 </button>
-                <button onClick={() => setSubmitConfirm(true)} disabled={saving} className="btn btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}>
+                <button onClick={() => setSubmitConfirm(true)} disabled={saving || modelUploading} className="btn btn-primary" style={{ padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}>
                   📤 Gửi duyệt
                 </button>
               </div>
@@ -299,7 +312,7 @@ export default function TutorialEditorPage() {
             </div>
           )}
 
-          <fieldset disabled={!canEdit || saving} style={{ border: "none", padding: 0, margin: 0 }}>
+          <fieldset disabled={!canEdit || saving || modelUploading} style={{ border: "none", padding: 0, margin: 0 }}>
             <div style={{ display: "grid", gridTemplateColumns: "400px 1fr", gap: "1.5rem", alignItems: "start" }}>
 
               {/* ── LEFT: Tutorial Info ── */}
@@ -314,6 +327,23 @@ export default function TutorialEditorPage() {
                     token={getToken() ?? ""}
                     folder="tutorials"
                     variant="cover"
+                    disabled={!canEdit || saving}
+                  />
+                </div>
+
+                {/* Optional completed-product 3D model */}
+                <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "1px solid var(--color-border)", padding: "1.25rem", boxShadow: "var(--shadow-sm)" }}>
+                  <h3 style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)", marginBottom: "0.375rem" }}>Mô hình 3D</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+                    Không bắt buộc. Mô hình dùng để quan sát sản phẩm sau khi hoàn thành.
+                  </p>
+                  <Model3DUploadField
+                    value={model3DUrl}
+                    posterUrl={model3DPosterUrl}
+                    onChange={setModel3DUrl}
+                    onPosterChange={setModel3DPosterUrl}
+                    onUploadingChange={setModelUploading}
+                    token={getToken() ?? ""}
                     disabled={!canEdit || saving}
                   />
                 </div>

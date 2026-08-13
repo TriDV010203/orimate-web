@@ -21,6 +21,10 @@ export type {
   TutorialResponse,
   TutorialAuthorDetailDto,
   TutorialProgressDto,
+  PerceivedDifficultyValue,
+  TutorialRatingSummaryDto,
+  CompleteTutorialRequest,
+  CompleteTutorialResultDto,
 } from "./tutorials";
 export { tutorialsApi } from "./tutorials";
 
@@ -46,7 +50,8 @@ export { communityPostsApi } from "./community-posts";
 export type { NotificationDto, NotificationPagedResult } from "./notifications";
 export { notificationsApi } from "./notifications";
 
-export type { ReportTargetType, SubmitReportRequest } from "./reports";
+export type { TargetType } from "./client";
+export type { ReportActionType, SubmitReportRequest } from "./reports";
 export { reportsApi } from "./reports";
 
 export type {
@@ -62,9 +67,7 @@ export type {
 } from "./subscriptions";
 export { subscriptionsApi, VIP_FIXED_PRICE_VND } from "./subscriptions";
 
-export type { JournalDto, CreateJournalRequest, UpdateJournalRequest } from "./journals";
-export { journalsApi } from "./journals";
-
+export { visualSearchApi } from "./visual-search";
 export type {
   CreatorProfileDto,
   UpdateProfileRequest,

@@ -6,16 +6,16 @@ import { Loader2, Play, Search, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { adminApi, type AdminTutorialListItemResponse } from "@/lib/api/admin";
 import {
-  dailyChallengeApi,
-  type AdminChallengeCalendarItemDto,
-  type ChallengeSuggestionDto,
-  type DailyChallengeStatus,
-} from "@/lib/api/daily-challenge";
+  weeklyChallengeApi,
+  type AdminWeeklyChallengeCalendarItemDto,
+  type WeeklyChallengeSuggestionDto,
+  type WeeklyChallengeStatus,
+} from "@/lib/api/weekly-challenge";
 import type { ApiError } from "@/lib/api/client";
 import { getToken } from "@/lib/auth";
 import { diffLabel, isValidImageUrl, toLocalDateInputValue } from "@/lib/utils";
 
-const STATUS_META: Record<DailyChallengeStatus, { label: string; className: string }> = {
+const STATUS_META: Record<WeeklyChallengeStatus, { label: string; className: string }> = {
   Scheduled: { label: "Đã lên lịch", className: "badge badge-warning" },
   Active: { label: "Đang diễn ra", className: "badge badge-success" },
   Closed: { label: "Đã đóng", className: "badge badge-neutral" },
@@ -25,12 +25,24 @@ function todayStr() {
   return toLocalDateInputValue();
 }
 
+// Thử thách tuần chỉ có thể mở vào Chủ Nhật — mặc định form về Chủ Nhật gần nhất (tính cả hôm nay).
+function nextSundayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
+  return toLocalDateInputValue(d);
+}
+
 function formatVN(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
 
-export default function AdminDailyChallengesPage() {
+function isSunday(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay() === 0;
+}
+
+export default function AdminWeeklyChallengesPage() {
   const qc = useQueryClient();
   const token = getToken() ?? "";
 
@@ -39,9 +51,9 @@ export default function AdminDailyChallengesPage() {
   const [toDate, setToDate] = useState("");
 
   const { data: calendar, isLoading: loadingCalendar } = useQuery({
-    queryKey: ["admin-daily-challenges", fromDate, toDate],
+    queryKey: ["admin-weekly-challenges", fromDate, toDate],
     queryFn: () =>
-      dailyChallengeApi.adminGetCalendar(token, {
+      weeklyChallengeApi.adminGetCalendar(token, {
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
         page: 1,
@@ -51,23 +63,23 @@ export default function AdminDailyChallengesPage() {
   });
 
   const runSchedulerMut = useMutation({
-    mutationFn: () => dailyChallengeApi.adminRunScheduler(token),
+    mutationFn: () => weeklyChallengeApi.adminRunScheduler(token),
     onSuccess: () => {
-      toast.success("Đã chạy scheduler: đóng thử thách hôm qua + kích hoạt hôm nay.");
-      qc.invalidateQueries({ queryKey: ["admin-daily-challenges"] });
+      toast.success("Đã chạy scheduler: đóng thử thách tuần trước + kích hoạt tuần này (nếu hôm nay là Chủ Nhật).");
+      qc.invalidateQueries({ queryKey: ["admin-weekly-challenges"] });
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Chạy scheduler thất bại"),
   });
 
-  // ── Gợi ý tutorial để đặt lịch ────────────────────────────────────────
+  // ── Gợi ý tutorial Advanced để đặt lịch ──────────────────────────────────
   const { data: suggestions, isLoading: loadingSuggestions, refetch: refetchSuggestions } = useQuery({
-    queryKey: ["admin-challenge-suggestions"],
-    queryFn: () => dailyChallengeApi.adminGetSuggestions(token, 5),
+    queryKey: ["admin-weekly-challenge-suggestions"],
+    queryFn: () => weeklyChallengeApi.adminGetSuggestions(token, 5),
     enabled: !!token,
   });
 
   // ── Form đặt lịch mới ─────────────────────────────────────────────────
-  const [scheduleDate, setScheduleDate] = useState(todayStr());
+  const [scheduleDate, setScheduleDate] = useState(nextSundayStr());
   const [selectedTutorial, setSelectedTutorial] = useState<{ id: string; title: string; coverImageUrl?: string | null } | null>(null);
 
   const [pickerSearchText, setPickerSearchText] = useState("");
@@ -85,7 +97,7 @@ export default function AdminDailyChallengesPage() {
     (async () => {
       setPickerLoading(true);
       try {
-        // Không lọc isOfficial — thử thách ngày có thể lấy hướng dẫn của bất kỳ creator nào, miễn đã Published
+        // Không lọc isOfficial — thử thách tuần có thể lấy hướng dẫn của bất kỳ creator nào, miễn đã Published
         const res = await adminApi.getAllTutorials({ search: pickerSearch || undefined, status: "Published", page: 1, pageSize: 20 });
         if (!cancelled) setPickerResults(res.items);
       } catch {
@@ -98,11 +110,11 @@ export default function AdminDailyChallengesPage() {
   }, [pickerSearch]);
 
   const scheduleMut = useMutation({
-    mutationFn: () => dailyChallengeApi.adminSchedule(token, { challengeDate: scheduleDate, tutorialId: selectedTutorial!.id }),
+    mutationFn: () => weeklyChallengeApi.adminSchedule(token, { challengeDate: scheduleDate, tutorialId: selectedTutorial!.id }),
     onSuccess: () => {
-      toast.success(`Đã đặt lịch "${selectedTutorial?.title}" cho ngày ${formatVN(scheduleDate)}.`);
+      toast.success(`Đã đặt lịch "${selectedTutorial?.title}" cho Chủ Nhật ${formatVN(scheduleDate)}.`);
       setSelectedTutorial(null);
-      qc.invalidateQueries({ queryKey: ["admin-daily-challenges"] });
+      qc.invalidateQueries({ queryKey: ["admin-weekly-challenges"] });
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Đặt lịch thất bại"),
   });
@@ -112,18 +124,24 @@ export default function AdminDailyChallengesPage() {
       toast.error("Vui lòng chọn 1 hướng dẫn trước.");
       return;
     }
+    if (!isSunday(scheduleDate)) {
+      toast.error("Thử thách tuần chỉ có thể mở vào Chủ Nhật.");
+      return;
+    }
     scheduleMut.mutate();
   }
 
-  function pickSuggestion(s: ChallengeSuggestionDto) {
+  function pickSuggestion(s: WeeklyChallengeSuggestionDto) {
     setSelectedTutorial({ id: s.tutorialId, title: s.title, coverImageUrl: s.coverImageUrl });
   }
 
   return (
     <div>
       <div className="admin-page-header">
-        <h1 className="admin-page-title">Thử thách ngày</h1>
-        <p className="admin-page-desc">Đặt lịch hướng dẫn cho Thử thách ngày, hoặc chạy tay job kích hoạt/đóng thử thách để kiểm tra không cần đợi 00:00.</p>
+        <h1 className="admin-page-title">Thử thách tuần</h1>
+        <p className="admin-page-desc">
+          Đặt lịch hướng dẫn (độ khó Khó) cho Thử thách tuần — chỉ mở vào Chủ Nhật, hoặc chạy tay job kích hoạt/đóng thử thách để kiểm tra không cần đợi.
+        </p>
       </div>
 
       <div className="admin-toolbar">
@@ -141,7 +159,7 @@ export default function AdminDailyChallengesPage() {
           className="btn btn-outline"
           onClick={() => runSchedulerMut.mutate()}
           disabled={runSchedulerMut.isPending}
-          title="Đóng thử thách hôm qua + kích hoạt thử thách hôm nay ngay lập tức (dùng để test)"
+          title="Đóng thử thách tuần trước + kích hoạt thử thách tuần này ngay lập tức (dùng để test, chỉ có tác dụng vào Chủ Nhật)"
         >
           {runSchedulerMut.isPending ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
           Chạy scheduler ngay
@@ -155,7 +173,7 @@ export default function AdminDailyChallengesPage() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Ngày</th>
+                  <th>Chủ Nhật</th>
                   <th>Trạng thái</th>
                   <th>Hướng dẫn</th>
                   <th>Nguồn</th>
@@ -165,9 +183,9 @@ export default function AdminDailyChallengesPage() {
                 {loadingCalendar ? (
                   <tr><td colSpan={4} className="admin-table-loading"><Loader2 className="animate-spin" size={28} style={{ margin: "0 auto" }} /></td></tr>
                 ) : !calendar || calendar.items.length === 0 ? (
-                  <tr><td colSpan={4} className="admin-table-empty">Chưa có thử thách nào trong khoảng ngày này.</td></tr>
+                  <tr><td colSpan={4} className="admin-table-empty">Chưa có thử thách tuần nào trong khoảng ngày này.</td></tr>
                 ) : (
-                  calendar.items.map((c: AdminChallengeCalendarItemDto) => {
+                  calendar.items.map((c: AdminWeeklyChallengeCalendarItemDto) => {
                     const meta = STATUS_META[c.status];
                     return (
                       <tr key={c.id}>
@@ -194,8 +212,13 @@ export default function AdminDailyChallengesPage() {
             <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.875rem" }}>Đặt lịch mới</h3>
 
             <div className="input-group">
-              <label className="input-label">Ngày thử thách</label>
+              <label className="input-label">Chủ Nhật của thử thách</label>
               <input type="date" min={todayStr()} value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="input-field" />
+              {!isSunday(scheduleDate) && (
+                <p style={{ fontSize: "0.75rem", color: "var(--color-danger)", marginTop: "0.25rem" }}>
+                  Ngày đã chọn không phải Chủ Nhật — thử thách tuần chỉ có thể mở vào Chủ Nhật.
+                </p>
+              )}
             </div>
 
             {selectedTutorial ? (
@@ -256,7 +279,7 @@ export default function AdminDailyChallengesPage() {
           <div className="card" style={{ padding: "1.25rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.875rem" }}>
               <h3 style={{ fontWeight: 700, fontSize: "1rem", display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                <Sparkles size={16} /> Gợi ý
+                <Sparkles size={16} /> Gợi ý (độ khó Khó)
               </h3>
               <button onClick={() => refetchSuggestions()} className="btn btn-outline btn-sm">Làm mới</button>
             </div>

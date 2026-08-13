@@ -44,7 +44,7 @@ export default function ChinhSachBaoMatPage() {
                   title: "Thông tin chúng tôi thu thập",
                   items: [
                     "Thông tin tài khoản: email, tên hiển thị, ảnh đại diện bạn cung cấp khi đăng ký.",
-                    "Nội dung bạn tạo: bài hướng dẫn, bài viết cộng đồng, nhật ký, bình luận.",
+                    "Nội dung bạn tạo: bài hướng dẫn, bài viết cộng đồng, bình luận.",
                     "Dữ liệu sử dụng: lịch sử xem, tương tác (like, follow, lưu bài), thời gian truy cập.",
                     "Thông tin thiết bị: loại trình duyệt, địa chỉ IP (được ẩn danh hóa sau 90 ngày).",
                   ],

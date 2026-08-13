@@ -1,7 +1,7 @@
 // lib/api/client.ts — HTTP client nội bộ (shared across all API modules)
-// next.config.ts đã cấu hình rewrite: /api/* → http://localhost:5104/api/*
+// next.config.ts đã cấu hình rewrite: /api/* → BE (mặc định http://orimate.runasp.net/api/*)
 // → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
-// → Không cần CORS vì browser chỉ nói chuyện với Next.js (cùng origin)
+// → Không cần CORS, không bị mixed-content vì browser chỉ nói chuyện với Next.js (cùng origin)
 
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -10,11 +10,20 @@ export interface ApiError {
   status: number;
 }
 
+/** BE Domain.Enums.TargetType — dùng chung cho Likes, Comments, Wishlists, Reports. */
+export type TargetType =
+  | "Tutorial"
+  | "CommunityPost"
+  | "Comment"
+  | "StuckThread"
+  | "DailyChallengeSubmission"
+  | "WeeklyChallengeSubmission";
+
 export async function request<T>(
   path: string,
-  options?: RequestInit & { token?: string }
+  options?: RequestInit & { token?: string; expectedErrorStatuses?: number[] }
 ): Promise<T> {
-  const { token, ...fetchOptions } = options ?? {};
+  const { token, expectedErrorStatuses = [], ...fetchOptions } = options ?? {};
 
   // FormData tự set Content-Type kèm boundary — không được set tay, browser lo việc đó
   const isFormData = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
@@ -53,7 +62,9 @@ export async function request<T>(
       // ignore parse error
     }
     const err: ApiError = { message, status: res.status };
-    console.error("[api] Error response:", res.status, message);
+    if (!expectedErrorStatuses.includes(res.status)) {
+      console.error("[api] Error response:", res.status, message);
+    }
     throw err;
   }
 

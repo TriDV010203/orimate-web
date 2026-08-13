@@ -7,6 +7,7 @@ import { tutorialsApi } from "@/lib/api/tutorials";
 import type { CategoryDto } from "@/lib/api/tutorials";
 import { getToken } from "@/lib/auth";
 import ImageUploadField from "./ImageUploadField";
+import Model3DUploadField from "./Model3DUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -38,6 +39,9 @@ export default function AdminCreateTutorialPage() {
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [difficulty, setDifficulty] = useState("Beginner");
   const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [model3DUrl, setModel3DUrl] = useState("");
+  const [model3DPosterUrl, setModel3DPosterUrl] = useState("");
+  const [modelUploading, setModelUploading] = useState(false);
   const [steps, setSteps] = useState<StepForm[]>([]);
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
@@ -108,6 +112,10 @@ export default function AdminCreateTutorialPage() {
 
   async function handlePublish() {
     setFormError(null);
+    if (modelUploading) {
+      setFormError("Vui lòng chờ mô hình 3D tải xong trước khi đăng bài.");
+      return;
+    }
     const err = validate();
     if (err) { setFormError(err); return; }
 
@@ -120,6 +128,8 @@ export default function AdminCreateTutorialPage() {
         title: title.trim(),
         description: description.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
+        model3DUrl: model3DUrl.trim() || null,
+        model3DPosterUrl: model3DUrl.trim() ? model3DPosterUrl.trim() || null : null,
         type: "Free",
         difficulty,
         categoryId: Number(categoryId),
@@ -163,7 +173,7 @@ export default function AdminCreateTutorialPage() {
             Bài do Admin/Manager viết sẽ đăng ngay, luôn miễn phí, đứng tên &quot;Đội ngũ OriGami&quot; — không cần qua duyệt.
           </p>
         </div>
-        <button onClick={handlePublish} disabled={saving} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
+        <button onClick={handlePublish} disabled={saving || modelUploading} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
           {saving ? <><Loader2 className="animate-spin" size={16} /> Đang đăng...</> : "🚀 Đăng bài ngay"}
         </button>
       </div>
@@ -187,6 +197,22 @@ export default function AdminCreateTutorialPage() {
               token={getToken() ?? ""}
               folder="tutorials"
               variant="cover"
+              disabled={saving}
+            />
+          </div>
+
+          <div className="card" style={{ padding: "1.25rem" }}>
+            <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.375rem" }}>Mô hình 3D</h3>
+            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
+              Không bắt buộc. Tải sản phẩm hoàn thiện ở định dạng GLB.
+            </p>
+            <Model3DUploadField
+              value={model3DUrl}
+              posterUrl={model3DPosterUrl}
+              onChange={setModel3DUrl}
+              onPosterChange={setModel3DPosterUrl}
+              onUploadingChange={setModelUploading}
+              token={getToken() ?? ""}
               disabled={saving}
             />
           </div>

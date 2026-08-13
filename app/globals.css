@@ -139,6 +139,23 @@ body {
   padding-right: 1.5rem;
 }
 
+.tutorial-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: center;
+  padding-top: 0.75rem;
+  padding-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .tutorial-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding-bottom: 1.25rem;
+  }
+}
+
 /* ===== BUTTONS ===== */
 .btn {
   display: inline-flex;

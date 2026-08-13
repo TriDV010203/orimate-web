@@ -1,6 +1,7 @@
 // lib/api/tutorials.ts — Các API endpoint và types liên quan đến tutorial
 
 import { request } from "./client";
+import type { AchievementDto } from "./achievements";
 
 // ── Tutorial types (matches BE DTOs) ──────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export interface TutorialDetailDto {
   slug: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty?: string | null;
   categoryId: number;
@@ -56,8 +59,14 @@ export interface TutorialDetailDto {
   wishlistCount?: number;
   isLikedByCurrentUser?: boolean | null;
   isWishlistedByCurrentUser?: boolean | null;
-  isCompleted?: boolean;
-  achievementId?: string | null;
+  ratingSummary?: TutorialRatingSummaryDto | null;
+  hasAchievement?: boolean;
+  hasRated?: boolean;
+  completedStepCount?: number;
+  totalStepCount?: number;
+  progressPercent?: number;
+  /** Số người dùng đã hoàn thành bài này (tổng số Achievement gắn với tutorial, không phụ thuộc người xem hiện tại). */
+  completedCount?: number;
 }
 
 export interface PagedResult<T> {
@@ -108,6 +117,8 @@ export interface CreateTutorialRequest {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;         // "Free" | "VIP"
   difficulty: string;   // "Beginner" | "Intermediate" | "Advanced"
   categoryId: number;
@@ -118,6 +129,8 @@ export interface UpdateTutorialRequest {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
@@ -131,6 +144,8 @@ export interface TutorialResponse {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
@@ -146,6 +161,8 @@ export interface TutorialAuthorDetailDto {
   title: string;
   description: string;
   coverImageUrl?: string | null;
+  model3DUrl?: string | null;
+  model3DPosterUrl?: string | null;
   type: string;
   difficulty: string;
   categoryId: number;
@@ -161,22 +178,63 @@ export interface TutorialProgressDto {
   tutorialId: string;
   totalSteps: number;
   completedSteps: number;
-  completedStepIds: string[];
+  percentComplete: number;
   isCompleted: boolean;
-  completionPercent: number;
+  completedStepIds: string[];
+}
+
+// ── Rating / completion types ────────────────────────────────────────────────
+
+/** BE Domain.Enums.PerceivedDifficulty — đánh giá độ khó theo cảm nhận người học (khác difficulty tác giả đặt) */
+export type PerceivedDifficultyValue = "Easy" | "Medium" | "Hard";
+
+export interface TutorialRatingSummaryDto {
+  counts: Partial<Record<PerceivedDifficultyValue, number>>;
+  totalCount: number;
+}
+
+export interface CompleteTutorialRequest {
+  perceivedDifficulty?: PerceivedDifficultyValue | null;
+  photoUrl?: string | null;
+  note?: string | null;
+  isPublic?: boolean;
+}
+
+export interface CompleteTutorialResultDto {
+  progress: TutorialProgressDto;
+  achievement: AchievementDto;
+  isNewCompletion: boolean;
+}
+
+// ── Variant types ───────────────────────────────────────────────────────────────
+
+export interface TutorialVariantDto {
+  id: string;
+  title: string;
+  slug: string;
+  coverImageUrl?: string | null;
+  difficulty: string;
+  difficultyDelta?: number | null;
+}
+
+export interface AddVariantRequest {
+  variantTutorialId: string;
+  difficultyDelta?: number | null;
 }
 
 // ── Tutorials API ─────────────────────────────────────────────────────────────
 
 export const tutorialsApi = {
-  /** GET /api/tutorials — Danh sách tutorial đã publish; token tùy chọn để trả về isLiked/isSaved */
+  /**
+   * GET /api/tutorials — Danh sách tutorial đã publish; token tùy chọn để trả về isLiked/isSaved.
+   * Lưu ý: BE không hỗ trợ lọc theo authorId — muốn lấy bài của 1 tác giả phải tự lọc phía client.
+   */
   getList(
     params?: {
       search?: string;
       categoryId?: number;
       difficulty?: string;
       type?: string;
-      authorId?: string;
       sortBy?: string;   // "date" | "likes"
       page?: number;
       pageSize?: number;
@@ -188,7 +246,6 @@ export const tutorialsApi = {
     if (params?.categoryId) q.set("categoryId", String(params.categoryId));
     if (params?.difficulty) q.set("difficulty", params.difficulty);
     if (params?.type)       q.set("type",       params.type);
-    if (params?.authorId)   q.set("authorId",   params.authorId);
     if (params?.sortBy)     q.set("sortBy",     params.sortBy);
     if (params?.page)       q.set("page",       String(params.page));
     if (params?.pageSize)   q.set("pageSize",   String(params.pageSize));
@@ -199,6 +256,18 @@ export const tutorialsApi = {
   /** GET /api/tutorials/{slug} — Chi tiết tutorial theo slug; token tùy chọn để trả về isLiked/isSaved/isCompleted */
   getBySlug(slug: string, token?: string): Promise<TutorialDetailDto> {
     return request<TutorialDetailDto>(`/api/tutorials/${slug}`, { token });
+  },
+
+  /** GET /api/tutorials/recommended — Gợi ý cá nhân hoá (cần đăng nhập) */
+  getRecommended(
+    params?: { page?: number; pageSize?: number },
+    token?: string
+  ): Promise<PagedResult<TutorialListItemDto>> {
+    const q = new URLSearchParams();
+    if (params?.page)     q.set("page",     String(params.page));
+    if (params?.pageSize) q.set("pageSize", String(params.pageSize));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<PagedResult<TutorialListItemDto>>(`/api/tutorials/recommended${qs}`, { token });
   },
 
   // ── Author / Studio ──────────────────────────────────────────────────────────
@@ -319,5 +388,74 @@ export const tutorialsApi = {
       `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
       { method: "POST", token }
     );
+  },
+
+  /** DELETE /api/tutorials/{tutorialId}/steps/{stepId}/complete — Bỏ đánh dấu hoàn thành bước */
+  uncompleteStep(
+    token: string,
+    tutorialId: string,
+    stepId: string
+  ): Promise<TutorialProgressDto> {
+    return request<TutorialProgressDto>(
+      `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
+      { method: "DELETE", token }
+    );
+  },
+
+  /**
+   * POST /api/tutorials/{tutorialId}/complete — Hoàn thành tutorial: tạo thành tựu + (lần đầu) lưu
+   * đánh giá độ khó. BE tự kiểm tra đã hoàn thành hết các bước chưa; gọi lại lần 2 vẫn trả về
+   * thành tựu cũ (idempotent), không tạo trùng hay ghi đè rating.
+   */
+  completeTutorial(
+    token: string,
+    tutorialId: string,
+    body: CompleteTutorialRequest
+  ): Promise<CompleteTutorialResultDto> {
+    return request<CompleteTutorialResultDto>(`/api/tutorials/${tutorialId}/complete`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    });
+  },
+
+  /** POST /api/tutorials/{tutorialId}/steps/{stepId}/stuck — Đánh dấu đang bị kẹt ở bước này */
+  markStepStuck(
+    token: string,
+    tutorialId: string,
+    stepId: string
+  ): Promise<{ message: string }> {
+    return request<{ message: string }>(
+      `/api/tutorials/${tutorialId}/steps/${stepId}/stuck`,
+      { method: "POST", token }
+    );
+  },
+
+  // ── Variants ─────────────────────────────────────────────────────────────────
+
+  /** GET /api/tutorials/{parentId}/variants — Các biến thể (độ khó khác) của một tutorial */
+  getVariants(parentId: string, token?: string): Promise<TutorialVariantDto[]> {
+    return request<TutorialVariantDto[]>(`/api/tutorials/${parentId}/variants`, { token });
+  },
+
+  /** POST /api/tutorials/{parentId}/variants — Gắn một tutorial khác làm biến thể (Admin/Manager) */
+  addVariant(
+    token: string,
+    parentId: string,
+    body: AddVariantRequest
+  ): Promise<{ message: string }> {
+    return request<{ message: string }>(`/api/tutorials/${parentId}/variants`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      token,
+    });
+  },
+
+  /** DELETE /api/tutorials/{parentId}/variants/{variantId} — Gỡ liên kết biến thể (Admin/Manager) */
+  removeVariant(token: string, parentId: string, variantId: string): Promise<{ message: string }> {
+    return request<{ message: string }>(`/api/tutorials/${parentId}/variants/${variantId}`, {
+      method: "DELETE",
+      token,
+    });
   },
 };

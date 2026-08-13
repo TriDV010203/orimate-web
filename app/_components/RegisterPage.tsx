@@ -102,7 +102,7 @@ export default function RegisterPage() {
             { icon: "👨‍🎨", text: "Đăng bài và trở thành Nhà sáng tạo nội dung" },
             { icon: "❤️", text: "Like, comment, follow người bạn yêu thích" },
             { icon: "👨‍👩‍👧‍👦", text: "Tạo dự án Origami cùng gia đình" },
-            { icon: "🏆", text: "Lưu thành tựu và nhật ký cá nhân" },
+            { icon: "🏆", text: "Lưu thành tựu cá nhân" },
           ].map((item) => (
             <div key={item.text} style={{ display: "flex", alignItems: "center", gap: "0.875rem", marginBottom: "1rem" }}>
               <div style={{ width: "2.25rem", height: "2.25rem", background: "rgba(255,255,255,0.12)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", flexShrink: 0 }}>
