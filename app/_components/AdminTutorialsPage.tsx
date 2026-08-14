@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type ApiError } from "@/lib/api";
 import { Check, X, Eye, Loader2, PartyPopper } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
+import ReasonModal from "./ReasonModal";
 
 export default function AdminTutorialsPage() {
   const qc = useQueryClient();
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; isEdit: boolean } | null>(null);
 
   const { data: queueData, isLoading } = useQuery({
     queryKey: ["admin-tutorials-queue"],
@@ -33,6 +36,7 @@ export default function AdminTutorialsPage() {
     onSuccess: () => {
       toast.success("Đã gửi yêu cầu sửa.");
       invalidate();
+      setRejectTarget(null);
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi thao tác"),
   });
@@ -51,6 +55,7 @@ export default function AdminTutorialsPage() {
     onSuccess: () => {
       toast.success("Đã từ chối bản chỉnh sửa.");
       invalidate();
+      setRejectTarget(null);
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi thao tác"),
   });
@@ -58,21 +63,28 @@ export default function AdminTutorialsPage() {
   const isBusy =
     publishMut.isPending || rejectMut.isPending || approveEditMut.isPending || rejectEditMut.isPending;
 
-  const handleReject = (id: string, isEdit: boolean) => {
-    const reason = prompt("Nhập lý do từ chối (tối thiểu 10 ký tự):");
-    if (!reason || reason.length < 10) {
-      if (reason !== null) toast.error("Lý do quá ngắn!");
-      return;
-    }
-    if (isEdit) {
-      rejectEditMut.mutate({ id, reason });
+  const handleRejectConfirm = (reason: string) => {
+    if (!rejectTarget) return;
+    if (rejectTarget.isEdit) {
+      rejectEditMut.mutate({ id: rejectTarget.id, reason });
     } else {
-      rejectMut.mutate({ id, reason });
+      rejectMut.mutate({ id: rejectTarget.id, reason });
     }
   };
 
   return (
     <div>
+      {rejectTarget && (
+        <ReasonModal
+          title="Yêu cầu sửa lại"
+          description="Cho tác giả biết cần sửa gì (tối thiểu 10 ký tự). Nội dung này sẽ được gửi tới tác giả."
+          placeholder="Ví dụ: Ảnh bước 3 bị mờ, vui lòng chụp lại rõ nét hơn..."
+          confirmLabel="Gửi yêu cầu sửa"
+          busy={rejectMut.isPending || rejectEditMut.isPending}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={handleRejectConfirm}
+        />
+      )}
       <div className="admin-toolbar">
         <div className="admin-page-header" style={{ marginBottom: 0 }}>
           <h1 className="admin-page-title">Duyệt bài Hướng dẫn</h1>
@@ -124,7 +136,7 @@ export default function AdminTutorialsPage() {
               </Link>
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => handleReject(item.id, item.isEdit)}
+                onClick={() => setRejectTarget({ id: item.id, isEdit: item.isEdit })}
                 disabled={isBusy}
               >
                 <X size={16} /> Sửa

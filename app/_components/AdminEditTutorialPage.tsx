@@ -8,7 +8,6 @@ import { tutorialsApi } from "@/lib/api/tutorials";
 import type { CategoryDto } from "@/lib/api/tutorials";
 import { getToken } from "@/lib/auth";
 import ImageUploadField from "./ImageUploadField";
-import Model3DUploadField from "./Model3DUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -16,11 +15,6 @@ const DIFFICULTY_OPTIONS: { value: string; label: string }[] = [
   { value: "Beginner", label: "Dễ" },
   { value: "Intermediate", label: "Trung bình" },
   { value: "Advanced", label: "Khó" },
-];
-
-const TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "Free", label: "Miễn phí" },
-  { value: "VIP", label: "VIP" },
 ];
 
 interface StepForm {
@@ -48,11 +42,7 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | "">("");
   const [difficulty, setDifficulty] = useState("Beginner");
-  const [type, setType] = useState("Free");
   const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [model3DUrl, setModel3DUrl] = useState("");
-  const [model3DPosterUrl, setModel3DPosterUrl] = useState("");
-  const [modelUploading, setModelUploading] = useState(false);
   const [steps, setSteps] = useState<StepForm[]>([]);
   const [activeStep, setActiveStep] = useState<string | null>(null);
 
@@ -82,10 +72,7 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
         setDescription(detail.description);
         setCategoryId(detail.categoryId);
         setDifficulty(detail.difficulty);
-        setType(detail.type);
         setCoverImageUrl(detail.coverImageUrl ?? "");
-        setModel3DUrl(detail.model3DUrl ?? "");
-        setModel3DPosterUrl(detail.model3DPosterUrl ?? "");
         setSteps(
           detail.steps
             .slice()
@@ -132,15 +119,19 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
     if (t.length < 5 || t.length > 150) return "Tiêu đề phải từ 5 đến 150 ký tự.";
     if (d.length < 20 || d.length > 500) return "Mô tả phải từ 20 đến 500 ký tự.";
     if (!categoryId) return "Vui lòng chọn danh mục.";
+    const missingIdx = steps.findIndex((s) => !s.description.trim() || !s.imageUrl.trim());
+    if (missingIdx !== -1) {
+      const s = steps[missingIdx];
+      const missingDesc = !s.description.trim();
+      const missingImg = !s.imageUrl.trim();
+      const what = missingDesc && missingImg ? "mô tả và ảnh minh hoạ" : missingDesc ? "mô tả" : "ảnh minh hoạ";
+      return `Bước ${missingIdx + 1} thiếu ${what}.`;
+    }
     return null;
   }
 
   async function handleSave() {
     setFormError(null);
-    if (modelUploading) {
-      setFormError("Vui lòng chờ mô hình 3D tải xong trước khi lưu.");
-      return;
-    }
     const err = validate();
     if (err) { setFormError(err); return; }
 
@@ -153,9 +144,7 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
         title: title.trim(),
         description: description.trim(),
         coverImageUrl: coverImageUrl.trim() || null,
-        model3DUrl: model3DUrl.trim() || null,
-        model3DPosterUrl: model3DUrl.trim() ? model3DPosterUrl.trim() || null : null,
-        type,
+        type: "Free",
         difficulty,
         categoryId: Number(categoryId),
         steps: steps.map((s, i) => ({
@@ -200,7 +189,7 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
             {" · "}Trạng thái hiện tại: <strong>{status}</strong> — lưu sẽ áp dụng ngay, không cần duyệt lại.
           </p>
         </div>
-        <button onClick={handleSave} disabled={saving || modelUploading} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
+        <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ padding: "0.75rem 1.5rem" }}>
           {saving ? <><Loader2 className="animate-spin" size={16} /> Đang lưu...</> : "Lưu thay đổi"}
         </button>
       </div>
@@ -224,22 +213,6 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
               token={getToken() ?? ""}
               folder="tutorials"
               variant="cover"
-              disabled={saving}
-            />
-          </div>
-
-          <div className="card" style={{ padding: "1.25rem" }}>
-            <h3 style={{ fontWeight: 700, fontSize: "1rem", marginBottom: "0.375rem" }}>Mô hình 3D</h3>
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
-              Không bắt buộc. Tải sản phẩm hoàn thiện ở định dạng GLB.
-            </p>
-            <Model3DUploadField
-              value={model3DUrl}
-              posterUrl={model3DPosterUrl}
-              onChange={setModel3DUrl}
-              onPosterChange={setModel3DPosterUrl}
-              onUploadingChange={setModelUploading}
-              token={getToken() ?? ""}
               disabled={saving}
             />
           </div>
@@ -277,12 +250,11 @@ export default function AdminEditTutorialPage({ tutorialId }: { tutorialId: stri
               </div>
             </div>
 
-            <div className="input-group">
-              <label className="input-label">Loại bài</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}
-                style={{ width: "100%", padding: "0.625rem 0.75rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", fontSize: "0.875rem", background: "var(--color-surface)", outline: "none", cursor: "pointer" }}>
-                {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+            <div>
+              <label className="input-label" style={{ marginBottom: "0.5rem", display: "block" }}>Loại bài</label>
+              <div style={{ padding: "0.625rem 1rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "rgba(45,106,79,0.06)", fontSize: "0.875rem", fontWeight: 600, color: "var(--color-primary)", textAlign: "center" }}>
+                🆓 Miễn phí — cố định, không thể đổi
+              </div>
             </div>
           </div>
         </div>

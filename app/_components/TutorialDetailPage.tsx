@@ -9,7 +9,6 @@ import Footer from "./Footer";
 import ReportModal from "./ReportModal";
 import AuthorLink from "./AuthorLink";
 import CommentSection from "./CommentSection";
-import Model3DViewer from "./Model3DViewer";
 import ImageUploadField from "./ImageUploadField";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import {
@@ -328,7 +327,15 @@ function StepViewer({ step, index, total, isCompleted, isLastStep, alreadyAchiev
             Đã hoàn thành
           </span>
         ) : (
-          <button id={`step-complete-${step.id}`} onClick={onComplete} className="btn btn-primary btn-sm" style={{ background: "#059669", borderColor: "#059669" }}>
+          <button
+            id={`step-complete-${step.id}`}
+            onClick={() => {
+              setFullscreen(false);
+              onComplete();
+            }}
+            className="btn btn-primary btn-sm"
+            style={{ background: "#059669", borderColor: "#059669" }}
+          >
             🏆 Hoàn thành
           </button>
         )
@@ -974,14 +981,6 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
         {/* ── CONTENT ──────────────────────────────────────────────────────── */}
         <div className="container" style={{ padding: "2rem 1rem 4rem" }}>
-          {started && tutorial.model3DUrl && (
-            <Model3DViewer
-              modelUrl={tutorial.model3DUrl}
-              posterUrl={tutorial.model3DPosterUrl}
-              title={tutorial.title}
-            />
-          )}
-
           {!started ? (
             /* ── TRANG THÔNG TIN ĐẦY ĐỦ — 1 bên là thông tin, 1 bên là các khối đã thiết kế sẵn ── */
             <>

@@ -1,7 +1,7 @@
 "use client";
 
 import AdminSidebar from "./_components/AdminSidebar";
-import { Bell, Search, Sun, Moon, User, KeyRound, LogOut } from "lucide-react";
+import { Bell, Sun, Moon, User, KeyRound, LogOut } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -90,15 +90,6 @@ export default function AdminLayout({
 
         <div className="admin-main">
           <header className="admin-header">
-            <div className="admin-header-search input-with-icon">
-              <Search className="input-icon" size={16} />
-              <input
-                type="text"
-                placeholder="Tìm kiếm..."
-                className="input-field"
-              />
-            </div>
-
             <div className="admin-header-actions">
               <button
                 onClick={() =>

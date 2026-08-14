@@ -4,56 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { notificationsApi, type NotificationDto } from "@/lib/api/notifications";
+import { notificationsApi } from "@/lib/api/notifications";
 import { getToken, isLoggedIn } from "@/lib/auth";
+import { getNotifIcon, getNotifColor, getNotifLabel, getRelativeTime, getNotifLink } from "@/lib/notificationDisplay";
 import { Check } from "lucide-react";
-
-// ── Hàm tiện ích (Đồng bộ với NotificationsPage) ──
-function getNotifIcon(type: string): string {
-  switch (type?.toLowerCase()) {
-    case "like": return "❤️";
-    case "comment": return "💬";
-    case "follow": return "👤";
-    case "achievement": return "🏆";
-    case "vip": return "💎";
-    default: return "📢";
-  }
-}
-
-function getNotifColor(type: string): string {
-  switch (type?.toLowerCase()) {
-    case "like": return "#D4713B";
-    case "comment": return "#2D6A4F";
-    case "follow": return "#2C7DA0";
-    case "achievement": return "#F59F00";
-    case "vip": return "#D4713B";
-    default: return "#6B7280";
-  }
-}
-
-function getRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Vừa xong";
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH} giờ trước`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD} ngày trước`;
-  return date.toLocaleDateString("vi-VN");
-}
-
-function getNotifLink(notif: NotificationDto): string {
-  if (!notif.relatedEntityType || !notif.relatedEntityId) return "#";
-  switch (notif.relatedEntityType) {
-    case "Tutorial": return `/huong-dan/${notif.relatedEntityId}`;
-    case "CommunityPost": return `/cong-dong`;
-    case "Achievement": return `/ho-so/thanh-tich`;
-    default: return "#";
-  }
-}
 
 // ── Component Chính ──
 export default function NotificationPopover({ className = "btn btn-ghost btn-sm" }: { className?: string }) {
@@ -166,32 +120,18 @@ export default function NotificationPopover({ className = "btn btn-ghost btn-sm"
                   }}
                 >
                   <div style={{ position: "relative", flexShrink: 0 }}>
-                    {n.actorName ? (
-                      n.actorAvatarUrl ? (
-                        <img src={n.actorAvatarUrl} alt="" style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: getNotifColor(n.type), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem", fontWeight: 700, color: "white" }}>
-                          {n.actorName.charAt(0).toUpperCase()}
-                        </div>
-                      )
-                    ) : (
-                      <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: `${getNotifColor(n.type)}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
-                        {getNotifIcon(n.type)}
-                      </div>
-                    )}
-                    <div style={{ position: "absolute", bottom: "-2px", right: "-2px", width: "1rem", height: "1rem", borderRadius: "50%", background: "var(--color-surface)", border: "2px solid var(--color-surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem" }}>
+                    <div style={{ width: "2.5rem", height: "2.5rem", borderRadius: "50%", background: `${getNotifColor(n.type)}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
                       {getNotifIcon(n.type)}
                     </div>
                   </div>
-                  
+
                   <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "inline-block", fontSize: "0.6875rem", fontWeight: 700, color: getNotifColor(n.type), background: `${getNotifColor(n.type)}18`, borderRadius: "var(--radius-full)", padding: "0.0625rem 0.5rem", marginBottom: "0.3125rem" }}>
+                      {getNotifLabel(n.type)}
+                    </span>
                     <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--color-text-primary)", fontWeight: n.isRead ? 400 : 600, lineHeight: 1.4 }}>
-                      {n.actorName && <strong style={{fontWeight: 700}}>{n.actorName} </strong>}
-                      <span style={{ color: "var(--color-text-secondary)" }}>{n.message}</span>
+                      {n.message}
                     </p>
-                    {n.subMessage && (
-                      <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginTop: "0.25rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.subMessage}</p>
-                    )}
                     <span style={{ fontSize: "0.75rem", color: n.isRead ? "var(--color-text-muted)" : "var(--color-primary)", marginTop: "0.25rem", display: "block", fontWeight: n.isRead ? 400 : 600 }}>
                       {getRelativeTime(n.createdAt)}
                     </span>

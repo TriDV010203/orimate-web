@@ -10,6 +10,7 @@ import { isValidImageUrl } from "@/lib/utils";
 import { Search, Pencil, Plus, ExternalLink, BookOpen, Loader2, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import ReasonModal from "./ReasonModal";
 
 const STATUS_META: Record<TutorialStatusValue, { label: string; badge: string }> = {
   Draft: { label: "Bản nháp", badge: "badge-neutral" },
@@ -28,6 +29,7 @@ export default function AdminManageTutorialsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [revisionTargetId, setRevisionTargetId] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -57,21 +59,24 @@ export default function AdminManageTutorialsPage() {
     onSuccess: () => {
       toast.success("Đã gửi yêu cầu chỉnh sửa.");
       qc.invalidateQueries({ queryKey: ["admin-tutorials-all"] });
+      setRevisionTargetId(null);
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi thao tác"),
   });
 
-  const handleRequestRevision = (id: string) => {
-    const reason = prompt("Nhập lý do yêu cầu chỉnh sửa (tối thiểu 10 ký tự):");
-    if (!reason || reason.length < 10) {
-      if (reason !== null) toast.error("Lý do quá ngắn!");
-      return;
-    }
-    requestRevisionMut.mutate({ id, reason });
-  };
-
   return (
     <div>
+      {revisionTargetId && (
+        <ReasonModal
+          title="Yêu cầu chỉnh sửa"
+          description="Cho tác giả biết cần sửa gì (tối thiểu 10 ký tự). Nội dung này sẽ được gửi tới tác giả."
+          placeholder="Ví dụ: Ảnh bước 3 bị mờ, vui lòng chụp lại rõ nét hơn..."
+          confirmLabel="Gửi yêu cầu sửa"
+          busy={requestRevisionMut.isPending}
+          onClose={() => setRevisionTargetId(null)}
+          onConfirm={(reason) => requestRevisionMut.mutate({ id: revisionTargetId, reason })}
+        />
+      )}
       <div className="admin-toolbar">
         <div className="admin-page-header" style={{ marginBottom: 0 }}>
           <h1 className="admin-page-title">Quản lý hướng dẫn</h1>
@@ -207,7 +212,7 @@ export default function AdminManageTutorialsPage() {
                           <button
                             className="admin-icon-action"
                             title="Yêu cầu chỉnh sửa"
-                            onClick={() => handleRequestRevision(t.id)}
+                            onClick={() => setRevisionTargetId(t.id)}
                             disabled={requestRevisionMut.isPending}
                           >
                             {requestRevisionMut.isPending && requestRevisionMut.variables?.id === t.id ? (

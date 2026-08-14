@@ -8,6 +8,7 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { adminApi, type ApiError } from "@/lib/api";
+import { getUser } from "@/lib/auth";
 import {
   Lock,
   Unlock,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import ReasonModal from "./ReasonModal";
 
 interface User {
   id: string;
@@ -44,6 +46,7 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [suspendTargetId, setSuspendTargetId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", keyword, page],
@@ -57,6 +60,7 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast.success("Đã khóa tài khoản.");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setSuspendTargetId(null);
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi khi khóa tài khoản"),
   });
@@ -106,6 +110,22 @@ export default function AdminUsersPage() {
 
   const isMutating = suspendMut.isPending || activateMut.isPending || assignRoleMut.isPending;
 
+  const currentUser = getUser();
+
+  const canEditUser = (target: User) => {
+    if (!currentUser) return false;
+    if (target.id === currentUser.userId) return true;
+
+    const targetIsAdmin = target.roles.includes("Admin");
+    const targetIsManager = target.roles.includes("Manager");
+    const isManager = currentUser.roles.includes("Manager") && !currentUser.roles.includes("Admin");
+
+    // Admin không được sửa admin khác; Manager không được sửa admin/manager khác.
+    if (targetIsAdmin) return false;
+    if (isManager && targetIsManager) return false;
+    return true;
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setKeyword(searchText.trim());
@@ -121,12 +141,7 @@ export default function AdminUsersPage() {
     }
 
     if (currentStatus === "Active") {
-      const reason = prompt("Nhập lý do khóa tài khoản (tối thiểu 10 ký tự):");
-      if (reason && reason.length >= 10) {
-        suspendMut.mutate({ id, reason });
-      } else if (reason) {
-        toast.error("Lý do quá ngắn hoặc không hợp lệ!");
-      }
+      setSuspendTargetId(id);
     } else if (confirm("Kích hoạt lại tài khoản này?")) {
       activateMut.mutate(id);
     }
@@ -213,6 +228,17 @@ export default function AdminUsersPage() {
 
   return (
     <div>
+      {suspendTargetId && (
+        <ReasonModal
+          title="Khóa tài khoản"
+          description="Cho biết lý do khóa tài khoản này (tối thiểu 10 ký tự)."
+          placeholder="Ví dụ: Vi phạm quy định cộng đồng..."
+          confirmLabel="Khóa tài khoản"
+          busy={suspendMut.isPending}
+          onClose={() => setSuspendTargetId(null)}
+          onConfirm={(reason) => suspendMut.mutate({ id: suspendTargetId, reason })}
+        />
+      )}
       <div className="admin-toolbar">
         <div className="admin-page-header" style={{ marginBottom: 0 }}>
           <h1 className="admin-page-title">Quản lý Người dùng</h1>
@@ -307,13 +333,15 @@ export default function AdminUsersPage() {
 
                     <td>
                       <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                        <button
-                          onClick={() => setEditingUser(user)}
-                          className="admin-icon-action"
-                          title="Phân quyền tài khoản"
-                        >
-                          <Pencil size={16} />
-                        </button>
+                        {canEditUser(user) && (
+                          <button
+                            onClick={() => setEditingUser(user)}
+                            className="admin-icon-action"
+                            title="Phân quyền tài khoản"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        )}
 
                         {!user.roles.includes("Admin") && (
                           <button

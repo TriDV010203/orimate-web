@@ -7,6 +7,7 @@ import Footer from "./Footer";
 import { notificationsApi } from "@/lib/api/notifications";
 import type { NotificationDto } from "@/lib/api/notifications";
 import { getToken } from "@/lib/auth";
+import { getNotifIcon, getNotifColor, getNotifLabel, getRelativeTime, getNotifLink } from "@/lib/notificationDisplay";
 
 type Tab = "all" | "unread" | "like" | "comment" | "follow";
 
@@ -17,42 +18,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "comment", label: "Bình luận" },
   { key: "follow", label: "Theo dõi" },
 ];
-
-function getNotifIcon(type: string): string {
-  switch (type?.toLowerCase()) {
-    case "like": return "❤️";
-    case "comment": return "💬";
-    case "follow": return "👤";
-    case "achievement": return "🏆";
-    case "vip": return "💎";
-    default: return "📢";
-  }
-}
-
-function getNotifColor(type: string): string {
-  switch (type?.toLowerCase()) {
-    case "like": return "#D4713B";
-    case "comment": return "#2D6A4F";
-    case "follow": return "#2C7DA0";
-    case "achievement": return "#F59F00";
-    case "vip": return "#D4713B";
-    default: return "#6B7280";
-  }
-}
-
-function getRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Vừa xong";
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH} giờ trước`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `${diffD} ngày trước`;
-  return date.toLocaleDateString("vi-VN");
-}
 
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -123,16 +88,6 @@ export default function NotificationsPage() {
       setNotifs(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch {
       // ignore silently
-    }
-  }
-
-  function getNotifLink(notif: NotificationDto): string {
-    if (!notif.relatedEntityType || !notif.relatedEntityId) return "#";
-    switch (notif.relatedEntityType) {
-      case "Tutorial": return `/huong-dan/${notif.relatedEntityId}`;
-      case "CommunityPost": return `/cong-dong`;
-      case "Achievement": return `/ho-so/thanh-tich`;
-      default: return "#";
     }
   }
 
@@ -225,36 +180,21 @@ export default function NotificationsPage() {
                       background: notif.isRead ? "transparent" : "rgba(45,106,79,0.04)",
                       transition: "var(--transition-fast)",
                     }}>
-                    {/* Avatar/Icon */}
+                    {/* Icon */}
                     <div style={{ position: "relative", flexShrink: 0 }}>
-                      {notif.actorName ? (
-                        notif.actorAvatarUrl ? (
-                          <img src={notif.actorAvatarUrl} alt={notif.actorName}
-                            style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", objectFit: "cover" }} />
-                        ) : (
-                          <div style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", background: getNotifColor(notif.type), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.0625rem", fontWeight: 700, color: "white" }}>
-                            {notif.actorName.charAt(0)}
-                          </div>
-                        )
-                      ) : (
-                        <div style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", background: `${getNotifColor(notif.type)}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
-                          {getNotifIcon(notif.type)}
-                        </div>
-                      )}
-                      <div style={{ position: "absolute", bottom: "-2px", right: "-2px", width: "1.25rem", height: "1.25rem", borderRadius: "50%", background: "var(--color-surface)", border: "2px solid var(--color-surface)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem" }}>
+                      <div style={{ width: "2.75rem", height: "2.75rem", borderRadius: "50%", background: `${getNotifColor(notif.type)}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
                         {getNotifIcon(notif.type)}
                       </div>
                     </div>
 
                     {/* Text */}
                     <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "inline-block", fontSize: "0.6875rem", fontWeight: 700, color: getNotifColor(notif.type), background: `${getNotifColor(notif.type)}18`, borderRadius: "var(--radius-full)", padding: "0.0625rem 0.5rem", marginBottom: "0.3125rem" }}>
+                        {getNotifLabel(notif.type)}
+                      </span>
                       <p style={{ fontSize: "0.9rem", color: "var(--color-text-primary)", lineHeight: 1.5 }}>
-                        {notif.actorName && <strong>{notif.actorName} </strong>}
-                        <span style={{ color: "var(--color-text-secondary)" }}>{notif.message}</span>
+                        {notif.message}
                       </p>
-                      {notif.subMessage && (
-                        <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginTop: "0.25rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{notif.subMessage}</p>
-                      )}
                       <p style={{ fontSize: "0.75rem", color: notif.isRead ? "var(--color-text-muted)" : "var(--color-primary)", marginTop: "0.375rem", fontWeight: notif.isRead ? 400 : 600 }}>
                         {getRelativeTime(notif.createdAt)}
                       </p>

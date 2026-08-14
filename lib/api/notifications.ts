@@ -6,14 +6,10 @@ import { request } from "./client";
 
 export interface NotificationDto {
   id: string;
-  userId: string;
-  type: string;          // "like" | "comment" | "follow" | "achievement" | "system" | "vip"
+  type: string;           // Tên enum BE, vd: "TutorialRejected", "Like", "Comment", "Follow"...
   message: string;
-  subMessage?: string | null;
-  actorName?: string | null;
-  actorAvatarUrl?: string | null;
-  relatedEntityId?: string | null;
-  relatedEntityType?: string | null;
+  entityType?: string | null;
+  entityId?: string | null;
   isRead: boolean;
   createdAt: string;
 }

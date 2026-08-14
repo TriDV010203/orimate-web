@@ -11,6 +11,7 @@ import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
+import ReasonModal from "./ReasonModal";
 
 const STATUS_META: Record<string, { label: string; tone: string }> = {
   Draft: { label: "Bản nháp", tone: "badge-neutral" },
@@ -28,57 +29,6 @@ function getDiffLabel(d?: string | null) {
   if (l === "intermediate") return "Trung bình";
   if (l === "advanced") return "Khó";
   return d || "Không xác định";
-}
-
-interface RejectModalProps {
-  busy: boolean;
-  onClose: () => void;
-  onConfirm: (reason: string) => void;
-}
-
-function RejectModal({ busy, onClose, onConfirm }: RejectModalProps) {
-  const [reason, setReason] = useState("");
-  const tooShort = reason.trim().length < 10;
-
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
-    >
-      <div className="card" style={{ width: "100%", maxWidth: "480px", padding: "1.5rem" }}>
-        <h3 style={{ fontWeight: 700, fontSize: "1.125rem", marginBottom: "0.5rem" }}>Yêu cầu chỉnh sửa</h3>
-        <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem", marginBottom: "1rem" }}>
-          Cho tác giả biết cần sửa gì (tối thiểu 10 ký tự). Nội dung này sẽ được gửi tới tác giả.
-        </p>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          rows={4}
-          autoFocus
-          placeholder="Ví dụ: Ảnh bước 3 bị mờ, vui lòng chụp lại rõ nét hơn..."
-          style={{
-            width: "100%", padding: "0.75rem", borderRadius: "var(--radius-md)",
-            border: "1.5px solid var(--color-border)", fontSize: "0.9rem",
-            fontFamily: "inherit", resize: "vertical", outline: "none",
-          }}
-        />
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.25rem" }}>
-          <button className="btn btn-outline" onClick={onClose} disabled={busy}>Hủy</button>
-          <button
-            className="btn btn-primary"
-            onClick={() => onConfirm(reason.trim())}
-            disabled={busy || tooShort}
-          >
-            {busy ? <Loader2 className="animate-spin" size={16} /> : <X size={16} />} Gửi yêu cầu sửa
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function AdminTutorialReviewPage({ tutorialId }: { tutorialId: string }) {
@@ -145,7 +95,11 @@ export default function AdminTutorialReviewPage({ tutorialId }: { tutorialId: st
   return (
     <div>
       {showReject && (
-        <RejectModal
+        <ReasonModal
+          title="Yêu cầu chỉnh sửa"
+          description="Cho tác giả biết cần sửa gì (tối thiểu 10 ký tự). Nội dung này sẽ được gửi tới tác giả."
+          placeholder="Ví dụ: Ảnh bước 3 bị mờ, vui lòng chụp lại rõ nét hơn..."
+          confirmLabel="Gửi yêu cầu sửa"
           busy={rejectMut.isPending}
           onClose={() => setShowReject(false)}
           onConfirm={(reason) => rejectMut.mutate(reason)}

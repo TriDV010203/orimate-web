@@ -15,6 +15,7 @@ import type { AdminTutorialListItemResponse } from "@/lib/api/admin";
 import type { ApiError } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl, diffLabel, DIFFICULTY_OPTIONS } from "@/lib/utils";
+import ReasonModal from "./ReasonModal";
 
 interface ModeFormState {
   id: string | null; // null = tạo mới
@@ -163,6 +164,7 @@ export default function AdminLearningPathModesPage() {
   const [queueStatus, setQueueStatus] = useState("Pending");
   const [queuePage, setQueuePage] = useState(1);
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ModeUnlockSubmissionDto | null>(null);
 
   const { data: queueData, isLoading: queueLoading } = useQuery({
     queryKey: ["admin-mode-unlock-submissions", queueModeId, queueStatus, queuePage],
@@ -190,21 +192,25 @@ export default function AdminLearningPathModesPage() {
     onSuccess: () => {
       toast.success("Đã từ chối bài nộp.");
       qc.invalidateQueries({ queryKey: ["admin-mode-unlock-submissions"] });
+      setRejectTarget(null);
     },
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi từ chối bài nộp"),
   });
 
-  function handleReject(s: ModeUnlockSubmissionDto) {
-    const reason = prompt("Nhập lý do từ chối (tối thiểu 5 ký tự):");
-    if (!reason || reason.trim().length < 5) {
-      if (reason !== null) toast.error("Lý do quá ngắn!");
-      return;
-    }
-    rejectMut.mutate({ id: s.id, reason: reason.trim() });
-  }
-
   return (
     <div>
+      {rejectTarget && (
+        <ReasonModal
+          title="Từ chối bài nộp"
+          description="Cho người dùng biết vì sao ảnh nộp bị từ chối (tối thiểu 5 ký tự)."
+          placeholder="Ví dụ: Ảnh không rõ ràng, vui lòng chụp lại..."
+          minLength={5}
+          confirmLabel="Từ chối"
+          busy={rejectMut.isPending}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={(reason) => rejectMut.mutate({ id: rejectTarget.id, reason })}
+        />
+      )}
       <div className="admin-page-header">
         <h1 className="admin-page-title">Chế độ lộ trình</h1>
         <p className="admin-page-desc">
@@ -496,7 +502,7 @@ export default function AdminLearningPathModesPage() {
                     <td>
                       {s.status === "Pending" ? (
                         <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                          <button className="btn btn-outline btn-sm" onClick={() => handleReject(s)} disabled={rejectMut.isPending || approveMut.isPending}>
+                          <button className="btn btn-outline btn-sm" onClick={() => setRejectTarget(s)} disabled={rejectMut.isPending || approveMut.isPending}>
                             <X size={14} /> Từ chối
                           </button>
                           <button className="btn btn-primary btn-sm" onClick={() => approveMut.mutate(s.id)} disabled={rejectMut.isPending || approveMut.isPending}>

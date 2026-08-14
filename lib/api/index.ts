@@ -67,7 +67,6 @@ export type {
 } from "./subscriptions";
 export { subscriptionsApi, VIP_FIXED_PRICE_VND } from "./subscriptions";
 
-export { visualSearchApi } from "./visual-search";
 export type {
   CreatorProfileDto,
   UpdateProfileRequest,
