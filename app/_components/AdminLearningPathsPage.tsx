@@ -13,6 +13,7 @@ import { isValidImageUrl } from "@/lib/utils";
 import { Search, Pencil, Plus, ExternalLink, Map, Loader2, Rocket, Archive } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 const STATUS_META: Record<LearningPathStatusValue, { label: string; badge: string }> = {
   Draft: { label: "Bản nháp", badge: "badge-neutral" },
@@ -22,6 +23,7 @@ const STATUS_META: Record<LearningPathStatusValue, { label: string; badge: strin
 
 export default function AdminLearningPathsPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -208,8 +210,14 @@ export default function AdminLearningPathsPage() {
                           <button
                             className="admin-icon-action"
                             title="Lưu trữ"
-                            onClick={() => {
-                              if (confirm(`Lưu trữ lộ trình "${p.title}"? Lộ trình sẽ bị ẩn khỏi trang công khai.`)) {
+                            onClick={async () => {
+                              const isConfirmed = await confirm({
+                                title: "Lưu trữ lộ trình",
+                                description: `Lưu trữ lộ trình "${p.title}"? Lộ trình sẽ bị ẩn khỏi trang công khai.`,
+                                confirmText: "Lưu trữ",
+                                danger: true,
+                              });
+                              if (isConfirmed) {
                                 archiveMut.mutate(p.id);
                               }
                             }}

@@ -10,6 +10,7 @@ import { Check, EyeOff, ShieldAlert, Loader2, ExternalLink } from "lucide-react"
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 // Dựng link xem chi tiết nội dung bị báo cáo — trả về null nếu chưa hỗ trợ xem trước
 // (vd. StuckThread, bài nộp thử thách... chưa có trang chi tiết công khai).
@@ -48,6 +49,7 @@ const REPORT_ACTIONS: { type: ReportActionType; label: string }[] = [
 
 export default function AdminReportsPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data: reports, isLoading } = useQuery({
     queryKey: ["admin-reports"],
     queryFn: () => adminApi.getPendingReports(),
@@ -63,9 +65,15 @@ export default function AdminReportsPage() {
     onError: (error: unknown) => toast.error((error as ApiError).message || "Lỗi khi xử lý báo cáo"),
   });
 
-  const processReport = (id: string, actionType: ReportActionType) => {
+  const processReport = async (id: string, actionType: ReportActionType) => {
     const label = REPORT_ACTIONS.find((a) => a.type === actionType)?.label ?? actionType;
-    if (confirm(`Xác nhận hành động: ${label}?`)) handleMut.mutate({ id, actionType });
+    const isConfirmed = await confirm({
+      title: "Xác nhận xử lý báo cáo",
+      description: `Xác nhận hành động: ${label}?`,
+      confirmText: "Xác nhận",
+      danger: actionType !== "Dismiss"
+    });
+    if (isConfirmed) handleMut.mutate({ id, actionType });
   };
 
   return (

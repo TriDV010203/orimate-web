@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import toast from "react-hot-toast";
 import { adminApi, type CategoryResponse, type ApiError } from "@/lib/api";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 interface FormState {
   id: number | null; // null = đang tạo mới
@@ -20,6 +21,7 @@ const EMPTY_FORM: FormState = { id: null, name: "" };
 
 export default function AdminCategoriesPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const { data: categories, isLoading } = useQuery({
@@ -78,8 +80,14 @@ export default function AdminCategoriesPage() {
     updateMut.mutate({ id: cat.id, body: { isActive: !cat.isActive } });
   }
 
-  function handleDelete(cat: CategoryResponse) {
-    if (confirm(`Xóa danh mục "${cat.name}"? Các bài hướng dẫn đã dùng danh mục này sẽ không bị ảnh hưởng, nhưng danh mục sẽ không còn hiển thị để chọn nữa.`)) {
+  async function handleDelete(cat: CategoryResponse) {
+    const isConfirmed = await confirm({
+      title: "Xóa danh mục",
+      description: `Xóa danh mục "${cat.name}"? Các bài hướng dẫn đã dùng danh mục này sẽ không bị ảnh hưởng, nhưng danh mục sẽ không còn hiển thị để chọn nữa.`,
+      confirmText: "Xóa",
+      danger: true,
+    });
+    if (isConfirmed) {
       deleteMut.mutate(cat.id);
     }
   }

@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import ReasonModal from "./ReasonModal";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 interface User {
   id: string;
@@ -40,6 +41,7 @@ const ROLE_BADGE: Record<string, string> = {
 
 export default function AdminUsersPage() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [keyword, setKeyword] = useState("");
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState("");
@@ -134,7 +136,7 @@ export default function AdminUsersPage() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  const handleToggleStatus = (id: string, currentStatus: string, roles: string[]) => {
+  const handleToggleStatus = async (id: string, currentStatus: string, roles: string[]) => {
     if (roles.includes("Admin")) {
       toast.error("Không thể khóa Quản trị viên.");
       return;
@@ -142,8 +144,13 @@ export default function AdminUsersPage() {
 
     if (currentStatus === "Active") {
       setSuspendTargetId(id);
-    } else if (confirm("Kích hoạt lại tài khoản này?")) {
-      activateMut.mutate(id);
+    } else {
+      const isConfirmed = await confirm({
+        title: "Kích hoạt tài khoản",
+        description: "Kích hoạt lại tài khoản này?",
+        confirmText: "Kích hoạt",
+      });
+      if (isConfirmed) activateMut.mutate(id);
     }
   };
 

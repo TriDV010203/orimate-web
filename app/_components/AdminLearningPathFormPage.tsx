@@ -14,6 +14,7 @@ import { isValidImageUrl, diffLabel, DIFFICULTY_OPTIONS } from "@/lib/utils";
 import ImageUploadField from "./ImageUploadField";
 import { ArrowLeft, Plus, Trash2, Loader2, Search, Rocket, Archive } from "lucide-react";
 import toast from "react-hot-toast";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 interface PathItemForm {
   tutorialId: string;
@@ -37,6 +38,7 @@ interface Props {
 
 export default function AdminLearningPathFormPage({ pathId }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const isEdit = !!pathId;
 
   const [loadingInitial, setLoadingInitial] = useState(isEdit);
@@ -229,7 +231,13 @@ export default function AdminLearningPathFormPage({ pathId }: Props) {
 
   async function handleArchive() {
     if (!token || !pathId) return;
-    if (!confirm("Lưu trữ lộ trình này? Lộ trình sẽ bị ẩn khỏi trang công khai.")) return;
+    const isConfirmed = await confirm({
+      title: "Lưu trữ lộ trình",
+      description: "Lưu trữ lộ trình này? Lộ trình sẽ bị ẩn khỏi trang công khai.",
+      confirmText: "Lưu trữ",
+      danger: true,
+    });
+    if (!isConfirmed) return;
     setArchiving(true);
     try {
       await learningPathsApi.archive(token, pathId);

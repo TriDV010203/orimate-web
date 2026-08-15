@@ -8,6 +8,7 @@ import { tutorialsApi } from "@/lib/api/tutorials";
 import type { MyTutorialDto, TutorialStatusValue } from "@/lib/api/tutorials";
 import { getToken, getUser } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/lib/contexts/ConfirmContext";
 
 // Trạng thái thật của BE (Domain.Enums.TutorialStatus)
 const STATUS_META: Record<TutorialStatusValue, { label: string; color: string; bg: string; icon: string }> = {
@@ -36,6 +37,7 @@ type Tab = "all" | TutorialStatusValue;
 
 export default function StudioPage() {
   const router = useRouter();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [tutorials, setTutorials] = useState<MyTutorialDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +90,14 @@ export default function StudioPage() {
   async function handleSubmit(t: MyTutorialDto) {
     const token = getToken();
     if (!token) return;
-    if (!confirm("Bạn có chắc muốn nộp bài này để kiểm duyệt?")) return;
+    
+    const isConfirmed = await confirm({
+      title: "Xác nhận nộp bài",
+      description: "Bạn có chắc muốn nộp bài này để kiểm duyệt?",
+      confirmText: "Nộp bài",
+    });
+    if (!isConfirmed) return;
+
     setSubmittingId(t.id);
     try {
       if (t.parentTutorialId) {
@@ -110,7 +119,14 @@ export default function StudioPage() {
   async function handleRequestEdit(t: MyTutorialDto) {
     const token = getToken();
     if (!token) return;
-    if (!confirm(`Tạo bản chỉnh sửa cho "${t.title}"? Bài gốc vẫn hiển thị công khai cho đến khi bản sửa được duyệt.`)) return;
+    
+    const isConfirmed = await confirm({
+      title: "Yêu cầu chỉnh sửa",
+      description: `Tạo bản chỉnh sửa cho "${t.title}"? Bài gốc vẫn hiển thị công khai cho đến khi bản sửa được duyệt.`,
+      confirmText: "Tạo bản sửa",
+    });
+    if (!isConfirmed) return;
+
     setRequestingEditId(t.id);
     try {
       const { workingCopyId } = await tutorialsApi.createWorkingCopy(token, t.id);
