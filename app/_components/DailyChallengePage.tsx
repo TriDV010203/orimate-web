@@ -28,7 +28,6 @@ export const DIFFICULTY_META: Record<string, { label: string; bg: string; fg: st
 };
 
 const HOW_IT_WORKS = [
-  { icon: "📅", title: "Mỗi ngày một thử thách", desc: "Admin/Manager chọn hoặc hệ thống tự chọn một mẫu gấp mới mỗi ngày." },
   { icon: "📸", title: "Gấp & đăng ảnh", desc: "Hoàn thành mẫu gấp và chia sẻ ảnh thành phẩm trước khi hết giờ (00:00)." },
   { icon: "🔥", title: "Giữ chuỗi ngày (streak)", desc: "Tham gia liên tục để giữ streak, mở khoá danh hiệu và lên bảng xếp hạng." },
 ];
@@ -229,7 +228,6 @@ export default function DailyChallengePage() {
 
   return (
     <ChallengeLayout
-      challengeType="daily"
       loading={loadingChallenge}
       notFound={challengeNotFound}
       error={challengeError}

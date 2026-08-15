@@ -1,4 +1,4 @@
-// lib/api/gamification.ts — Hạt Gấp, Streak, Daily Quest, Skill Level, Level (FT-25/26/27/28)
+// lib/api/gamification.ts — Hạt Gấp, Streak, Skill Level, Level (FT-25/26/28)
 
 import { request } from "./client";
 
@@ -11,13 +11,6 @@ export interface StreakDto {
   currentStreak: number;
   longestStreak: number;
   freezeCount: number;
-}
-
-export interface QuestProgressDto {
-  title: string;
-  progress: number;
-  targetValue: number;
-  isCompleted: boolean;
 }
 
 export interface HatGapBalanceDto {
@@ -43,11 +36,6 @@ export const gamificationApi = {
   /** GET /api/gamification/streak */
   getStreak(token: string): Promise<StreakDto> {
     return request<StreakDto>("/api/gamification/streak", { token });
-  },
-
-  /** GET /api/gamification/quest-today — null nếu không có quest nào đang hoạt động */
-  getQuestToday(token: string): Promise<QuestProgressDto | null> {
-    return request<QuestProgressDto | null>("/api/gamification/quest-today", { token });
   },
 
   /** GET /api/gamification/hatgap-balance */

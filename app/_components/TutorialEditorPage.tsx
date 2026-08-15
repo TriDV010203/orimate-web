@@ -22,8 +22,11 @@ const TYPE_OPTIONS: { value: "Free" | "VIP"; label: string }[] = [
 ];
 
 // BR-TUT-01 / BR-12 (BE): chỉ Draft và RevisionRequired mới sửa được trực tiếp.
-// Đã Published/PendingManagerReview/Removed thì không sửa qua form này.
+// Đã Published/PendingManagerReview/Removed thì không sửa qua form này — phải qua flow working-copy bên dưới.
 const EDITABLE_STATUSES: TutorialStatusValue[] = ["Draft", "RevisionRequired"];
+// Working copy (parentTutorialId != null — flow edit-after-publish): editable ở EditPendingReview/RevisionRequired,
+// khớp điều kiện UpdateWorkingCopyHandler/SubmitEditHandler ở BE.
+const WORKING_COPY_EDITABLE_STATUSES: TutorialStatusValue[] = ["EditPendingReview", "RevisionRequired"];
 
 interface StepForm {
   key: string;
@@ -51,6 +54,7 @@ export default function TutorialEditorPage() {
 
   const [tutorialId, setTutorialId] = useState<string | null>(null);
   const [status, setStatus] = useState<TutorialStatusValue | null>(null);
+  const [parentTutorialId, setParentTutorialId] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [title, setTitle] = useState("");
@@ -68,7 +72,10 @@ export default function TutorialEditorPage() {
   const [saving, setSaving] = useState(false);
   const [submitConfirm, setSubmitConfirm] = useState(false);
 
-  const canEdit = isCreateRoute || (status !== null && EDITABLE_STATUSES.includes(status));
+  const isWorkingCopy = !!parentTutorialId;
+  const canEdit = isCreateRoute || (status !== null && (
+    isWorkingCopy ? WORKING_COPY_EDITABLE_STATUSES.includes(status) : EDITABLE_STATUSES.includes(status)
+  ));
 
   useEffect(() => {
     const user = getUser();
@@ -96,6 +103,7 @@ export default function TutorialEditorPage() {
           setType(detail.type === "VIP" ? "VIP" : "Free");
           setCoverImageUrl(detail.coverImageUrl ?? "");
           setStatus(detail.status);
+          setParentTutorialId(detail.parentTutorialId ?? null);
           setSteps(
             [...detail.steps]
               .sort((a, b) => a.stepOrder - b.stepOrder)
@@ -201,13 +209,20 @@ export default function TutorialEditorPage() {
         setTutorialId(created.id);
         setStatus(created.status);
         router.replace(`/studio/${created.id}`);
+      } else if (isWorkingCopy) {
+        const updated = await tutorialsApi.updateWorkingCopy(token, currentId, payload);
+        setStatus(updated.status);
       } else {
         const updated = await tutorialsApi.updateTutorial(token, currentId, payload);
         setStatus(updated.status);
       }
 
       if (submitAfter && currentId) {
-        await tutorialsApi.submitTutorial(token, currentId);
+        if (isWorkingCopy) {
+          await tutorialsApi.submitEdit(token, currentId);
+        } else {
+          await tutorialsApi.submitTutorial(token, currentId);
+        }
         setSubmitConfirm(false);
         router.push("/studio");
       }
@@ -279,7 +294,7 @@ export default function TutorialEditorPage() {
             </Link>
             <span style={{ color: "var(--color-border)" }}>›</span>
             <h1 style={{ fontWeight: 700, fontSize: "1.125rem", color: "var(--color-text-primary)" }}>
-              {isCreateRoute ? "Tạo bài hướng dẫn mới" : "Chỉnh sửa bài hướng dẫn"}
+              {isCreateRoute ? "Tạo bài hướng dẫn mới" : isWorkingCopy ? "Chỉnh sửa bản sửa (bài đã xuất bản)" : "Chỉnh sửa bài hướng dẫn"}
             </h1>
             {!canEdit && (
               <span style={{ background: "#FEF3C7", color: "#92400E", borderRadius: "var(--radius-full)", padding: "0.25rem 0.75rem", fontSize: "0.8125rem", fontWeight: 600 }}>
@@ -300,8 +315,14 @@ export default function TutorialEditorPage() {
 
           {!canEdit && (
             <div style={{ background: "rgba(212,113,59,0.06)", border: "1.5px solid rgba(212,113,59,0.2)", borderRadius: "var(--radius-lg)", padding: "1rem 1.25rem", marginBottom: "1.5rem", color: "var(--color-text-secondary)", fontSize: "0.9rem" }}>
-              {status === "Published" ? (
-                "Bài đã xuất bản."
+              {isWorkingCopy ? (
+                <>
+                  Bản chỉnh sửa này đang ở trạng thái <strong>{status}</strong> nên không thể sửa ở đây.
+                  {status === "PendingManagerReview" && " Bản sửa đang chờ Manager duyệt."}
+                  {status === "Merged" && " Bản sửa đã được duyệt và áp dụng vào bài gốc."}
+                </>
+              ) : status === "Published" ? (
+                "Bài đã xuất bản — vào Creator Studio và bấm \"Yêu cầu chỉnh sửa\" để tạo bản sửa."
               ) : (
                 <>
                   Bài này đang ở trạng thái <strong>{status}</strong> nên không thể sửa trực tiếp ở đây.

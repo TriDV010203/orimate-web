@@ -33,29 +33,45 @@ export default function LearningPathsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const PAGE_SIZE = 10; // 2 hàng x 5 lộ trình / trang
 
-  const loadModes = useCallback(async () => {
-    setModesLoading(true);
+  const loadModes = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setModesLoading(true);
     try {
       const token = getToken() ?? undefined;
       const res = await learningPathModesApi.getModes(token);
       setModes(res);
       setUnlockPanelMode((current) => {
-        // Đã có panel mở sẵn (do người dùng vừa bấm) → chỉ cập nhật lại trạng thái mới nhất.
-        if (current) return res.find((m) => m.id === current.id) ?? current;
-        // Mới quay lại từ trang hướng dẫn (?moKhoa=...) → tự mở lại đúng panel đó.
-        if (reopenModeId) return res.find((m) => m.id === reopenModeId) ?? null;
+        // Đã có panel mở sẵn (do người dùng vừa bấm) → cập nhật lại trạng thái mới nhất,
+        // và tự đóng panel nếu chế độ đã được mở khoá (VD: admin vừa duyệt bài nộp).
+        if (current) {
+          const updated = res.find((m) => m.id === current.id) ?? current;
+          return updated.isUnlocked ? null : updated;
+        }
+        // Mới quay lại từ trang hướng dẫn (?moKhoa=...) → tự mở lại đúng panel đó, trừ khi đã mở khoá rồi.
+        if (reopenModeId) {
+          const found = res.find((m) => m.id === reopenModeId) ?? null;
+          return found && !found.isUnlocked ? found : null;
+        }
         return null;
       });
     } catch {
       // Non-fatal: khoá/mở lộ trình sẽ không hiển thị được, nhưng danh sách lộ trình vẫn xem bình thường.
     } finally {
-      setModesLoading(false);
+      if (!opts?.silent) setModesLoading(false);
     }
   }, [reopenModeId]);
 
   useEffect(() => {
     loadModes();
   }, [loadModes]);
+
+  // Còn bài nộp nào đang chờ duyệt thì tự động thăm dò ngầm mỗi 15s — để khi Admin/Manager
+  // duyệt xong, trang tự mở khoá lộ trình (đóng panel/xoá icon khoá) mà không cần tải lại trang.
+  const hasPendingSubmission = modes.some((m) => m.unlockTest?.mySubmissionStatus === "Pending");
+  useEffect(() => {
+    if (!hasPendingSubmission) return;
+    const id = setInterval(() => loadModes({ silent: true }), 15000);
+    return () => clearInterval(id);
+  }, [hasPendingSubmission, loadModes]);
 
   // Tải lộ trình đã xuất bản (mọi chế độ) theo trang — chế độ nào đang khoá thì đánh dấu khoá trên từng thẻ.
   useEffect(() => {
@@ -221,7 +237,7 @@ export default function LearningPathsPage() {
               )}
 
               {/* ── Panel mở khoá (hiện khi bấm vào 1 lộ trình đang khoá) ────────── */}
-              {unlockPanelMode && (
+              {unlockPanelMode && !unlockPanelMode.isUnlocked && (
                 <div ref={unlockPanelRef} style={{ scrollMarginTop: "1.5rem" }}>
                   <LearningPathModeUnlockPanel mode={unlockPanelMode} token={getToken()} onSubmitted={loadModes} />
                 </div>

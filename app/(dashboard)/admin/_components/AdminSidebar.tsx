@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Medal, Flag, Settings, Wallet, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Users, BookOpen, FolderCog, FolderOpen, Map, Layers, Trophy, Flag, Wallet, ShoppingBag } from "lucide-react";
 import { getUser } from "@/lib/auth";
 
 // roles: undefined = mọi vai trò trong panel admin đều thấy mục này.
@@ -17,11 +17,9 @@ const navItems = [
   { name: "Lộ trình học", href: "/admin/learning-paths", icon: Map },
   { name: "Chế độ lộ trình", href: "/admin/learning-path-modes", icon: Layers },
   { name: "Thử thách ngày", href: "/admin/daily-challenges", icon: Trophy },
-  { name: "Thử thách tuần", href: "/admin/weekly-challenges", icon: Medal },
   { name: "Cửa hàng", href: "/admin/shop", icon: ShoppingBag },
   { name: "Doanh thu VIP", href: "/admin/revenue", icon: Wallet },
   { name: "Báo cáo vi phạm", href: "/admin/reports", icon: Flag },
-  { name: "Cấu hình hệ thống", href: "/admin/settings", icon: Settings, roles: ["Admin"] },
 ];
 
 export default function AdminSidebar() {

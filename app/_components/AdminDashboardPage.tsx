@@ -5,7 +5,6 @@ import {
   Users,
   BookOpen,
   Flag,
-  ShieldAlert,
   ArrowRight,
   LucideIcon,
 } from "lucide-react";
@@ -30,11 +29,10 @@ const INITIAL_STATS: StatItem[] = [
   { label: "Tổng người dùng", value: "...", change: "Đang tải", changeType: "neutral", icon: Users, link: "/admin/users", bg: "#10b98122", color: "#10b981" },
   { label: "Bài chờ duyệt", value: "...", change: "Đang tải", changeType: "neutral", icon: BookOpen, link: "/admin/tutorials", bg: "#0ea5e922", color: "#0ea5e9" },
   { label: "Báo cáo vi phạm", value: "...", change: "Đang tải", changeType: "neutral", icon: Flag, link: "/admin/reports", bg: "#3b82f622", color: "#3b82f6" },
-  { label: "Từ khóa cấm", value: "...", change: "Đang tải", changeType: "neutral", icon: ShieldAlert, link: "/admin/settings", bg: "#f59e0b22", color: "#f59e0b" },
 ];
 
-// Manager không có quyền quản lý người dùng / cấu hình hệ thống nên 2 chỉ số này luôn lỗi tải với vai trò đó — ẩn đi thay vì hiển thị lỗi.
-const ADMIN_ONLY_STATS = ["Tổng người dùng", "Từ khóa cấm"];
+// Manager không có quyền quản lý người dùng nên chỉ số này luôn lỗi tải với vai trò đó — ẩn đi thay vì hiển thị lỗi.
+const ADMIN_ONLY_STATS = ["Tổng người dùng"];
 
 export default function AdminDashboardPage() {
   const isAdmin = getUser()?.roles?.includes("Admin") ?? false;
@@ -44,18 +42,16 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     async function fetchStats() {
-      const [usersResult, queueResult, reportsResult, keywordsResult] =
+      const [usersResult, queueResult, reportsResult] =
         await Promise.allSettled([
           isAdmin ? adminApi.getUsers({ page: 1, pageSize: 1 }) : Promise.resolve(null),
           adminApi.getManagerQueue({ page: 1, pageSize: 1 }),
           adminApi.getPendingReports(),
-          isAdmin ? adminApi.getBlockedWords() : Promise.resolve(null),
         ]);
 
       const usersRes = usersResult.status === "fulfilled" ? usersResult.value : null;
       const queueRes = queueResult.status === "fulfilled" ? queueResult.value : null;
       const reportsRes = reportsResult.status === "fulfilled" ? reportsResult.value : null;
-      const keywordsRes = keywordsResult.status === "fulfilled" ? keywordsResult.value : null;
 
       const nextStats: StatItem[] = [
         {
@@ -107,16 +103,6 @@ export default function AdminDashboardPage() {
           link: "/admin/reports",
           bg: "#3b82f622",
           color: "#3b82f6",
-        },
-        {
-          label: "Từ khóa cấm",
-          value: (keywordsRes?.length ?? 0).toString(),
-          change: keywordsResult.status === "rejected" ? "Lỗi tải" : "Đang hoạt động",
-          changeType: keywordsResult.status === "rejected" ? "danger" : "neutral",
-          icon: ShieldAlert,
-          link: "/admin/settings",
-          bg: "#f59e0b22",
-          color: "#f59e0b",
         },
       ];
 
@@ -174,7 +160,6 @@ export default function AdminDashboardPage() {
         {[
           { href: "/admin/tutorials", text: "Duyệt bài viết mới", icon: BookOpen },
           { href: "/admin/reports", text: "Xử lý khiếu nại", icon: Flag },
-          ...(isAdmin ? [{ href: "/admin/settings", text: "Từ khóa vi phạm", icon: ShieldAlert }] : []),
         ].map((link) => (
           <Link key={link.href} href={link.href} className="admin-shortcut-item">
             <link.icon size={18} />

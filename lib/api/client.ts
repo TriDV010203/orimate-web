@@ -16,8 +16,7 @@ export type TargetType =
   | "CommunityPost"
   | "Comment"
   | "StuckThread"
-  | "DailyChallengeSubmission"
-  | "WeeklyChallengeSubmission";
+  | "DailyChallengeSubmission";
 
 export async function request<T>(
   path: string,

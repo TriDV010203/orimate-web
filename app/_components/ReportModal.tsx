@@ -71,7 +71,6 @@ export default function ReportModal({ isOpen, onClose, targetId, targetType, tar
     Comment: "bình luận",
     StuckThread: "chủ đề hỏi bị kẹt",
     DailyChallengeSubmission: "bài nộp thử thách ngày",
-    WeeklyChallengeSubmission: "bài nộp thử thách tuần",
   };
 
   return (

@@ -90,9 +90,6 @@ export function getNotifLink(notif: NotificationDto): string {
       return "/ho-so/thanh-tich";
     case "LearningPath":
       return `/lo-trinh/${entityId}`;
-    case "WeeklyChallenge":
-    case "WeeklyChallengeSubmission":
-      return "/thach-thuc-tuan";
     case "DailyChallenge":
     case "DailyChallengeSubmission":
       return "/thach-thuc";

@@ -5,12 +5,6 @@ import { getToken } from "../auth";
 import type { PagedResult, TutorialStepDto, UpdateTutorialRequest, TutorialResponse } from "./tutorials";
 import type { ReportActionType } from "./reports";
 
-export interface BlockedWordResponse {
-  createdAt: string | number | Date;
-  id: number;
-  word: string;
-}
-
 export interface AdminUserResponse {
   id: string;
   email: string;
@@ -90,29 +84,6 @@ export interface AdminTutorialDetailResponse {
 }
 
 export const adminApi = {
-  // ── BLOCKED WORDS ───────────────────────────────────────────────────
-
-  getBlockedWords(): Promise<BlockedWordResponse[]> {
-    return request<BlockedWordResponse[]>("/api/admin/blocked-words", {
-      token: getToken() ?? undefined,
-    });
-  },
-
-  addBlockedWord(word: string): Promise<BlockedWordResponse> {
-    return request<BlockedWordResponse>("/api/admin/blocked-words", {
-      method: "POST",
-      body: JSON.stringify({ word }),
-      token: getToken() ?? undefined,
-    });
-  },
-
-  removeBlockedWord(id: number): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/admin/blocked-words/${id}`, {
-      method: "DELETE",
-      token: getToken() ?? undefined,
-    });
-  },
-
   // ── USER MANAGEMENT ─────────────────────────────────────────────────
 
   getUsers(params?: {

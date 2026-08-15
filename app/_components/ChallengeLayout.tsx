@@ -7,7 +7,6 @@ import { Avatar, DIFFICULTY_META } from "./DailyChallengePage";
 import type { UploadFolder } from "@/lib/api/uploads";
 
 export interface ChallengeLayoutProps {
-  challengeType: "daily" | "weekly";
   loading: boolean;
   notFound: boolean;
   error: string | null;
@@ -66,20 +65,17 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
         <div style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
           <div className="container">
             <div style={{ display: "flex", gap: "2rem" }}>
-              <Link href="/thach-thuc" style={{ padding: "1rem 0", color: props.challengeType === "daily" ? "var(--color-primary)" : "var(--color-text-muted)", fontWeight: props.challengeType === "daily" ? 700 : 600, borderBottom: props.challengeType === "daily" ? "2px solid var(--color-primary)" : "none", textDecoration: "none" }}>
+              <Link href="/thach-thuc" style={{ padding: "1rem 0", color: "var(--color-primary)", fontWeight: 700, borderBottom: "2px solid var(--color-primary)", textDecoration: "none" }}>
                 Thử thách Ngày
-              </Link>
-              <Link href="/thach-thuc-tuan" style={{ padding: "1rem 0", color: props.challengeType === "weekly" ? "var(--color-primary)" : "var(--color-text-muted)", fontWeight: props.challengeType === "weekly" ? 700 : 600, borderBottom: props.challengeType === "weekly" ? "2px solid var(--color-primary)" : "none", textDecoration: "none" }}>
-                Thử thách Tuần
               </Link>
             </div>
           </div>
         </div>
 
         {/* ── Hero ── */}
-        <section style={{ 
-          background: props.challengeType === "daily" ? "var(--gradient-hero)" : "linear-gradient(135deg, rgba(44,125,160,0.1) 0%, rgba(155,89,182,0.1) 100%)", 
-          borderBottom: "1px solid var(--color-border)", padding: "2.5rem 0 2rem" 
+        <section style={{
+          background: "var(--gradient-hero)",
+          borderBottom: "1px solid var(--color-border)", padding: "2.5rem 0 2rem"
         }}>
           <div className="container">
             {props.loading ? (
@@ -104,7 +100,7 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                   width: "6rem", height: "6rem", borderRadius: "var(--radius-xl)", background: "var(--color-surface)",
                   display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3rem",
                   boxShadow: "var(--shadow-lg)", flexShrink: 0,
-                  border: props.challengeType === "weekly" ? "2px solid rgba(155,89,182,0.3)" : "none"
+                  border: "none"
                 }}>
                   {props.heroIcon}
                 </div>
@@ -112,11 +108,11 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                 {/* Info */}
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.5rem", flexWrap: "wrap" }}>
-                    <span style={{ 
-                      fontSize: "0.75rem", fontWeight: 700, 
-                      color: props.challengeType === "daily" ? "var(--color-primary-dark)" : "#9B59B6", 
-                      background: props.challengeType === "daily" ? "rgba(45,106,79,0.1)" : "rgba(155,89,182,0.1)", 
-                      padding: "0.2rem 0.625rem", borderRadius: "99px", textTransform: "uppercase", letterSpacing: "0.04em" 
+                    <span style={{
+                      fontSize: "0.75rem", fontWeight: 700,
+                      color: "var(--color-primary-dark)",
+                      background: "rgba(45,106,79,0.1)",
+                      padding: "0.2rem 0.625rem", borderRadius: "99px", textTransform: "uppercase", letterSpacing: "0.04em"
                     }}>
                       {props.heroBadgeLabel}
                     </span>
@@ -160,12 +156,12 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.875rem", minWidth: "200px" }}>
                   <div style={{ textAlign: "center" }}>
                     <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 600, marginBottom: "0.25rem" }}>{props.countdownLabel}</div>
-                    <div style={{ fontFamily: "monospace", fontSize: "1.5rem", fontWeight: 700, color: props.challengeType === "weekly" ? "#9B59B6" : "var(--color-accent-dark)", letterSpacing: "0.05em" }}>
+                    <div style={{ fontFamily: "monospace", fontSize: "1.5rem", fontWeight: 700, color: "var(--color-accent-dark)", letterSpacing: "0.05em" }}>
                       {props.countdownValue}
                     </div>
                   </div>
                   {!props.loggedIn ? (
-                    <Link href="/dang-nhap" className="btn" style={{ background: props.challengeType === "weekly" ? "#9B59B6" : "var(--gradient-accent)", color: "white", textDecoration: "none", width: "100%", justifyContent: "center" }}>
+                    <Link href="/dang-nhap" className="btn" style={{ background: "var(--gradient-accent)", color: "white", textDecoration: "none", width: "100%", justifyContent: "center" }}>
                       Đăng nhập để tham gia
                     </Link>
                   ) : props.alreadySubmitted ? (
@@ -173,7 +169,7 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                       ✅ Đã nộp bài
                     </div>
                   ) : (
-                    <a href="#nop-bai" className="btn" style={{ background: props.challengeType === "weekly" ? "#9B59B6" : "var(--gradient-accent)", color: "white", textDecoration: "none", width: "100%", justifyContent: "center" }}>
+                    <a href="#nop-bai" className="btn" style={{ background: "var(--gradient-accent)", color: "white", textDecoration: "none", width: "100%", justifyContent: "center" }}>
                       📸 Nộp bài ngay
                     </a>
                   )}
@@ -242,7 +238,7 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                           {props.submitError && (
                             <p style={{ color: "var(--color-error)", fontSize: "0.8125rem", marginTop: "0.5rem" }}>{props.submitError}</p>
                           )}
-                          <button type="submit" disabled={props.submitting || !props.photoUrl} className="btn" style={{ marginTop: "0.875rem", background: props.challengeType === "weekly" ? "#9B59B6" : "var(--gradient-accent)", color: "white" }}>
+                          <button type="submit" disabled={props.submitting || !props.photoUrl} className="btn" style={{ marginTop: "0.875rem", background: "var(--gradient-accent)", color: "white" }}>
                             {props.submitting ? "Đang nộp..." : "Nộp bài thử thách"}
                           </button>
                         </form>
@@ -330,7 +326,7 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                         <div key={u.userId} style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
                           <span style={{
                             width: "1.5rem", fontWeight: 700, fontSize: "0.8125rem", textAlign: "center",
-                            color: u.rank <= 3 ? (props.challengeType === "weekly" ? "#9B59B6" : "var(--color-accent-dark)") : "var(--color-text-muted)",
+                            color: u.rank <= 3 ? "var(--color-accent-dark)" : "var(--color-text-muted)",
                           }}>
                             {u.rank === 1 ? "🥇" : u.rank === 2 ? "🥈" : u.rank === 3 ? "🥉" : u.rank}
                           </span>

@@ -80,7 +80,6 @@ export type { WishlistToggleResponse, WishlistItemDto, WishlistPagedResult } fro
 export { wishlistsApi } from "./wishlists";
 
 export type {
-  BlockedWordResponse,
   AdminUserResponse,
   PendingReportDto,
   ManagerQueueItemResponse,
@@ -115,7 +114,6 @@ export { learningPathModesApi } from "./learning-path-modes";
 export type {
   SkillLevelDto,
   StreakDto,
-  QuestProgressDto,
   HatGapBalanceDto,
   HatGapLevelDto,
 } from "./gamification";

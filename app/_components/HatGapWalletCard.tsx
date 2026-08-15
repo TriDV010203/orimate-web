@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getToken } from "@/lib/auth";
-import { gamificationApi, type StreakDto, type QuestProgressDto, type HatGapLevelDto } from "@/lib/api/gamification";
+import { gamificationApi, type StreakDto, type HatGapLevelDto } from "@/lib/api/gamification";
+import { dailyChallengeApi, type DailyChallengeDto } from "@/lib/api/daily-challenge";
 
 // ── Level curve (mirrors backend HatGapLevelCalculator: N×(N+1)/2×10) ────────
 const LEVEL_STEP = 10;
@@ -10,28 +12,8 @@ function cumulativeForLevel(level: number) {
   return ((level * (level + 1)) / 2) * LEVEL_STEP;
 }
 
-// ── Daily Quest streak multiplier (mirrors backend HatGapEconomy) ────────────
-const STREAK_TIERS: { minDays: number; multiplier: number }[] = [
-  { minDays: 0, multiplier: 1.0 },
-  { minDays: 7, multiplier: 1.2 },
-  { minDays: 14, multiplier: 1.5 },
-  { minDays: 30, multiplier: 2.0 },
-];
-const FREE_FOLD_DAY_CAP = 1.5;
-const DAILY_QUEST_BASE = 1;
-
-function getStreakMultiplier(currentStreak: number, isFreeFoldDay: boolean) {
-  let multiplier = 1.0;
-  for (const tier of STREAK_TIERS) {
-    if (currentStreak >= tier.minDays) multiplier = tier.multiplier;
-  }
-  if (isFreeFoldDay && multiplier > FREE_FOLD_DAY_CAP) multiplier = FREE_FOLD_DAY_CAP;
-  return multiplier;
-}
-
-function formatMultiplier(m: number) {
-  return `×${m % 1 === 0 ? m.toFixed(1) : m}`;
-}
+// Mirrors backend HatGapEconomy.DailyChallengeParticipateReward — flat, no streak multiplier.
+const DAILY_CHALLENGE_PARTICIPATE_REWARD = 1;
 
 const STREAK_MILESTONES = [
   { days: 7, reward: 5 },
@@ -41,7 +23,7 @@ const STREAK_MILESTONES = [
 
 const EARNING_SOURCES = [
   { icon: "📘", label: "Hoàn thành tutorial", detail: "Dễ +1 · Trung bình +2 · Khó +3 Hạt" },
-  { icon: "🎯", label: "Daily Quest (1 lượt/ngày)", detail: "+1 Hạt × hệ số streak (tối đa ×2.0)" },
+  { icon: "📸", label: "Tham gia Thử thách ngày", detail: `+${DAILY_CHALLENGE_PARTICIPATE_REWARD} Hạt / lần nộp bài` },
   { icon: "🔥", label: "Mốc streak", detail: "7 ngày +5 · 14 ngày +10 · 30 ngày +20 Hạt" },
   { icon: "🏆", label: "Personal Milestone", detail: "10→+15 · 30→+30 · 50→+60 · 100→+150 Hạt + Mẫu giấy" },
   { icon: "🗺️", label: "Hoàn thành lộ trình học", detail: "+5 Hạt / lộ trình" },
@@ -50,7 +32,7 @@ const EARNING_SOURCES = [
 export default function HatGapWalletCard() {
   const [level, setLevel] = useState<HatGapLevelDto | null>(null);
   const [streak, setStreak] = useState<StreakDto | null>(null);
-  const [quest, setQuest] = useState<QuestProgressDto | null>(null);
+  const [challenge, setChallenge] = useState<DailyChallengeDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -65,20 +47,16 @@ export default function HatGapWalletCard() {
     Promise.all([
       gamificationApi.getLevel(token),
       gamificationApi.getStreak(token),
-      gamificationApi.getQuestToday(token).catch(() => null),
+      dailyChallengeApi.getToday(token).catch(() => null),
     ])
-      .then(([l, s, q]) => {
+      .then(([l, s, c]) => {
         setLevel(l);
         setStreak(s);
-        setQuest(q);
+        setChallenge(c);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  const isFreeFoldDay = useMemo(() => new Date().getDay() === 0, []);
-  const multiplier = getStreakMultiplier(streak?.currentStreak ?? 0, isFreeFoldDay);
-  const questReward = Math.round(DAILY_QUEST_BASE * multiplier);
 
   const nextStreakMilestone = STREAK_MILESTONES.find((m) => m.days > (streak?.currentStreak ?? 0));
 
@@ -201,7 +179,7 @@ export default function HatGapWalletCard() {
         </div>
       </div>
 
-      {/* ── Streak + Quest mini row ── */}
+      {/* ── Streak + Daily Challenge mini row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", marginTop: "1.25rem" }}>
         {/* Streak card */}
         <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -227,28 +205,31 @@ export default function HatGapWalletCard() {
           </div>
         </div>
 
-        {/* Daily quest card */}
+        {/* Daily challenge participation card */}
         <div style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", padding: "1.25rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
           <div style={{ width: "3rem", height: "3rem", borderRadius: "50%", background: "var(--gradient-primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0, boxShadow: "0 4px 14px rgba(45,106,79,0.3)" }}>
-            🎯
+            📸
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {quest ? (
+            {challenge ? (
               <>
                 <div style={{ fontWeight: 800, fontSize: "1.0625rem", color: "var(--color-text-primary)" }}>
-                  {quest.isCompleted ? "Đã hoàn thành hôm nay ✅" : `${quest.progress}/${quest.targetValue} — ${quest.title}`}
+                  {challenge.hasSubmittedToday ? "Đã tham gia hôm nay ✅" : "Chưa tham gia hôm nay"}
                 </div>
                 <div style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-                  Thưởng: {questReward} Hạt ({formatMultiplier(multiplier)} hệ số streak)
+                  Thưởng: {DAILY_CHALLENGE_PARTICIPATE_REWARD} Hạt / lần nộp bài Thử thách ngày
                 </div>
-                {isFreeFoldDay && (
-                  <div style={{ fontSize: "0.75rem", color: "var(--color-accent-dark)", marginTop: "0.25rem", fontWeight: 600 }}>
-                    🌤️ Hôm nay là Ngày Gấp Tự Do — hệ số tối đa ×1.5
-                  </div>
+                {!challenge.hasSubmittedToday && (
+                  <Link
+                    href="/thach-thuc"
+                    style={{ display: "inline-block", fontSize: "0.75rem", color: "var(--color-accent-dark)", marginTop: "0.25rem", fontWeight: 600, textDecoration: "none" }}
+                  >
+                    → Tham gia ngay: {challenge.tutorialTitle}
+                  </Link>
                 )}
               </>
             ) : (
-              <div style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Chưa có Daily Quest hôm nay.</div>
+              <div style={{ fontSize: "0.875rem", color: "var(--color-text-muted)" }}>Chưa có Thử thách ngày hôm nay.</div>
             )}
           </div>
         </div>
@@ -364,9 +345,6 @@ function EarningSourcesModal({ onClose }: { onClose: () => void }) {
             </div>
           ))}
 
-          <div style={{ marginTop: "0.25rem", padding: "0.75rem 1rem", borderRadius: "var(--radius-md)", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF0E0 100%)", border: "1px solid rgba(212,113,59,0.2)", fontSize: "0.75rem", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-            🌤️ <strong>Ngày Gấp Tự Do (Chủ nhật):</strong> hệ số streak của Daily Quest được giới hạn tối đa ×1.5 — dù streak của bạn đang cao hơn.
-          </div>
         </div>
       </div>
       <style>{`

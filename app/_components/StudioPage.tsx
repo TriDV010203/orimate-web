@@ -16,12 +16,21 @@ const STATUS_META: Record<TutorialStatusValue, { label: string; color: string; b
   RevisionRequired:     { label: "Cần chỉnh sửa",  color: "#DC2626", bg: "#FEE2E2", icon: "❌" },
   Published:            { label: "Đã xuất bản",    color: "#059669", bg: "#D1FAE5", icon: "✅" },
   Removed:              { label: "Đã gỡ",          color: "#6B7280", bg: "#F3F4F6", icon: "🚫" },
-  EditPendingReview:    { label: "Đang chờ áp dụng bản sửa", color: "#D97706", bg: "#FEF3C7", icon: "⏳" },
+  EditPendingReview:    { label: "Đang soạn bản chỉnh sửa", color: "#2563EB", bg: "#DBEAFE", icon: "📝" },
   Merged:               { label: "Đã hợp nhất",    color: "#6B7280", bg: "#F3F4F6", icon: "✓" },
 };
 
-// Trạng thái author có thể bấm "Sửa" trực tiếp (BR-TUT-01 — khớp điều kiện Submit ở BE)
+// Trạng thái author có thể bấm "Sửa" trực tiếp đối với bài GỐC (BR-TUT-01 — khớp điều kiện Submit ở BE).
+// Với working copy (parentTutorialId != null), điều kiện sửa/nộp khác — xem isEditableRow/isSubmittableRow.
 const EDITABLE_STATUSES: TutorialStatusValue[] = ["Draft", "RevisionRequired"];
+// Trạng thái working copy có thể bấm "Sửa"/"Nộp lại" (khớp UpdateWorkingCopyHandler/SubmitEditHandler ở BE).
+const WORKING_COPY_EDITABLE_STATUSES: TutorialStatusValue[] = ["EditPendingReview", "RevisionRequired"];
+
+function isEditableRow(t: MyTutorialDto): boolean {
+  return t.parentTutorialId
+    ? WORKING_COPY_EDITABLE_STATUSES.includes(t.status)
+    : EDITABLE_STATUSES.includes(t.status);
+}
 
 type Tab = "all" | TutorialStatusValue;
 
@@ -34,6 +43,7 @@ export default function StudioPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [requestingEditId, setRequestingEditId] = useState<string | null>(null);
 
   const loadTutorials = useCallback(async (pageNum = 1, append = false) => {
     const token = getToken();
@@ -75,21 +85,41 @@ export default function StudioPage() {
     return acc;
   }, {});
 
-  async function handleSubmit(tutorialId: string) {
+  async function handleSubmit(t: MyTutorialDto) {
     const token = getToken();
     if (!token) return;
     if (!confirm("Bạn có chắc muốn nộp bài này để kiểm duyệt?")) return;
-    setSubmittingId(tutorialId);
+    setSubmittingId(t.id);
     try {
-      await tutorialsApi.submitTutorial(token, tutorialId);
+      if (t.parentTutorialId) {
+        await tutorialsApi.submitEdit(token, t.id);
+      } else {
+        await tutorialsApi.submitTutorial(token, t.id);
+      }
       setTutorials(prev =>
-        prev.map(t => t.id === tutorialId ? { ...t, status: "PendingManagerReview" as const } : t)
+        prev.map(x => x.id === t.id ? { ...x, status: "PendingManagerReview" as const } : x)
       );
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       alert(apiErr.message ?? "Không thể nộp bài. Vui lòng thử lại.");
     } finally {
       setSubmittingId(null);
+    }
+  }
+
+  async function handleRequestEdit(t: MyTutorialDto) {
+    const token = getToken();
+    if (!token) return;
+    if (!confirm(`Tạo bản chỉnh sửa cho "${t.title}"? Bài gốc vẫn hiển thị công khai cho đến khi bản sửa được duyệt.`)) return;
+    setRequestingEditId(t.id);
+    try {
+      const { workingCopyId } = await tutorialsApi.createWorkingCopy(token, t.id);
+      router.push(`/studio/${workingCopyId}`);
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string };
+      alert(apiErr.message ?? "Không thể tạo bản chỉnh sửa. Vui lòng thử lại.");
+    } finally {
+      setRequestingEditId(null);
     }
   }
 
@@ -209,8 +239,11 @@ export default function StudioPage() {
               ) : (
                 filtered.map((t, i) => {
                   const meta = STATUS_META[t.status] ?? STATUS_META["Draft"];
-                  const canEdit = EDITABLE_STATUSES.includes(t.status);
+                  const canEdit = isEditableRow(t);
                   const canSubmit = canEdit;
+                  // Published có bản sửa đang xử lý (chưa Merged) thì ẩn nút "Yêu cầu chỉnh sửa" — BE chỉ cho 1 working copy/bài.
+                  const hasInProgressEdit = t.status === "Published" &&
+                    tutorials.some(x => x.parentTutorialId === t.id && x.status !== "Merged");
                   return (
                     <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 120px 100px 140px", gap: "1rem", padding: "1rem 1.25rem", borderBottom: i < filtered.length - 1 ? "1px solid var(--color-border)" : "none", alignItems: "center" }}>
                       {/* Title */}
@@ -222,7 +255,12 @@ export default function StudioPage() {
                           <div style={{ width: "3rem", height: "3rem", borderRadius: "var(--radius-md)", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem", flexShrink: 0 }}>📄</div>
                         )}
                         <div style={{ minWidth: 0 }}>
-                          <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
+                          <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                            {t.parentTutorialId && (
+                              <span title="Bản chỉnh sửa của một bài đã xuất bản" style={{ fontSize: "0.6875rem", fontWeight: 700, color: "#2563EB", background: "#DBEAFE", borderRadius: "var(--radius-full)", padding: "0.0625rem 0.5rem", flexShrink: 0 }}>Bản sửa</span>
+                            )}
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                          </p>
                           <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước</p>
                         </div>
                       </div>
@@ -250,16 +288,24 @@ export default function StudioPage() {
                           </Link>
                         )}
                         {canSubmit && (
-                          <button onClick={() => handleSubmit(t.id)} disabled={submittingId === t.id}
+                          <button onClick={() => handleSubmit(t)} disabled={submittingId === t.id}
                             style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "transparent", color: "var(--color-primary)", fontSize: "0.75rem", fontWeight: 500, cursor: "pointer", opacity: submittingId === t.id ? 0.6 : 1 }}>
                             {submittingId === t.id ? "…" : t.status === "RevisionRequired" ? "Nộp lại" : "Nộp"}
                           </button>
                         )}
                         {t.status === "Published" && (
-                          <Link href={`/huong-dan/${t.slug}`}
-                            style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "transparent", color: "var(--color-primary)", fontSize: "0.75rem", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center" }}>
-                            Xem
-                          </Link>
+                          <>
+                            <Link href={`/huong-dan/${t.slug}`}
+                              style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-primary)", background: "transparent", color: "var(--color-primary)", fontSize: "0.75rem", textDecoration: "none", fontWeight: 500, display: "inline-flex", alignItems: "center" }}>
+                              Xem
+                            </Link>
+                            {!hasInProgressEdit && (
+                              <button onClick={() => handleRequestEdit(t)} disabled={requestingEditId === t.id}
+                                style={{ padding: "0.375rem 0.625rem", borderRadius: "var(--radius-md)", border: "1.5px solid var(--color-border)", background: "transparent", color: "var(--color-text-secondary)", fontSize: "0.75rem", fontWeight: 500, cursor: "pointer", opacity: requestingEditId === t.id ? 0.6 : 1 }}>
+                                {requestingEditId === t.id ? "…" : "Yêu cầu chỉnh sửa"}
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>

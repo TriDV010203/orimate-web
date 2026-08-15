@@ -38,7 +38,6 @@ const TARGET_TYPE_NAME: Record<TargetType, string> = {
   Comment: "Bình luận",
   StuckThread: "Chủ đề hỏi bị kẹt",
   DailyChallengeSubmission: "Bài nộp thử thách ngày",
-  WeeklyChallengeSubmission: "Bài nộp thử thách tuần",
 };
 
 const REPORT_ACTIONS: { type: ReportActionType; label: string }[] = [

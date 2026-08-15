@@ -59,7 +59,7 @@ export default function LearningPathModeUnlockPanel({ mode, token, onSubmitted }
           <Clock size={18} />
           <p style={{ fontSize: "0.9375rem" }}>Bài nộp của bạn đang chờ Admin/Manager duyệt.</p>
         </div>
-      ) : (
+      ) : mode.isUnlocked ? null : (
         <>
           <p style={{ color: "var(--color-text-secondary)", fontSize: "0.9375rem", lineHeight: 1.65, marginBottom: "1rem" }}>
             Để mở khoá, hãy gấp theo hướng dẫn <strong>&ldquo;{test.tutorialTitle}&rdquo;</strong> và nộp ảnh thành phẩm. Bài nộp này

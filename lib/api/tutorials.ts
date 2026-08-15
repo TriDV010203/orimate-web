@@ -97,6 +97,8 @@ export interface MyTutorialDto {
   status: TutorialStatusValue;
   stepCount: number;
   createdAt: string;
+  /** Nếu khác null, đây là working copy (bản sửa) của tutorial gốc có id này — dùng cho flow edit-after-publish. */
+  parentTutorialId?: string | null;
 }
 
 export interface CategoryDto {
@@ -160,6 +162,8 @@ export interface TutorialAuthorDetailDto {
   steps: TutorialStepDto[];
   createdAt: string;
   updatedAt?: string | null;
+  /** Nếu khác null, đây là working copy (bản sửa) của tutorial gốc có id này — dùng cho flow edit-after-publish. */
+  parentTutorialId?: string | null;
 }
 
 // ── Progress types ─────────────────────────────────────────────────────────────
@@ -340,22 +344,22 @@ export const tutorialsApi = {
     });
   },
 
-  /** PUT /api/tutorials/{id}/edit-content — Cập nhật nội dung bản sao làm việc */
+  /** PUT /api/tutorials/{id}/edit-content — Cập nhật nội dung bản sao làm việc (BE trả về TutorialResponse) */
   updateWorkingCopy(
     token: string,
     tutorialId: string,
     body: UpdateTutorialRequest
-  ): Promise<TutorialDetailDto> {
-    return request<TutorialDetailDto>(`/api/tutorials/${tutorialId}/edit-content`, {
+  ): Promise<TutorialResponse> {
+    return request<TutorialResponse>(`/api/tutorials/${tutorialId}/edit-content`, {
       method: "PUT",
       body: JSON.stringify(body),
       token,
     });
   },
 
-  /** PUT /api/tutorials/{id}/submit-edit — Nộp bản sao làm việc cho manager */
-  submitEdit(token: string, tutorialId: string): Promise<{ message: string }> {
-    return request<{ message: string }>(`/api/tutorials/${tutorialId}/submit-edit`, {
+  /** PUT /api/tutorials/{id}/submit-edit — Nộp bản sao làm việc cho manager (BE trả về TutorialResponse) */
+  submitEdit(token: string, tutorialId: string): Promise<TutorialResponse> {
+    return request<TutorialResponse>(`/api/tutorials/${tutorialId}/submit-edit`, {
       method: "PUT",
       token,
     });
