@@ -11,8 +11,6 @@ import { usersApi, type CreatorProfileDto } from "@/lib/api";
 import { getToken, isLoggedIn } from "@/lib/auth";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
-const TRENDING_TAGS = ["#OrigamiViệtNam", "#HạcGiấy", "#Origami3D", "#TrẻEm", "#ModularOrigami", "#HoaGiấy", "#NghệThuậtGấp"];
-
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso.endsWith("Z") ? iso : iso + "Z").getTime()) / 1000);
   if (s < 60) return "vừa xong";
@@ -355,19 +353,6 @@ export default function CommunityFeedPage() {
 
             {/* ── Sidebar ── */}
             <aside style={{ position: "sticky", top: "5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              {/* Trending Tags */}
-              <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-lg)", border: "1px solid var(--color-border)", padding: "1.25rem", boxShadow: "var(--shadow-sm)" }}>
-                <h3 style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-text-primary)", marginBottom: "1rem" }}>🔥 Chủ đề hot</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                  {TRENDING_TAGS.map((tag, i) => (
-                    <Link key={tag} href={`/tim-kiem?q=${encodeURIComponent(tag)}`}
-                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0", borderBottom: i < TRENDING_TAGS.length - 1 ? "1px solid var(--color-border)" : "none", textDecoration: "none" }}>
-                      <span style={{ fontSize: "0.875rem", color: "var(--color-primary)", fontWeight: 500 }}>{tag}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
               {/* CTA / login prompt */}
               {!loggedIn ? (
                 <div style={{ background: "var(--gradient-primary)", borderRadius: "var(--radius-lg)", padding: "1.5rem", textAlign: "center", color: "white" }}>
@@ -382,7 +367,6 @@ export default function CommunityFeedPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                     {[
                       { href: "/cong-dong/tao-bai?type=photo", icon: "📸", label: "Đăng ảnh tác phẩm" },
-                      { href: "/cong-dong/tao-bai?type=achievement", icon: "🏅", label: "Chia sẻ thành tựu" },
                     ].map(item => (
                       <Link key={item.href} href={item.href}
                         style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.75rem", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "all var(--transition-fast)" }}

@@ -7,7 +7,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { usersApi, tutorialsApi, type CreatorProfileDto, type TutorialListItemDto } from "@/lib/api";
 import { achievementsApi, type AchievementDto } from "@/lib/api/achievements";
-import { subscriptionsApi, VIP_FIXED_PRICE_VND, type MySubscriptionDto, type PaymentInstructionDto } from "@/lib/api/subscriptions";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND, VIP_PAYMENT_SESSION_MS, type MySubscriptionDto, type PaymentInstructionDto } from "@/lib/api/subscriptions";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
@@ -26,13 +26,22 @@ function formatNumber(n: number) {
 }
 
 function getDiffClass(d?: string | null) {
-  if (d === "Dễ" || d === "Easy") return "badge-easy";
-  if (d === "Trung bình" || d === "Medium") return "badge-medium";
+  const v = d?.toLowerCase();
+  if (v === "dễ" || v === "easy" || v === "beginner") return "badge-easy";
+  if (v === "trung bình" || v === "medium" || v === "intermediate") return "badge-medium";
   return "badge-hard";
 }
 
+function getDiffLabel(d?: string | null) {
+  const v = d?.toLowerCase();
+  if (v === "dễ" || v === "easy" || v === "beginner") return "Dễ";
+  if (v === "trung bình" || v === "medium" || v === "intermediate") return "Trung bình";
+  if (v === "khó" || v === "hard" || v === "advanced") return "Khó";
+  return d ?? "";
+}
+
 function getTypeLabel(t: string) {
-  return t === "Free" ? "Miễn phí" : t;
+  return t === "Free" || t?.toLowerCase() === "free" ? "Miễn phí" : t === "VIP" ? "VIP" : t;
 }
 
 interface Props {
@@ -52,6 +61,8 @@ export default function CreatorChannelPage({ userId }: Props) {
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
   const [pendingTransactionId, setPendingTransactionId] = useState<string | null>(null);
   const [paymentInstruction, setPaymentInstruction] = useState<PaymentInstructionDto | null>(null);
+  const [paymentExpiresAt, setPaymentExpiresAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [profile, setProfile] = useState<CreatorProfileDto | null>(null);
@@ -138,6 +149,7 @@ export default function CreatorChannelPage({ userId }: Props) {
       const result = await subscriptionsApi.subscribe(token, userId);
       setPendingTransactionId(result.transaction.id);
       setPaymentInstruction(result.paymentInstruction);
+      setPaymentExpiresAt(Date.now() + VIP_PAYMENT_SESSION_MS);
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       setSubscribeError(apiErr.message ?? "Không thể đăng ký VIP. Vui lòng thử lại.");
@@ -169,6 +181,26 @@ export default function CreatorChannelPage({ userId }: Props) {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [pendingTransactionId]);
+
+  // Tick every second while a payment session is open, to drive the countdown display.
+  useEffect(() => {
+    if (!paymentExpiresAt) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [paymentExpiresAt]);
+
+  // Phiên thanh toán chỉ mở trong 10 phút — hết giờ mà chưa chuyển khoản thì phải tạo lại phiên mới.
+  useEffect(() => {
+    if (!paymentExpiresAt || now < paymentExpiresAt) return;
+    if (pollRef.current) clearInterval(pollRef.current);
+    setPendingTransactionId(null);
+    setPaymentInstruction(null);
+    setPaymentExpiresAt(null);
+    setSubscribeError("Phiên thanh toán đã hết hạn sau 10 phút. Vui lòng tạo lại phiên để tiếp tục.");
+  }, [now, paymentExpiresAt]);
+
+  const remainingMs = paymentExpiresAt ? Math.max(0, paymentExpiresAt - now) : 0;
+  const remainingLabel = `${String(Math.floor(remainingMs / 60000)).padStart(2, "0")}:${String(Math.floor((remainingMs % 60000) / 1000)).padStart(2, "0")}`;
 
   async function handleFollow() {
     const token = getToken();
@@ -362,7 +394,7 @@ export default function CreatorChannelPage({ userId }: Props) {
                         <div style={{ padding: "0.875rem" }}>
                           <h3 style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "0.5rem", lineHeight: 1.4 }}>{t.title}</h3>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-                            {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{t.difficulty}</span>}
+                            {t.difficulty && <span className={`badge ${getDiffClass(t.difficulty)}`}>{getDiffLabel(t.difficulty)}</span>}
                             <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>{t.stepCount} bước</span>
                           </div>
                         </div>
@@ -483,6 +515,10 @@ export default function CreatorChannelPage({ userId }: Props) {
                     <span className="spinner" style={{ width: "1rem", height: "1rem", border: "2px solid var(--color-border)", borderTopColor: "var(--color-accent)", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
                     Đang chờ xác nhận thanh toán tự động…
                   </div>
+
+                  <p style={{ textAlign: "center", fontSize: "0.8125rem", fontWeight: 700, color: remainingMs < 60000 ? "#DC2626" : "var(--color-text-primary)", marginTop: "0.25rem" }}>
+                    ⏱ Phiên thanh toán hết hạn sau {remainingLabel}
+                  </p>
                 </div>
               ) : (
                 <div style={{ background: "var(--color-surface)", borderRadius: "var(--radius-xl)", border: "2px solid var(--color-accent)", padding: "1.75rem" }}>
@@ -499,7 +535,7 @@ export default function CreatorChannelPage({ userId }: Props) {
                   </div>
 
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
-                    Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt.
+                    Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt. Phiên thanh toán chỉ mở trong <strong>10 phút</strong>, nếu không chuyển khoản kịp bạn cần tạo lại phiên.
                   </p>
 
                   {subscribeError && (

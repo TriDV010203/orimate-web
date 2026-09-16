@@ -105,7 +105,6 @@ export default function CreatePostPage() {
 
   const TAB_TYPES: { key: PostType; label: string; icon: string }[] = [
     { key: "photo", label: "Đăng ảnh", icon: "📸" },
-    { key: "achievement", label: "Thành tựu", icon: "🏅" },
   ];
 
   return (
@@ -128,14 +127,16 @@ export default function CreatePostPage() {
             </div>
 
             {/* Tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
-              {TAB_TYPES.map(t => (
-                <button key={t.key} id={`tab-${t.key}`} onClick={() => { setType(t.key); setError(null); }}
-                  style={{ flex: 1, padding: "1rem", border: "none", background: type === t.key ? "var(--color-surface)" : "transparent", borderBottom: type === t.key ? "2px solid var(--color-primary)" : "2px solid transparent", cursor: "pointer", fontWeight: type === t.key ? 700 : 500, fontSize: "0.9375rem", color: type === t.key ? "var(--color-primary)" : "var(--color-text-muted)", transition: "all var(--transition-fast)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-                  <span>{t.icon}</span> {t.label}
-                </button>
-              ))}
-            </div>
+            {TAB_TYPES.length > 1 && (
+              <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}>
+                {TAB_TYPES.map(t => (
+                  <button key={t.key} id={`tab-${t.key}`} onClick={() => { setType(t.key); setError(null); }}
+                    style={{ flex: 1, padding: "1rem", border: "none", background: type === t.key ? "var(--color-surface)" : "transparent", borderBottom: type === t.key ? "2px solid var(--color-primary)" : "2px solid transparent", cursor: "pointer", fontWeight: type === t.key ? 700 : 500, fontSize: "0.9375rem", color: type === t.key ? "var(--color-primary)" : "var(--color-text-muted)", transition: "all var(--transition-fast)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                    <span>{t.icon}</span> {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} style={{ padding: "1.75rem 2rem" }}>
               {/* Type hint */}

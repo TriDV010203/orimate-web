@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
@@ -297,7 +298,16 @@ export default function LibraryPage() {
                     <Link href={`/huong-dan/${t.slug}`} style={{ textDecoration: "none", color: "inherit", display: "block" }}>
                       <div style={{ aspectRatio: "4/3", background: "var(--color-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem", position: "relative", overflow: "hidden" }}>
                         {isValidImageUrl(t.coverImageUrl)
-                          ? <img src={t.coverImageUrl} alt={t.title} style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }} />
+                          ? (
+                            <Image
+                              src={t.coverImageUrl}
+                              alt={t.title}
+                              fill
+                              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1400px) 20vw, 260px"
+                              quality={80}
+                              style={{ objectFit: "cover" }}
+                            />
+                          )
                           : "📄"
                         }
                         <div style={{ position: "absolute", top: "0.75rem", right: "0.75rem", display: "flex", gap: "0.375rem" }}>

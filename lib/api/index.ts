@@ -20,7 +20,6 @@ export type {
   CreateTutorialStepRequest,
   TutorialResponse,
   TutorialAuthorDetailDto,
-  TutorialProgressDto,
   PerceivedDifficultyValue,
   TutorialRatingSummaryDto,
   CompleteTutorialRequest,

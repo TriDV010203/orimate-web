@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { subscriptionsApi } from "@/lib/api/subscriptions";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND } from "@/lib/api/subscriptions";
 import type { CreatorRevenueDto, VipTierDto } from "@/lib/api/subscriptions";
 import { tutorialsApi } from "@/lib/api/tutorials";
 import { getToken, getUser } from "@/lib/auth";
@@ -114,7 +114,7 @@ export default function RevenueStudioPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap", background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-xl)", padding: "1.25rem 1.5rem", marginBottom: "1.5rem", boxShadow: "var(--shadow-sm)" }}>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>
-                    Bán VIP · Giá cố định {formatCurrency(50000)} / 30 ngày
+                    Bán VIP · Giá cố định {formatCurrency(VIP_FIXED_PRICE_VND)} / 30 ngày
                   </p>
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
                     Nền tảng giữ lại hoa hồng 10% trên mỗi giao dịch VIP được xác nhận.

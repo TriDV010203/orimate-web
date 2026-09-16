@@ -656,19 +656,11 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
   const completedCount = steps.filter((s) => completedSteps.has(s.id)).length;
   const progressPct = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
 
-  // Ghi nhận 1 bước đã hoàn thành lên BE (chạy nền, im lặng bỏ qua nếu đã hoàn thành từ trước
-  // hoặc lỗi mạng) — dùng để BE cộng Hạt Gấp/streak/skill point, không chặn UI cục bộ.
-  const markStepBackend = useCallback((stepId: string) => {
-    if (!tutorial || !isLoggedIn()) return;
-    const token = getToken();
-    if (!token) return;
-    tutorialsApi.completeStep(token, tutorial.id, stepId).catch(() => { /* đã hoàn thành / lỗi mạng — bỏ qua */ });
-  }, [tutorial]);
-
+  // Tích hoàn thành từng bước chỉ là trạng thái hiển thị cục bộ (điều hướng đã đi qua bước nào) —
+  // BE chỉ ghi nhận Hạt Gấp/streak/skill point/thành tựu một lần khi hoàn thành cả bài (xem handleCompleteAll).
   const markStepComplete = useCallback((stepId: string) => {
     setCompletedSteps((prev) => (prev.has(stepId) ? prev : new Set(prev).add(stepId)));
-    markStepBackend(stepId);
-  }, [markStepBackend]);
+  }, []);
 
   const activeStepIndex = steps.findIndex((s) => s.id === activeStep);
   const hasPrevStep = activeStepIndex > 0;
@@ -760,9 +752,9 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
 
   const handleCompleteAll = () => {
     if (!tutorial) return;
-    // Đảm bảo mọi bước đều đã được đánh dấu hoàn thành trước khi gọi API hoàn thành tutorial
-    // (BE yêu cầu đủ tất cả các bước) — phòng trường hợp người dùng nhảy thẳng tới bước cuối
-    // bằng chấm chỉ mục / danh sách bước thay vì bấm "Bước sau" tuần tự.
+    // Đánh dấu hết các bước là đã hoàn thành để hiển thị đúng (tích xanh) — phòng trường hợp
+    // người dùng nhảy thẳng tới bước cuối bằng chấm chỉ mục / danh sách bước thay vì bấm
+    // "Bước sau" tuần tự. BE không còn yêu cầu phải hoàn thành đủ từng bước mới nhận thành tựu.
     steps.forEach((s) => markStepComplete(s.id));
     if (loggedIn) {
       setShowAchievementModal(true);

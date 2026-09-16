@@ -6,7 +6,10 @@ import type { PagedResult } from "./tutorials";
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
 /** VIP subscription price (VND) is platform-fixed — mirrors backend VipConstants.FixedPriceVnd. */
-export const VIP_FIXED_PRICE_VND = 50000;
+export const VIP_FIXED_PRICE_VND = 30000;
+
+/** A payment session (QR + bank transfer instructions) is only valid for 10 minutes — after that the user must create a new one. */
+export const VIP_PAYMENT_SESSION_MS = 10 * 60 * 1000;
 
 export interface VipTierDto {
   id: string;
@@ -134,7 +137,7 @@ export type TransactionStatusFilter = "PendingConfirmation" | "Confirmed" | "Rej
 
 export const subscriptionsApi = {
   /**
-   * POST /api/subscriptions — Đăng ký VIP cho một creator (giá cố định 50.000đ).
+   * POST /api/subscriptions — Đăng ký VIP cho một creator (giá cố định 30.000đ).
    * Tạo Transaction PendingConfirmation + trả hướng dẫn chuyển khoản (QR/mã thanh toán) —
    * giao dịch được SePay tự động xác nhận qua webhook, không cần nhập mã tay.
    */
@@ -162,7 +165,7 @@ export const subscriptionsApi = {
   },
 
   /**
-   * PUT /api/subscriptions/vip-tier — Creator bật/tắt bán VIP (giá luôn cố định 50.000đ)
+   * PUT /api/subscriptions/vip-tier — Creator bật/tắt bán VIP (giá luôn cố định 30.000đ)
    */
   configureVipTier(token: string, isActive: boolean): Promise<VipTierDto> {
     return request<VipTierDto>("/api/subscriptions/vip-tier", {

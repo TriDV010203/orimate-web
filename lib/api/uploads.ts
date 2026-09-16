@@ -7,7 +7,8 @@ export type UploadFolder =
   | "learning-paths"
   | "community-posts"
   | "daily-challenge"
-  | "mode-tests";
+  | "mode-tests"
+  | "shop";
 
 export interface UploadImageResponse {
   url: string;

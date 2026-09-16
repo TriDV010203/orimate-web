@@ -333,7 +333,7 @@ export default function ChallengeLayout(props: ChallengeLayoutProps) {
                           <Avatar name={u.displayName ?? "?"} avatarUrl={u.avatarUrl} size={1.75} />
                           <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text-primary)" }}>{u.displayName ?? "Ẩn danh"}</span>
                           <span style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 600 }}>
-                            🔥{u.currentStreak}
+                            ❤️{u.likeCount}
                           </span>
                         </div>
                       ))}

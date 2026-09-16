@@ -1,5 +1,9 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
+/* Ép ẩn hoàn toàn Next.js Dev Tools */
+nextjs-portal {
+  display: none !important;
+}
 /* ===== ORIGAMI DESIGN SYSTEM ===== */
 :root {
   /* Brand Colors */

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import { subscriptionsApi, VIP_FIXED_PRICE_VND } from "@/lib/api/subscriptions";
+import { subscriptionsApi, VIP_FIXED_PRICE_VND, VIP_PAYMENT_SESSION_MS } from "@/lib/api/subscriptions";
 import type { PaymentInstructionDto } from "@/lib/api/subscriptions";
 import { usersApi } from "@/lib/api/users";
 import type { CreatorProfileDto } from "@/lib/api/users";
@@ -31,6 +31,8 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [pendingTransactionId, setPendingTransactionId] = useState<string | null>(null);
   const [paymentInstruction, setPaymentInstruction] = useState<PaymentInstructionDto | null>(null);
+  const [paymentExpiresAt, setPaymentExpiresAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -81,6 +83,7 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
       const result = await subscriptionsApi.subscribe(token, authorId);
       setPendingTransactionId(result.transaction.id);
       setPaymentInstruction(result.paymentInstruction);
+      setPaymentExpiresAt(Date.now() + VIP_PAYMENT_SESSION_MS);
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       setError(apiErr.message ?? "Không thể đăng ký VIP. Vui lòng thử lại.");
@@ -113,7 +116,26 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
     };
   }, [pendingTransactionId]);
 
+  // Tick every second while a payment session is open, to drive the countdown display.
+  useEffect(() => {
+    if (!paymentExpiresAt) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [paymentExpiresAt]);
+
+  // Phiên thanh toán chỉ mở trong 10 phút — hết giờ mà chưa chuyển khoản thì phải tạo lại phiên mới.
+  useEffect(() => {
+    if (!paymentExpiresAt || now < paymentExpiresAt) return;
+    if (pollRef.current) clearInterval(pollRef.current);
+    setPendingTransactionId(null);
+    setPaymentInstruction(null);
+    setPaymentExpiresAt(null);
+    setError("Phiên thanh toán đã hết hạn sau 10 phút. Vui lòng tạo lại phiên để tiếp tục.");
+  }, [now, paymentExpiresAt]);
+
   const price = VIP_FIXED_PRICE_VND;
+  const remainingMs = paymentExpiresAt ? Math.max(0, paymentExpiresAt - now) : 0;
+  const remainingLabel = `${String(Math.floor(remainingMs / 60000)).padStart(2, "0")}:${String(Math.floor((remainingMs % 60000) / 1000)).padStart(2, "0")}`;
 
   if (loadingTutorial) {
     return (
@@ -285,8 +307,12 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                       Đang chờ xác nhận thanh toán tự động…
                     </div>
 
+                    <p style={{ textAlign: "center", fontSize: "0.8125rem", fontWeight: 700, color: remainingMs < 60000 ? "#DC2626" : "var(--color-text-primary)", marginTop: "0.25rem" }}>
+                      ⏱ Phiên thanh toán hết hạn sau {remainingLabel}
+                    </p>
+
                     <p style={{ textAlign: "center", fontSize: "0.75rem", color: "var(--color-text-muted)", marginTop: "0.5rem" }}>
-                      Hệ thống tự động xác nhận trong vài giây sau khi SePay nhận được chuyển khoản — không cần tải lại trang.
+                      Hệ thống tự động xác nhận trong vài giây sau khi SePay nhận được chuyển khoản — không cần tải lại trang. Nếu không chuyển khoản trong 10 phút, phiên sẽ hết hạn và bạn cần tạo lại.
                     </p>
                   </>
                 ) : (
@@ -307,7 +333,7 @@ export default function VIPSubscribePage({ tutorialSlug }: VIPSubscribePageProps
                     </div>
 
                     <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", marginBottom: "1.25rem", lineHeight: 1.6 }}>
-                      Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt.
+                      Sau khi bấm đăng ký, bạn sẽ thấy mã QR chuyển khoản — thanh toán được xác nhận <strong>tự động</strong>, không cần chờ admin duyệt. Phiên thanh toán chỉ mở trong <strong>10 phút</strong>, nếu không chuyển khoản kịp bạn cần tạo lại phiên.
                     </p>
 
                     {error && (

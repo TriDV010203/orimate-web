@@ -42,6 +42,12 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5104";
 
 const nextConfig: NextConfig = {
+  // Thêm đoạn devIndicators này vào để tắt biểu tượng góc màn hình
+  devIndicators: {
+    appIsrStatus: false, 
+    buildActivity: false, 
+  },
+  
   async rewrites() {
     return [
       {
@@ -51,6 +57,11 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // Bypass Next.js built-in Image Optimization API — Cloudinary tự xử lý
+    // resize/format qua URL params (f_auto,c_limit,w_,q_) trong lib/cloudinaryLoader.ts.
+    // Áp dụng cho MỌI <Image> trong app, không cần truyền loader={} thủ công nữa.
+    loader: "custom",
+    loaderFile: "./lib/cloudinaryLoader.ts",
     remotePatterns: [
       // Backend localhost (ảnh cover tutorial, avatar)
       { protocol: "http", hostname: "localhost", port: "5104" },
@@ -63,6 +74,10 @@ const nextConfig: NextConfig = {
       // Cho phép mọi https domain (development convenience)
       { protocol: "https", hostname: "**" },
     ],
+    // Next.js 16 bắt buộc khai báo whitelist các mức quality được phép dùng
+    // qua prop quality={} trên <Image>, nếu không sẽ tự làm tròn về giá trị
+    // gần nhất trong danh sách mặc định ([75]).
+    qualities: [75, 80],
   },
 };
 

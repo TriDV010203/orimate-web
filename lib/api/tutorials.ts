@@ -60,9 +60,6 @@ export interface TutorialDetailDto {
   ratingSummary?: TutorialRatingSummaryDto | null;
   hasAchievement?: boolean;
   hasRated?: boolean;
-  completedStepCount?: number;
-  totalStepCount?: number;
-  progressPercent?: number;
   /** Số người dùng đã hoàn thành bài này (tổng số Achievement gắn với tutorial, không phụ thuộc người xem hiện tại). */
   completedCount?: number;
 }
@@ -166,17 +163,6 @@ export interface TutorialAuthorDetailDto {
   parentTutorialId?: string | null;
 }
 
-// ── Progress types ─────────────────────────────────────────────────────────────
-
-export interface TutorialProgressDto {
-  tutorialId: string;
-  totalSteps: number;
-  completedSteps: number;
-  percentComplete: number;
-  isCompleted: boolean;
-  completedStepIds: string[];
-}
-
 // ── Rating / completion types ────────────────────────────────────────────────
 
 /** BE Domain.Enums.PerceivedDifficulty — đánh giá độ khó theo cảm nhận người học (khác difficulty tác giả đặt) */
@@ -195,7 +181,6 @@ export interface CompleteTutorialRequest {
 }
 
 export interface CompleteTutorialResultDto {
-  progress: TutorialProgressDto;
   achievement: AchievementDto;
   isNewCompletion: boolean;
 }
@@ -366,35 +351,6 @@ export const tutorialsApi = {
   },
 
   // ── Progress ─────────────────────────────────────────────────────────────────
-
-  /** GET /api/tutorials/{tutorialId}/progress — Tiến độ học của user hiện tại */
-  getProgress(token: string, tutorialId: string): Promise<TutorialProgressDto> {
-    return request<TutorialProgressDto>(`/api/tutorials/${tutorialId}/progress`, { token });
-  },
-
-  /** POST /api/tutorials/{tutorialId}/steps/{stepId}/complete — Đánh dấu hoàn thành bước */
-  completeStep(
-    token: string,
-    tutorialId: string,
-    stepId: string
-  ): Promise<TutorialProgressDto> {
-    return request<TutorialProgressDto>(
-      `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
-      { method: "POST", token }
-    );
-  },
-
-  /** DELETE /api/tutorials/{tutorialId}/steps/{stepId}/complete — Bỏ đánh dấu hoàn thành bước */
-  uncompleteStep(
-    token: string,
-    tutorialId: string,
-    stepId: string
-  ): Promise<TutorialProgressDto> {
-    return request<TutorialProgressDto>(
-      `/api/tutorials/${tutorialId}/steps/${stepId}/complete`,
-      { method: "DELETE", token }
-    );
-  },
 
   /**
    * POST /api/tutorials/{tutorialId}/complete — Hoàn thành tutorial: tạo thành tựu + (lần đầu) lưu

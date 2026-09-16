@@ -7,10 +7,10 @@ import {
   dailyChallengeApi,
   type DailyChallengeDto,
   type DailyChallengeSubmissionDto,
-  type ChallengeLeaderboardEntryDto,
 } from "@/lib/api/daily-challenge";
 import type { ApiError } from "@/lib/api/client";
 import ChallengeLayout from "./ChallengeLayout";
+import { isValidImageUrl, getAvatarColor, getAvatarInitial } from "@/lib/utils";
 
 // ── Design helpers ───────────────────────────────────────────────────────────
 const AVATAR_COLORS = ["#2D6A4F", "#D4713B", "#2C7DA0", "#9B59B6", "#E03131", "#F59F00", "#16A34A", "#7C3AED"];
@@ -38,7 +38,8 @@ function formatDateVN(iso: string) {
 }
 
 export function Avatar({ name, avatarUrl, size = 2.5 }: { name: string; avatarUrl?: string | null; size?: number }) {
-  if (avatarUrl) {
+  const isColorCode = avatarUrl?.startsWith("#") ?? false;
+  if (isValidImageUrl(avatarUrl)) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -51,12 +52,13 @@ export function Avatar({ name, avatarUrl, size = 2.5 }: { name: string; avatarUr
       />
     );
   }
-  const initial = name.trim().split(" ").slice(-1)[0]?.[0]?.toUpperCase() ?? "?";
+  const initial = getAvatarInitial(name);
   return (
     <div
       style={{
         width: `${size}rem`, height: `${size}rem`, borderRadius: "50%",
-        background: colorFromSeed(name), color: "white", fontWeight: 700,
+        background: isColorCode ? getAvatarColor(avatarUrl) : colorFromSeed(name),
+        color: "white", fontWeight: 700,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: `${size * 0.4}rem`, flexShrink: 0, border: "2px solid var(--color-surface)",
       }}
@@ -187,11 +189,17 @@ export default function DailyChallengePage() {
     }
   }
 
-  // ── Bảng xếp hạng chuỗi thử thách ──────────────────────────────────────
-  const [leaderboard, setLeaderboard] = useState<ChallengeLeaderboardEntryDto[]>([]);
-  useEffect(() => {
-    dailyChallengeApi.getLeaderboard(5).then(setLeaderboard).catch(() => {});
-  }, []);
+  // ── Bảng xếp hạng lượt thích (dựa trên bài nộp hôm nay) ─────────────────
+  const leaderboard = [...submissions]
+    .sort((a, b) => b.likeCount - a.likeCount)
+    .slice(0, 5)
+    .map((s, i) => ({
+      rank: i + 1,
+      userId: s.userId,
+      displayName: s.userDisplayName,
+      avatarUrl: s.userAvatarUrl,
+      likeCount: s.likeCount,
+    }));
 
   // ── Form nộp bài ───────────────────────────────────────────────────────
   const [photoUrl, setPhotoUrl] = useState("");
@@ -267,7 +275,7 @@ export default function DailyChallengePage() {
       token={token}
       folder="daily-challenge"
       
-      leaderboardTitle="🏆 Bảng xếp hạng streak"
+      leaderboardTitle="🏆 Bảng xếp hạng like"
       leaderboard={leaderboard}
       howItWorksTitle="ℹ️ Cách thức hoạt động"
       howItWorks={HOW_IT_WORKS}

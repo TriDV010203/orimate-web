@@ -12,6 +12,7 @@ import { shopApi, type ShopLinkResponse } from "@/lib/api/shop";
 import type { ApiError } from "@/lib/api/client";
 import { getToken } from "@/lib/auth";
 import { isValidImageUrl } from "@/lib/utils";
+import ImageUploadField from "./ImageUploadField";
 
 interface FormState {
   id: string | null; // null = đang tạo mới
@@ -220,13 +221,13 @@ export default function AdminShopPage() {
           </div>
 
           <div className="input-group">
-            <label className="input-label">Ảnh (Url)</label>
-            <input
-              type="text"
-              className="input-field"
+            <ImageUploadField
+              label="Ảnh"
+              variant="compact"
               value={form.imageUrl}
-              onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-              placeholder="https://..."
+              onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+              token={token}
+              folder="shop"
             />
           </div>
 
