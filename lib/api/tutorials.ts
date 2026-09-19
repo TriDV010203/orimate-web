@@ -53,6 +53,7 @@ export interface TutorialDetailDto {
   steps: TutorialStepDto[];
   publishedAt: string;
   isVipLocked?: boolean;
+  hasVipAccess?: boolean;
   likeCount?: number;
   wishlistCount?: number;
   isLikedByCurrentUser?: boolean | null;

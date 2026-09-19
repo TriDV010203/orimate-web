@@ -1140,7 +1140,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   </div>
                 )}
 
-                {tutorial.isVipLocked && (
+                {tutorial.isVipLocked ? (
                   <div style={{
                     background: "linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #D4713B 100%)",
                     borderRadius: "var(--radius-xl)", padding: "1.25rem", marginBottom: "1rem",
@@ -1155,7 +1155,18 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                       🔓 Mua VIP
                     </Link>
                   </div>
-                )}
+                ) : tutorial.type?.toLowerCase() === "vip" && tutorial.hasVipAccess ? (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: "0.625rem",
+                    background: "#ECFDF5", border: "1px solid #A7F3D0",
+                    borderRadius: "var(--radius-xl)", padding: "0.875rem 1rem", marginBottom: "1rem",
+                  }}>
+                    <span aria-hidden="true" style={{ fontSize: "1.25rem" }}>🔓</span>
+                    <p style={{ color: "#065F46", fontWeight: 700, fontSize: "0.875rem" }}>
+                      Bạn đã mở khóa toàn bộ tutorial VIP này.
+                    </p>
+                  </div>
+                ) : null}
 
                 {/* Đã có thành tựu từ trước — vẫn có thể bấm "Bắt đầu" để làm lại */}
                 {existingAchievement && (
@@ -1213,7 +1224,7 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                   </div>
 
                   {/* Paywall banner — chỉ hiện vài bước đầu, gợi ý mua VIP của tác giả */}
-                  {tutorial.isVipLocked && (
+                  {tutorial.isVipLocked ? (
                     <div style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.875rem",
                       background: "linear-gradient(135deg, #1B4332 0%, #2D6A4F 60%, #D4713B 100%)",
@@ -1231,7 +1242,18 @@ export default function TutorialDetailPage({ slug }: TutorialDetailPageProps) {
                         🔓 Mua VIP
                       </Link>
                     </div>
-                  )}
+                  ) : tutorial.type?.toLowerCase() === "vip" && tutorial.hasVipAccess ? (
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: "0.625rem",
+                      background: "#ECFDF5", border: "1px solid #A7F3D0",
+                      borderRadius: "var(--radius-xl)", padding: "0.875rem 1rem", marginBottom: "1.25rem",
+                    }}>
+                      <span aria-hidden="true" style={{ fontSize: "1.25rem" }}>🔓</span>
+                      <p style={{ color: "#065F46", fontWeight: 700, fontSize: "0.875rem" }}>
+                        Đã mở khóa toàn bộ {totalSteps} bước bằng VIP của tác giả.
+                      </p>
+                    </div>
+                  ) : null}
 
                   {/* Dot indicators — bấm để nhảy nhanh tới bước bất kỳ (không tự đánh dấu hoàn thành) */}
                   {totalSteps > 0 && (

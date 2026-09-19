@@ -3,7 +3,18 @@
 // → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
 // → Không cần CORS, không bị mixed-content vì browser chỉ nói chuyện với Next.js (cùng origin)
 
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+export const BASE_URL =
+  process.env.NODE_ENV === "development"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+
+export function buildApiUrl(path: string): string {
+  if (!path.startsWith("/")) {
+    return path;
+  }
+
+  return BASE_URL ? `${BASE_URL}${path}` : path;
+}
 
 export interface ApiError {
   message: string;
@@ -36,7 +47,7 @@ export async function request<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const fullUrl = `${BASE_URL}${path}`;
+  const fullUrl = buildApiUrl(path);
   console.log("[api] →", fetchOptions.method ?? "GET", fullUrl);
 
   let res: Response;

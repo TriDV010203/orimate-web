@@ -1,7 +1,6 @@
 "use client";
 // _components/AdminCategoriesPage.tsx — Quản trị Danh mục hướng dẫn (dùng cho form đăng bài
-// và bộ lọc "Danh mục" trên trang Thư viện). Xóa là xóa mềm (ẩn khỏi mọi danh sách) vì các
-// tutorial đã publish vẫn tham chiếu categoryId.
+// và bộ lọc "Danh mục" trên trang Thư viện). Không thể xóa khi còn tutorial tham chiếu.
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -83,7 +82,7 @@ export default function AdminCategoriesPage() {
   async function handleDelete(cat: CategoryResponse) {
     const isConfirmed = await confirm({
       title: "Xóa danh mục",
-      description: `Xóa danh mục "${cat.name}"? Các bài hướng dẫn đã dùng danh mục này sẽ không bị ảnh hưởng, nhưng danh mục sẽ không còn hiển thị để chọn nữa.`,
+      description: `Xóa danh mục "${cat.name}"? Không thể xóa nếu vẫn còn tutorial đang dùng danh mục này.`,
       confirmText: "Xóa",
       danger: true,
     });
