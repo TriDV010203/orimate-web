@@ -2,7 +2,7 @@
 // next.config.ts đã cấu hình rewrite: /api/* → BE (mặc định http://orimate.runasp.net/api/*)
 // → FE chỉ cần gọi /api/... (tương đối), Next.js server sẽ proxy tới BE
 // → Không cần CORS, không bị mixed-content vì browser chỉ nói chuyện với Next.js (cùng origin)
-
+import { clearSession } from "../auth";
 export const BASE_URL =
   process.env.NODE_ENV === "development"
     ? ""
@@ -70,6 +70,13 @@ export async function request<T>(
       message = body?.message ?? body?.error ?? body?.title ?? message;
     } catch {
       // ignore parse error
+    }
+    if (res.status === 401) {
+      console.warn("[api] Unauthorized (401) — clearing session");
+      clearSession();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     }
     const err: ApiError = { message, status: res.status };
     if (!expectedErrorStatuses.includes(res.status)) {

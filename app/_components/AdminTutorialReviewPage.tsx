@@ -47,7 +47,7 @@ export default function AdminTutorialReviewPage({ tutorialId }: { tutorialId: st
   });
   const categoryName = categories?.find((c) => c.id === tutorial?.categoryId)?.name;
 
-  const isEdit = tutorial?.status === "EditPendingReview";
+  const isEdit = tutorial?.parentTutorialId != null;
 
   const backToQueue = () => {
     qc.invalidateQueries({ queryKey: ["admin-tutorials-queue"] });

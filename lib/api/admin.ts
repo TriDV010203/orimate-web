@@ -81,6 +81,7 @@ export interface AdminTutorialDetailResponse {
   steps: TutorialStepDto[];
   createdAt: string;
   updatedAt?: string | null;
+  parentTutorialId?: string | null;
 }
 
 export const adminApi = {

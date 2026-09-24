@@ -58,6 +58,7 @@ export function getUser(): StoredUser | null {
 }
 
 export function clearSession(): void {
+  if (typeof window === "undefined") return;
   [localStorage, sessionStorage].forEach((s) => {
     s.removeItem(TOKEN_KEY);
     s.removeItem(USER_KEY);
